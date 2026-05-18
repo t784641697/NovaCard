@@ -2264,6 +2264,7 @@ async function loadCmList(forceRefresh = false) {
     if (s.dateFrom) params.set('date_from', s.dateFrom);
     if (s.dateTo) params.set('date_to', s.dateTo);
     if (forceRefresh) params.set('force', 'true');
+    params.set('sync', 'true'); // 每次加载从上游拉取最新状态
     apiUrl = '/admin/cards?' + params.toString();
   } else {
     apiUrl = '/cards';
@@ -2382,13 +2383,16 @@ function renderCmList(cards) {
   const rows = cards.map(c => {
     const isActive = (c.status||'').toUpperCase() === 'ACTIVE';
     const isFrozen = (c.status||'').toUpperCase() === 'CANCELLED' || c.status === 'frozen';
+    const isDeleted = (c.status||'').toLowerCase() === 'deleted';
     const masked = (c.card_number||'').replace(/^(\d{4})\d+(\d{4})$/,'$1 **** **** $2') || '**** **** **** ****';
     const isVisa = /visa/i.test(c.network||c.card_type||'');
-    const statusBadge = isActive
-      ? `<span class="tag tag-green">正常</span>`
-      : isFrozen
-        ? `<span class="tag tag-red">已冻结</span>`
-        : `<span class="tag tag-yellow">${c.status||'—'}</span>`;
+    const statusBadge = isDeleted
+      ? `<span class="tag tag-gray">已删除</span>`
+      : isActive
+        ? `<span class="tag tag-green">正常</span>`
+        : isFrozen
+          ? `<span class="tag tag-red">已冻结</span>`
+          : `<span class="tag tag-yellow">${c.status||'—'}</span>`;
     var isInvalid = (c.verified_status === 'invalid');
     // 所有卡片都显示"可用余额"，失效卡片金额用浅灰色
     const balDisplay = Number(c.available_amount||0).toFixed(2);
@@ -2397,7 +2401,10 @@ function renderCmList(cards) {
     
     // 按钮逻辑：失效卡片显示"失效"、"详情"、"已冻结"
     var freezeBtn = '';
-    if (isInvalid) {
+    if (isDeleted) {
+      // 已删除卡片：显示灰色的"已删除"按钮（不可点击）
+      freezeBtn = '<button class="cm-btn cm-btn-disabled" disabled style="background:#374151;color:#9CA3AF;cursor:not-allowed;border:1px solid #4B5563;">🗑️ 已失效</button>';
+    } else if (isInvalid) {
       // 失效卡片：显示红色的"已冻结"按钮（不可点击）
       freezeBtn = '<button class="cm-btn cm-btn-frozen" disabled>❄️ 已冻结</button>';
     } else if (isActive) {
