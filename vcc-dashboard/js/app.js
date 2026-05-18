@@ -1102,10 +1102,6 @@ async function renderApply() {
           <div class="form-group"><label>卡片标签</label><input class="form-control" id="ap_label" placeholder="例如：广告投放卡"/></div>
           <div class="form-group"><label>邮箱</label><input class="form-control" type="email" id="ap_email" placeholder="留空使用登录邮箱"/></div>
         </div>
-        <div class="form-row col3">
-          <div class="form-group"><label>手机区号</label><input class="form-control" id="ap_areacode" placeholder="+1" value="+1"/></div>
-          <div class="form-group" style="grid-column:span 2"><label>手机号*</label><input class="form-control" id="ap_mobile" placeholder="1234567890"/></div>
-        </div>
 
         <div class="divider"></div>
         <div style="font-weight:700;margin-bottom:16px">账单地址</div>
@@ -1245,8 +1241,7 @@ async function submitApply() {
     first_name:   g('ap_first'),
     last_name:    g('ap_last'),
     label:        g('ap_label'),
-    area_code:    g('ap_areacode')||'+1',
-    mobile:       g('ap_mobile'),
+    // 移除手机号字段（area_code, mobile）
     email:        g('ap_email')||(_me?.email||''),
     amount:       parseFloat(g('ap_amount'))||0,
     single_limit: parseFloat(g('ap_single'))||0,
@@ -1262,7 +1257,7 @@ async function submitApply() {
     }
   };
   if (!payload.first_name||!payload.last_name) { toast('⚠️ 请填写持卡人姓名'); return; }
-  if (!payload.mobile) { toast('⚠️ 请填写手机号'); return; }
+  
   if (!payload.card_address.address_line_one) { toast('⚠️ 请填写账单地址行1'); return; }
 
   const btn = document.getElementById('submitApplyBtn');
