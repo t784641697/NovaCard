@@ -68,6 +68,77 @@ class VmcardioSDK {
     return this.request('/createCard', params);
   }
 
+  /**
+   * 使用 Web API (dev.vmcardio.com/web/createCard) 创建卡片
+   * 与 Merchant API 不同，Web API：
+   *   - 使用 JWT Session Token 认证（非 API Token）
+   *   - 接收明文 JSON（无需 RSA 加密）
+   *   - 参数名不同：bin / customize_name / customize_last_name /customize_last_name / bind_uid 等
+   *   - 返回 code=200 表示提交成功，卡片异步创建（~10-20秒）
+   *
+   * @param {object} params
+   * @param {string} params.bin              - 产品 Code（对应 Merchant API 的 product_code）
+   * @param {number} params.amount           - 充值金额（USD）
+   * @param {number} params.create_num       - 创建数量（默认 1）
+   * @param {string} params.customize_name   - 持卡人名字（对应 first_name）
+   * @param {string} params.customize_last_name - 持卡人姓氏（对应 last_name）
+   * @param {number} params.bind_uid         - 用户 ID（localStorage auth.userInfo）
+   * @param {string} params.user_name        - 用户邮箱
+   * @returns {Promise<{code: number, message: string, data: array}>}
+   */
+  async webCreateCard(params) {
+    const token = process.env.VMCARDIO_WEB_TOKEN;
+    if (!token) {
+      throw new Error('VMCARDIO_WEB_TOKEN 未配置，请在 .env 中添加');
+    }
+
+    const payload = {
+      bin:                  params.bin,
+      amount:               params.amount,
+      alias:                params.alias || '',
+      create_num:           params.create_num || 1,
+      customize_name:       params.customize_name || 'User',
+      customize_last_name:  params.customize_last_name || 'Card',
+      is_on_default_name:   params.is_on_default_name ?? 0,
+      is_on_default_address: params.is_on_default_address ?? 1,
+      checked:              params.checked ?? 1,
+      user_name:            params.user_name,
+      batchOpen:            false,
+      expire_time:          params.expire_time || 12,
+      card_type:            params.card_type || 'save',
+      bind_uid:             params.bind_uid,
+      is_mcc:               params.is_mcc ?? 0,
+    };
+
+    logger.info('[vmcardio] -> POST /web/createCard (Web API)', { bin: params.bin, amount: params.amount, create_num: payload.create_num });
+
+    const resp = await axios.post(
+      'https://dev.vmcardio.com/web/createCard',
+      payload,
+      {
+        headers: {
+          'token':          token,
+          'Content-Type':   'application/json',
+          'Origin':         'https://sandbox.vmcardio.com',
+        },
+        timeout: 60_000,
+        validateStatus: s => true,
+      }
+    );
+
+    const body = resp.data;
+    if (body.code !== 200) {
+      logger.error('[vmcardio] Web API Error:', body);
+      const err = new Error(body.message || 'Web API 开卡接口异常');
+      err.vmCode = body.code;
+      err.vmMsg  = body.message;
+      throw err;
+    }
+
+    logger.info(`[vmcardio] <- /web/createCard OK: ${body.message}`);
+    return body;
+  }
+
   async cardDetail(card_id) {
     return this.request('/cardDetail', { card_id });
   }

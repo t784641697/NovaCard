@@ -822,56 +822,33 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         // 姓名中去掉数字（vmcardio 不支持数字）
         const sanitizeName = (name) => (name || '').replace(/[0-9]/g, '').trim() || 'User';
 
-        const result = await sdk.createCard({
-          app_id:      process.env.VMCARDIO_APP_ID,
-          product_code: app.product_code || app.card_bin,
-          first_name:  sanitizeName(app.first_name),
-          last_name:   sanitizeName(app.last_name),
-          label:       app.label || '',
-          amount:      topupAmt,
-          user_id:     '20098106',
+        const result = await sdk.webCreateCard({
+          bin:               app.product_code || app.card_bin,
+          amount:            topupAmt,
+          create_num:        1,
+          customize_name:    sanitizeName(app.first_name),
+          customize_last_name: sanitizeName(app.last_name),
+          bind_uid:          22123,
+          user_name:         'taoliang.light@gmail.com',
+          alias:             app.label || '',
         });
-        if (result && result.card_id) {
-          // 写入本地 cards 表
-          const cardInfo = result.card_info || result;
-          db.prepare(`
-            INSERT INTO cards (card_id, user_id, product_code, label, card_type, status,
-              available_amount, single_limit, day_limit, month_limit,
-              card_number, expiry_month, expiry_year, cvv,
-              created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-          `).run(
-            result.card_id,
-            app.user_id,
-            app.product_code,
-            app.label || '',
-            cardInfo.card_type || 'virtual',
-            'active',
-            topupAmt,
-            cardInfo.single_limit || 0,
-            cardInfo.day_limit || 0,
-            cardInfo.month_limit || 0,
-            cardInfo.card_number || null,
-            cardInfo.expiry_month || null,
-            cardInfo.expiry_year || null,
-            cardInfo.cvv || null
-          );
-          createdCards.push(result.card_id);
-        }
+        // Web API 创建成功（异步处理，不立即返回 card_id）
+        createdCards.push(`processing-${Date.now()}-${i}`);
       } catch (err) {
         lastError = err;
-        break; // 中途失败不再继续创建
+        break;
       }
       // 避免请求过快
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     if (createdCards.length > 0) {
-      db.prepare(`UPDATE card_applications SET status = 'approved', card_id = ?, updated_at = datetime('now') WHERE id = ?`)
-        .run(createdCards.join(','), id);
+      db.prepare(`UPDATE card_applications SET status = 'approved', updated_at = datetime('now') WHERE id = ?`)
+        .run(id);
       res.json({
-        code: 0, msg: `已成功创建 ${createdCards.length}/${qty} 张卡片`,
-        data: { card_ids: createdCards, total: qty, success: createdCards.length }
+        code: 0,
+        msg: `已成功提交 ${createdCards.length}/${qty} 张卡片的开卡请求（异步处理，约10-20秒完成），请稍后同步卡片列表查看`,
+        data: { total: qty, success: createdCards.length, application_id: id }
       });
     } else {
       db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?`)
