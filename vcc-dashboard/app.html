@@ -2417,10 +2417,7 @@ async function renderApply() {
           <div class="form-group"><label>名字 (First Name)*</label><input class="form-control" id="ap_first" placeholder="Zhang"/></div>
           <div class="form-group"><label>姓氏 (Last Name)*</label><input class="form-control" id="ap_last" placeholder="San"/></div>
         </div>
-        <div class="form-row col2">
-          <div class="form-group"><label>卡片标签</label><input class="form-control" id="ap_label" placeholder="例如：广告投放卡"/></div>
-          <div class="form-group"><label>邮箱</label><input class="form-control" type="email" id="ap_email" placeholder="留空使用登录邮箱"/></div>
-        </div>
+          <div class="form-group" style="grid-column:span 2"><label>卡片标签</label><input class="form-control" id="ap_label" placeholder="例如：广告投放卡"/></div>
 
         <div class="divider"></div>
         <div style="font-weight:700;margin-bottom:16px">充值 / 数量</div>
@@ -2547,7 +2544,7 @@ async function submitApply() {
     first_name:   g('ap_first'),
     last_name:    g('ap_last'),
     label:        g('ap_label'),
-    email:        g('ap_email')||(_me?.email||''),
+    email:        _me?.email||'',
     topup_amount: parseFloat(g('ap_topup'))||0,
     quantity:     parseInt(g('ap_qty'))||1,
   };
