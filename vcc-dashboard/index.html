@@ -2516,11 +2516,14 @@ async function submitApply() {
     first_name:   g('ap_first'),
     last_name:    g('ap_last'),
     label:        g('ap_label'),
-    email:        _me?.email||'',
-    amount:       parseFloat(g('ap_topup'))||0,
+    topup_amount: parseFloat(g('ap_topup'))||0,
     quantity:     parseInt(g('ap_qty'))||1,
   };
   if (!payload.first_name||!payload.last_name) { toast('⚠️ 请填写持卡人姓名'); return; }
+  // vmcardio 不支持姓名含数字，自动去除
+  payload.first_name = payload.first_name.replace(/[0-9]/g,'').trim();
+  payload.last_name  = payload.last_name.replace(/[0-9]/g,'').trim();
+  if (!payload.first_name||!payload.last_name) { toast('⚠️ 姓名不能全为数字'); return; }
 
   const btn = document.getElementById('submitApplyBtn');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 提交中…';

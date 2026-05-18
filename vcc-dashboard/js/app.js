@@ -1231,6 +1231,10 @@ async function submitApply() {
     quantity:     parseInt(g('ap_qty'))||1,
     };
   if (!payload.first_name||!payload.last_name) { toast('⚠️ 请填写持卡人姓名'); return; }
+  // vmcardio 不支持姓名含数字，自动去除
+  payload.first_name = payload.first_name.replace(/[0-9]/g,'').trim();
+  payload.last_name  = payload.last_name.replace(/[0-9]/g,'').trim();
+  if (!payload.first_name||!payload.last_name) { toast('⚠️ 姓名不能全为数字'); return; }
   if (payload.topup_amount < 20) { toast('⚠️ 卡内充值金额不能低于 $20'); return; }
 
   const btn = document.getElementById('submitApplyBtn');
