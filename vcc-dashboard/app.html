@@ -2986,8 +2986,7 @@ function renderCmSearchBar() {
     + '<div class="cm-tabs-group">'
     + '<button class="' + tabCls('') + '" onclick="cmSelectTab(this,\'\')">全部</button>'
     + '<button class="' + tabCls('active') + '" onclick="cmSelectTab(this,\'active\')">正常</button>'
-    + '<button class="' + tabCls('frozen') + '" onclick="cmSelectTab(this,\'frozen\')">冻结</button>'
-    + '<button class="' + tabCls('cancelled') + '" onclick="cmSelectTab(this,\'cancelled\')">已取消</button>'
+    + '<button class="' + tabCls('cancelled') + '" onclick="cmSelectTab(this,\'cancelled\')">冻结</button>'
     + '</div>'
     // 日期选择器前标签
     + '<span class="cm-date-label">卡片创建时间</span>'
@@ -3011,11 +3010,13 @@ function doCmSearch() {
   loadCmList();
 }
 
-// 按钮组点击（仅切换高亮，不触发搜索）
+// 按钮组点击（自动触发搜索）
 function cmSelectTab(btn, value) {
   btn.closest('div').querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
   btn.classList.add('active');
   window._cmSearch.status = value;
+  window._cmSearch.page = 1;
+  loadCmList();
 }
 
 // 重置搜索
