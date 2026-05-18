@@ -1,8 +1,0 @@
-feat: 实现卡片数据实时同步机制 - 从上游 vmcardio 拉取最新状态展示
-
-前端加载卡片列表自动带 sync=true 参数，后端实时从 vmcardio 查询每张卡片的最新状态：
-- 上游 DELETED → 本地标记 deleted，余额归零
-- 上游 active/frozen → 更新本地状态
-- 上游不可达 → 保留本地状态并标记 verified=error
-
-UI 适配：已删除卡片显示灰色"已删除"标签和禁用按钮
