@@ -1,1328 +1,3 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard</title>
-<style>
-/* ══════════════════════════════════════════════
-   TOKENS
-══════════════════════════════════════════════ */
-:root{
-  --bg:       #0b0d17;
-  --bg2:      #10121f;
-  --bg3:      #161929;
-  --bg4:      #1d2035;
-  --border:   rgba(255,255,255,.07);
-  --border2:  rgba(255,255,255,.12);
-
-  /* 渐变主色 —— 从图片提取：冰蓝→薰衣草紫→品粉 */
-  --grad: linear-gradient(135deg,#7eb8f7 0%,#a78bfa 50%,#e879f9 100%);
-  --grad-r: linear-gradient(135deg,#e879f9 0%,#a78bfa 50%,#7eb8f7 100%);
-
-  --cyan:   #7eb8f7;
-  --purple: #a78bfa;
-  --pink:   #e879f9;
-  --green:  #34d399;
-  --red:    #f87171;
-  --yellow: #fbbf24;
-
-  --text:   #e8eaf6;
-  --text2:  #9da3c0;
-  --text3:  #5c6280;
-
-  --sidebar-w: 220px;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;min-height:100vh;overflow-x:hidden;}
-a{color:inherit;text-decoration:none;}
-input,select,button,textarea{font-family:inherit;}
-.hidden{display:none!important;}
-
-/* ══ SCROLLBAR ══ */
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:rgba(167,139,250,.3);border-radius:99px;}
-
-/* ══ UTIL ══ */
-.flex{display:flex;}.flex-col{flex-direction:column;}.items-center{align-items:center;}.justify-between{justify-content:space-between;}.gap-2{gap:8px;}.gap-3{gap:12px;}.gap-4{gap:16px;}.flex-1{flex:1;}.w-full{width:100%;}
-.text-sm{font-size:.85rem;}.text-xs{font-size:.75rem;}.text-muted{color:var(--text2);}
-.mt-1{margin-top:4px;}.mt-2{margin-top:8px;}.mt-3{margin-top:12px;}.mt-4{margin-top:16px;}.mt-6{margin-top:24px;}
-.mb-2{margin-bottom:8px;}.mb-3{margin-bottom:12px;}.mb-4{margin-bottom:16px;}.mb-6{margin-bottom:24px;}
-.rounded{border-radius:8px;}.rounded-lg{border-radius:12px;}.rounded-xl{border-radius:16px;}.rounded-2xl{border-radius:20px;}.rounded-full{border-radius:999px;}
-.fw-600{font-weight:600;}.fw-700{font-weight:700;}
-
-/* ══ GRAD TEXT ══ */
-.grad-text{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-
-/* ══ GLOW ══ */
-.glow-purple{box-shadow:0 0 32px rgba(167,139,250,.22);}
-.glow-pink{box-shadow:0 0 32px rgba(232,121,249,.22);}
-
-/* ══ BUTTON ══ */
-.btn{padding:10px 22px;border-radius:10px;border:none;cursor:pointer;font-size:.88rem;font-weight:600;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
-.btn-primary{background:var(--grad);color:#fff;font-weight:700;}
-.btn-primary:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 6px 24px rgba(167,139,250,.4);}
-.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border2);}
-.btn-outline:hover{background:rgba(167,139,250,.08);color:var(--purple);border-color:rgba(167,139,250,.4);}
-.btn-ghost{background:transparent;color:var(--text2);border:none;}
-.btn-ghost:hover{color:var(--text);background:rgba(255,255,255,.05);}
-.btn-danger{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.25);}
-.btn-danger:hover{background:rgba(248,113,113,.2);}
-.btn-success{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.25);}
-.btn-success:hover{background:rgba(52,211,153,.2);}
-.btn-sm{padding:6px 14px;font-size:.8rem;border-radius:8px;}
-.btn-lg{padding:13px 30px;font-size:1rem;border-radius:12px;}
-.btn-block{width:100%;justify-content:center;}
-.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important;}
-
-/* 卡片管理状态按钮组 */
-.cm-status-tab{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.85rem;font-weight:500;color:var(--text3);background:transparent;transition:all .2s;white-space:nowrap;font-family:inherit;}
-.cm-status-tab:hover{color:var(--text2);background:rgba(167,139,250,.06);}
-.cm-status-tab.active{color:#fff;font-weight:600;background:var(--grad);box-shadow:0 2px 12px rgba(167,139,250,.3);}
-
-/* 卡片管理搜索栏区域（扁平化，融入顶部） */
-.cm-search-section{padding:0 0 20px 0;margin-bottom:0;}
-.cm-search-row{display:flex;gap:10px;align-items:center;}
-.cm-search-input-wrap{flex:0 1 320px;min-width:180px;position:relative;}
-.cm-search-input-wrap input{width:100%;height:38px;padding:0 14px 0 36px;border-radius:9px;border:1px solid rgba(167,139,250,.2);background:rgba(0,0,0,.25);color:var(--text1);font-size:.88rem;outline:none;box-sizing:border-box;}
-.cm-search-input-wrap input::placeholder{color:var(--text3);}
-.cm-tabs-group{display:inline-flex;gap:2px;background:rgba(0,0,0,.3);padding:3px;border-radius:10px;border:1px solid rgba(167,139,250,.12);flex-shrink:0;}
-.cm-date-label{font-size:.85rem;font-weight:500;color:var(--text3);white-space:nowrap;flex-shrink:0;}
-.cm-btn-search{height:38px;padding:0 18px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(167,139,250,.25);}
-.cm-btn-search:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 16px rgba(167,139,250,.3);}
-.cm-btn-reset{height:38px;padding:0 18px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--text2);font-size:.85rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
-.cm-btn-reset:hover{background:rgba(167,139,250,.08);color:var(--purple);border-color:rgba(167,139,250,.4);}
-/* 搜索/重置按钮组 */
-.cm-search-actions{display:flex;gap:8px;flex-shrink:0;margin-left:6px;}
-.cm-search-actions .cm-btn-search,
-.cm-search-actions .cm-btn-reset{min-width:76px;text-align:center;justify-content:center;}
-/* 结果列表区域（独立卡片，有明显区分） */
-.cm-results-section{background:var(--bg3);border-radius:14px;padding:20px;border:1px solid var(--border);min-height:400px;margin-top:16px;}
-
-.spin{display:inline-block;animation:spin-anim .8s linear infinite;}
-
-/* 日期范围选择器 */
-.dr-trigger{position:relative;display:inline-flex;align-items:center;gap:8px;padding:0 14px;height:38px;border-radius:9px;border:1px solid rgba(167,139,250,.5);background:rgba(0,0,0,.35);color:var(--text3);font-size:.86rem;cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.2);}
-.dr-trigger:hover,.dr-trigger.open{border-color:rgba(167,139,250,.7);background:rgba(0,0,0,.45);}
-.dr-trigger.has-val{color:var(--text1);}
-.dr-trigger .cal-ico{opacity:.5;font-size:.9rem;flex-shrink:0;}
-.dr-trigger .clear-x{margin-left:auto;opacity:.4;font-size:.8rem;display:none;transition:opacity .15s;}
-.dr-trigger.has-val .clear-x{display:block;}
-.dr-trigger .clear-x:hover{opacity:1;color:#ff5f5f;}
-.dr-panel{display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:1000;background:#181b2e;border:1px solid rgba(167,139,250,.2);border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.7);overflow:hidden;}
-.dr-trigger.open .dr-panel{display:flex;}
-.dr-shortcuts{width:100px;border-right:1px solid rgba(255,255,255,.06);padding:14px 0;display:flex;flex-direction:column;}
-.dr-sc{padding:8px 16px;font-size:.8rem;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;}
-.dr-sc:hover{background:rgba(167,139,250,.1);color:var(--purple);}
-.dr-sc.active{color:var(--accent);font-weight:600;}
-.dr-sc-sep{height:1px;background:rgba(255,255,255,.06);margin:5px 0;}
-.dr-cals{padding:14px 18px 10px;display:flex;flex-direction:column;}
-.dr-cals-row{display:flex;gap:24px;}
-.cal{width:224px;}
-.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.cal-title{font-size:.85rem;font-weight:600;color:var(--text1);flex:1;text-align:center;}
-.cal-nav{background:none;border:none;color:var(--text3);cursor:pointer;font-size:.85rem;padding:2px 5px;border-radius:5px;transition:all .15s;display:flex;align-items:center;justify-content:center;width:22px;height:22px;}
-.cal-nav:hover{color:var(--text);background:rgba(167,139,250,.1);}
-.cal-week{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:3px;}
-.cal-week span{text-align:center;font-size:.72rem;color:var(--text3);padding:3px 0;}
-.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;}
-.cal-day{text-align:center;font-size:.8rem;padding:6px 2px;cursor:pointer;border-radius:6px;color:var(--text1);transition:background .12s,color .12s;position:relative;}
-.cal-day.other-month{color:var(--text3);opacity:.25;}
-.cal-day.other-month:hover{background:transparent!important;}
-.cal-day:hover:not(.disabled):not(.other-month){background:rgba(167,139,250,.15);color:var(--purple);}
-.cal-day.today{color:var(--accent);font-weight:700;}
-.cal-day.today::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--accent);}
-.cal-day.in-range{background:rgba(126,184,247,.1);border-radius:0;color:var(--text1);}
-.cal-day.range-start,.cal-day.range-end{background:var(--grad);color:#fff!important;border-radius:6px;font-weight:600;}
-.cal-day.range-start.in-range{border-radius:6px 0 0 6px;}
-.cal-day.range-end.in-range{border-radius:0 6px 6px 0;}
-.cal-day.disabled{color:var(--text3);cursor:default;opacity:.4;}
-.dr-footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,.06);padding:10px 18px 12px;}
-.dr-footer-info{font-size:.78rem;color:var(--text3);}
-.dr-footer-info span{color:var(--accent);}
-.dr-footer-btns{display:flex;gap:8px;}
-.dr-btn-cancel{padding:6px 16px;border-radius:8px;border:none;background:rgba(255,255,255,.06);color:var(--text2);font-size:.82rem;cursor:pointer;transition:all .15s;}
-.dr-btn-cancel:hover{background:rgba(255,255,255,.1);}
-.dr-btn-confirm{padding:6px 16px;border-radius:8px;border:none;background:var(--grad);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;}
-.dr-btn-confirm:hover{opacity:.88;}
-@keyframes spin-anim{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-
-/* ══ FORM ══ */
-.form-group{margin-bottom:18px;}
-.form-group label{display:block;font-size:.8rem;color:var(--text2);margin-bottom:7px;font-weight:500;letter-spacing:.3px;}
-.form-control{width:100%;padding:11px 14px;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.92rem;outline:none;transition:border .18s,background .18s;}
-.form-control:focus{border-color:rgba(167,139,250,.55);background:rgba(167,139,250,.04);}
-.form-control::placeholder{color:var(--text3);}
-select.form-control option{background:var(--bg3);}
-.form-row{display:grid;gap:14px;}
-.form-row.col2{grid-template-columns:1fr 1fr;}
-.form-row.col3{grid-template-columns:1fr 1fr 1fr;}
-
-/* ══ TAG ══ */
-.tag{display:inline-flex;align-items:center;gap:3px;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:600;letter-spacing:.3px;}
-.tag-cyan{background:rgba(126,184,247,.12);color:var(--cyan);border:1px solid rgba(126,184,247,.2);}
-.tag-purple{background:rgba(167,139,250,.12);color:var(--purple);border:1px solid rgba(167,139,250,.2);}
-.tag-pink{background:rgba(232,121,249,.12);color:var(--pink);border:1px solid rgba(232,121,249,.2);}
-.tag-green{background:rgba(52,211,153,.12);color:var(--green);border:1px solid rgba(52,211,153,.2);}
-.tag-red{background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.2);}
-.tag-yellow{background:rgba(251,191,36,.12);color:var(--yellow);border:1px solid rgba(251,191,36,.2);}
-.tag-blue{background:rgba(126,184,247,.1);color:#7eb8f7;border:1px solid rgba(126,184,247,.2);}
-/* 管理员用户列表表格 */
-.au-table{width:100%;border-collapse:collapse;font-size:.85rem;}
-.au-table th{padding:10px 14px;text-align:left;color:var(--text3);font-weight:600;font-size:.75rem;border-bottom:1px solid var(--border);white-space:nowrap;}
-.au-table td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
-.au-table tr:last-child td{border-bottom:none;}
-.au-table tbody tr:hover{background:rgba(255,255,255,.02);}
-/* 操作按钮 */
-.au-btn{font-size:.75rem;padding:4px 12px;border-radius:7px;border:none;cursor:pointer;font-weight:600;transition:all .15s;}
-.au-btn-disable{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25);}
-.au-btn-disable:hover{background:rgba(248,113,113,.25);}
-.au-btn-enable{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.25);}
-.au-btn-enable:hover{background:rgba(52,211,153,.22);}
-
-/* ══ 卡片管理 ══ */
-.cm-list{display:flex;flex-direction:column;gap:12px;}
-.cm-card{
-  background:var(--bg3);border:1px solid var(--border);border-radius:14px;
-  padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
-  gap:16px;transition:border-color .2s;min-height:90px;
-}
-.cm-card:hover{border-color:rgba(0,242,254,.2);}
-.cm-card-left{display:flex;align-items:center;gap:14px;min-width:0;}
-.cm-network-badge{
-  width:40px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;
-  font-size:.65rem;font-weight:800;letter-spacing:.04em;flex-shrink:0;
-}
-.cm-visa{background:linear-gradient(135deg,#1a1f71,#1434cb);color:#fff;}
-.cm-mc{background:linear-gradient(135deg,#eb001b,#f79e1b);color:#fff;}
-.cm-info{min-width:0;}
-.cm-number{font-size:.95rem;font-weight:600;color:var(--text1);letter-spacing:.08em;font-family:monospace;}
-.cm-meta{font-size:.72rem;color:var(--text3);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
-.cm-sep{color:var(--border);margin:0 2px;}
-.cm-user-info{font-size:.65rem;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:6px;}
-.cm-user-email{background:rgba(0,242,254,.08);padding:2px 6px;border-radius:4px;font-family:monospace;font-size:.6rem;}
-.cm-card-right{display:flex;align-items:center;gap:16px;flex-shrink:0;height:100%;}
-.cm-bal{text-align:left;width:80px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;height:100%;}
-.cm-bal-label{font-size:.68rem;color:var(--text3);margin-bottom:2px;}
-.cm-bal-value{font-size:1rem;font-weight:700;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.cm-bal-invalid{font-size:1rem;font-weight:700;color:rgba(148,163,184,0.5);background:none;-webkit-text-fill-color:rgba(148,163,184,0.5);}
-.cm-status{width:60px;flex-shrink:0;}
-.cm-actions{display:flex;gap:8px;}
-.cm-actions-row{display:flex;align-items:center;gap:10px;height:100%;}
-.cm-status-badge{font-size:.75rem;padding:5px 0;border-radius:8px;font-weight:600;background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.2);width:60px;text-align:center;flex-shrink:0;}
-.cm-btn-frozen{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);font-size:.75rem;padding:5px 0;width:70px;border-radius:8px;font-weight:600;cursor:not-allowed;opacity:.9;}
-.cm-btn{font-size:.75rem;padding:5px 0;width:70px;border-radius:8px;border:none;cursor:pointer;font-weight:600;transition:all .15s;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center;height:28px;}
-.cm-btn-topup{background:rgba(0,242,254,.1);color:var(--cyan);border:1px solid rgba(0,242,254,.2);}
-.cm-btn-topup:hover{background:rgba(0,242,254,.2);}
-.cm-btn-freeze{background:rgba(126,184,247,.1);color:#7eb8f7;border:1px solid rgba(126,184,247,.2);}
-.cm-btn-freeze:hover{background:rgba(126,184,247,.22);}
-.cm-btn-unfreeze{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2);}
-.cm-btn-unfreeze:hover{background:rgba(52,211,153,.22);}
-.cm-btn-detail{background:rgba(79,143,255,.1);color:#4f8fff;border:1px solid rgba(79,143,255,.2);}
-.cm-btn-detail:hover{background:rgba(79,143,255,.22);}
-@media(max-width:640px){
-  .cm-card{flex-direction:column;align-items:flex-start;}
-  .cm-card-right{width:100%;justify-content:space-between;}
-}
-
-/* ══ CARD ══ */
-.panel{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;}
-.panel-sm{padding:16px 20px;}
-
-/* ══ DIVIDER ══ */
-.divider{height:1px;background:var(--border);margin:20px 0;}
-
-/* ══ TOAST（居中友好提示） ══ */
-#toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.92);opacity:0;transition:all .35s cubic-bezier(.4,0,.2,1);z-index:10000;pointer-events:none;text-align:center;}
-#toast.show{transform:translate(-50%,-50%) scale(1);opacity:1;}
-.toast-box{display:flex;align-items:center;gap:14px;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:20px 28px;box-shadow:0 12px 48px rgba(0,0,0,.7);min-width:260px;max-width:420px;backdrop-filter:blur(12px);}
-.toast-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
-.toast-body{text-align:left;}
-.toast-title{font-size:.95rem;font-weight:700;margin-bottom:2px;}
-.toast-msg{font-size:.85rem;color:var(--text2);line-height:1.4;}
-/* 成功 */
-.toast-box.success{border-color:rgba(0,199,88,.3);}
-.toast-box.success .toast-icon{background:rgba(0,199,88,.15);color:#00c758;}
-.toast-box.success .toast-title{color:#00c758;}
-/* 错误 */
-.toast-box.error{border-color:rgba(255,95,95,.3);}
-.toast-box.error .toast-icon{background:rgba(255,95,95,.15);color:#ff5f5f;}
-.toast-box.error .toast-title{color:#ff5f5f;}
-/* 警告 */
-.toast-box.warning{border-color:rgba(255,180,50,.3);}
-.toast-box.warning .toast-icon{background:rgba(255,180,50,.15);color:#ffb432;}
-.toast-box.warning .toast-title{color:#ffb432;}
-
-/* ══ 冻结警示横幅 ══ */
-.card-frozen-banner{
-  background:linear-gradient(135deg,rgba(251,191,36,.08) 0%,rgba(248,113,113,.06) 100%);
-  border:1px solid rgba(251,191,36,.25);
-  border-radius:12px;padding:16px 18px;margin-bottom:18px;
-  display:flex;flex-direction:column;gap:8px;
-}
-.cfb-header{display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:700;color:#fbbf24;}
-.cfb-header svg{flex-shrink:0;width:18px;height:18px;}
-.cfb-body{font-size:.8rem;color:var(--text2);line-height:1.6;padding-left:26px;}
-.cfb-body li{margin-bottom:2px;}
-.cfb-body li:last-child{margin-bottom:0;}
-.cfb-body li::marker{color:rgba(251,191,36,.6);}
-
-/* ══ MODAL ══ */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:800;align-items:center;justify-content:center;}
-.modal-overlay.open{display:flex;}
-.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;width:460px;max-width:95vw;padding:32px 28px;position:relative;}
-.modal-sm{width:380px;}
-.modal-title{font-size:1.05rem;font-weight:700;margin-bottom:22px;}
-.modal-close{position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:1.3rem;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
-.modal-close:hover{background:var(--bg4);color:var(--text);}
-
-/* ══════════════════════════════════════════════
-   AUTH WRAP
-══════════════════════════════════════════════ */
-#authCanvas{
-  position:fixed;top:0;left:0;
-  width:100vw;height:100vh;
-  display:block;
-  pointer-events:none;
-  z-index:1;
-}
-#authWrap{
-  display:flex;min-height:100vh;align-items:center;justify-content:center;
-  position:relative;z-index:2;
-  background:transparent;
-}
-
-.auth-card{
-  background:rgba(16,18,31,.82);border:1px solid var(--border2);border-radius:24px;
-  width:420px;max-width:95vw;padding:40px 36px;
-  position:relative;z-index:2;
-  box-shadow:0 24px 80px rgba(0,0,0,.55);
-  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-}
-.auth-logo{text-align:center;margin-bottom:32px;}
-.auth-logo-icon{
-  width:56px;height:56px;border-radius:16px;margin:0 auto 12px;
-  background:var(--grad);display:flex;align-items:center;justify-content:center;
-  font-size:1.5rem;box-shadow:0 8px 24px rgba(167,139,250,.4);
-}
-.auth-logo h1{font-size:1.4rem;font-weight:800;letter-spacing:-.5px;}
-.auth-logo p{font-size:.82rem;color:var(--text2);margin-top:4px;}
-
-.auth-tabs{display:flex;background:var(--bg3);border-radius:10px;padding:4px;gap:4px;margin-bottom:28px;}
-.auth-tab{flex:1;padding:8px;border-radius:7px;border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:.88rem;font-weight:600;transition:all .18s;}
-.auth-tab.active{background:var(--bg4);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.3);}
-
-/* 字段错误提示 */
-.field-error{font-size:.75rem;color:#ff5f5f;margin-top:4px;min-height:16px;transition:all .2s;}
-
-/* 密码强度条 */
-.pwd-strength-wrap{display:flex;align-items:center;gap:8px;}
-.pwd-strength-bar{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;}
-.pwd-strength-fill{height:100%;width:0%;border-radius:2px;transition:width .3s,background .3s;}
-.pwd-strength-label{font-size:.72rem;color:var(--text3);white-space:nowrap;min-width:32px;}
-
-/* 密码规则列表 */
-.pwd-rules{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
-.pwd-rules span{font-size:.7rem;color:var(--text3);background:var(--bg3);
-  padding:2px 7px;border-radius:20px;transition:all .2s;}
-.pwd-rules span.ok{color:#00c758;background:rgba(0,199,88,.12);}
-.pwd-rules span.fail{color:#ff5f5f;}
-
-/* ══════════════════════════════════════════════
-   DASHBOARD LAYOUT
-══════════════════════════════════════════════ */
-#dashWrap{display:flex;min-height:100vh;}
-
-/* SIDEBAR */
-.sidebar{
-  width:var(--sidebar-w);flex-shrink:0;
-  background:var(--bg2);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
-  position:fixed;top:0;left:0;bottom:0;z-index:100;
-}
-.sidebar-top{padding:24px 20px 20px;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;}
-.sidebar-brand{display:flex;align-items:center;gap:10px;margin-bottom:32px;}
-.sidebar-brand-icon{
-  width:36px;height:36px;border-radius:10px;
-  background:var(--grad);display:flex;align-items:center;justify-content:center;
-  font-size:1rem;flex-shrink:0;
-}
-.sidebar-brand-name{font-size:1rem;font-weight:800;letter-spacing:-.3px;}
-.sidebar-brand-sub{font-size:.68rem;color:var(--text3);margin-top:1px;}
-
-.nav-section{margin-bottom:6px;}
-.nav-section-label{font-size:.68rem;color:var(--text3);font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:0 12px 8px;}
-.nav-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;
-  border-radius:10px;cursor:pointer;transition:all .18s;
-  color:var(--text2);font-size:.88rem;font-weight:500;margin-bottom:2px;
-}
-.nav-item:hover{background:rgba(167,139,250,.08);color:var(--text);}
-.nav-item.active{background:rgba(167,139,250,.14);color:var(--purple);}
-.nav-item.active .nav-icon{color:var(--purple);}
-.nav-icon{font-size:1rem;width:20px;text-align:center;flex-shrink:0;}
-.nav-sub{padding-left:30px;}
-.nav-sub .nav-item{padding:7px 10px;font-size:.83rem;}
-
-.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;}
-.user-chip{display:flex;align-items:center;gap:10px;}
-.user-avatar{
-  width:34px;height:34px;border-radius:50%;
-  background:var(--grad);display:flex;align-items:center;justify-content:center;
-  font-size:.85rem;font-weight:700;color:#fff;flex-shrink:0;
-}
-.user-name{font-size:.85rem;font-weight:600;line-height:1.2;}
-.user-role{font-size:.7rem;color:var(--text3);}
-.logout-btn{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:1rem;padding:4px;border-radius:6px;}
-.logout-btn:hover{color:var(--red);}
-
-/* MAIN */
-.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;}
-.content-area{flex:1;padding:28px;max-width:1100px;width:100%;}
-
-/* ══════════════════════════════════════════════
-   PAGE: CARDS (虚拟卡管理)
-══════════════════════════════════════════════ */
-.page-header{margin-bottom:28px;}
-.page-header h2{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;}
-.page-header p{font-size:.85rem;color:var(--text2);margin-top:5px;}
-
-/* 卡片展示 */
-/* ══ 账户总览页 ══ */
-.ov-stat-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
-.ov-stat-card{
-  background:var(--bg3);border:1px solid var(--border);border-radius:14px;
-  padding:20px 24px;position:relative;overflow:hidden;
-}
-.ov-stat-card::before{
-  content:'';position:absolute;top:-40%;right:-20%;
-  width:160px;height:160px;border-radius:50%;
-  background:radial-gradient(circle,rgba(0,242,254,.06) 0%,transparent 70%);
-  pointer-events:none;
-}
-.ov-stat-label{font-size:.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
-.ov-stat-val{font-size:2rem;font-weight:800;line-height:1;margin-bottom:6px;}
-.ov-stat-hint{font-size:.72rem;color:var(--text3);}
-.grad-text{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-/* 折线图 Tab */
-.ov-tab-group{display:flex;gap:4px;background:var(--bg2);padding:3px;border-radius:8px;}
-.ov-tab{padding:4px 12px;border:none;background:transparent;color:var(--text3);font-size:.78rem;border-radius:6px;cursor:pointer;transition:all .15s;}
-.ov-tab.active{background:var(--bg3);color:var(--cyan);font-weight:600;}
-.ov-tab:hover:not(.active){color:var(--text2);}
-@media(max-width:640px){.ov-stat-row{grid-template-columns:1fr;}}
-
-/* ══ 财务中心区块 ══ */
-.fin-section{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:16px;}
-.fin-section-title{font-size:.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:14px;}
-.fin-table-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;}
-.fin-table-head{font-size:.72rem;color:var(--text3);padding:10px 16px;display:flex;align-items:center;background:rgba(0,0,0,.15);border-bottom:1px solid var(--border);}
-.fin-table-row{padding:12px 16px;display:flex;align-items:center;font-size:.83rem;border-bottom:1px solid var(--border);transition:background .15s;}
-.fin-table-row:last-child{border-bottom:none;}
-.fin-table-row:hover{background:rgba(0,242,254,.03);}
-@media(max-width:768px){
-  .fin-section{padding:16px;}
-  .fin-table-head,.fin-table-row{font-size:.75rem;padding:10px 12px;}
-  .fin-section [style*="grid-template-columns:1.4fr"]{grid-template-columns:1fr!important;}
-  .fin-section [style*="grid-template-columns:repeat(4"]{grid-template-columns:repeat(2,1fr)!important;}
-}
-
-/* 最近交易记录表格 */
-.ov-tx-head{
-  display:grid;
-  grid-template-columns: 80px 120px 1fr 80px 80px 100px 130px;
-  gap:0 12px;
-  padding:8px 14px;
-  font-size:.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;
-  border-bottom:1px solid var(--border);
-}
-.ov-tx-body{display:flex;flex-direction:column;}
-.ov-tx-row{
-  display:grid;
-  grid-template-columns: 80px 120px 1fr 80px 80px 100px 130px;
-  gap:0 12px;
-  padding:10px 14px;
-  align-items:center;
-  border-bottom:1px solid rgba(255,255,255,.03);
-  transition:background .12s;
-}
-.ov-tx-row:hover{background:rgba(255,255,255,.03);}
-.ov-tx-cell{font-size:.8rem;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ov-tx-merchant{color:var(--text2);}
-@media(max-width:900px){
-  .ov-tx-head,.ov-tx-row{grid-template-columns:70px 100px 1fr 70px 70px 90px 110px;font-size:.72rem;}
-}
-
-.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
-
-
-.vcard{
-  border-radius:16px;padding:22px 22px 18px;position:relative;overflow:hidden;
-  cursor:pointer;transition:all .22s;
-  min-height:170px;display:flex;flex-direction:column;justify-content:space-between;
-}
-.vcard::before{content:'';position:absolute;inset:0;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,.08) 0%,transparent 60%);pointer-events:none;}
-.vcard:hover{transform:translateY(-3px);}
-.vcard-1{background:linear-gradient(135deg,#1a1040 0%,#2d1b69 60%,#3d2270 100%);border:1px solid rgba(167,139,250,.3);}
-.vcard-2{background:linear-gradient(135deg,#0a1628 0%,#112244 60%,#1a2e55 100%);border:1px solid rgba(126,184,247,.3);}
-.vcard-3{background:linear-gradient(135deg,#1a0a28 0%,#2d1040 60%,#3d1548 100%);border:1px solid rgba(232,121,249,.3);}
-
-.vcard-top{display:flex;justify-content:space-between;align-items:flex-start;}
-.vcard-network{font-size:.7rem;font-weight:800;letter-spacing:1.5px;opacity:.8;}
-.vcard-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
-.vcard-number{font-family:'Courier New',monospace;font-size:1.05rem;font-weight:700;letter-spacing:3px;margin:18px 0 14px;opacity:.9;}
-.vcard-bottom{display:flex;justify-content:space-between;align-items:flex-end;}
-.vcard-label{font-size:.65rem;opacity:.6;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;}
-.vcard-value{font-size:.88rem;font-weight:600;}
-.vcard-balance{font-size:1.1rem;font-weight:800;}
-
-/* 卡片列表表格式 */
-.card-table{background:var(--bg2);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
-.card-table-head{display:grid;padding:12px 20px;background:var(--bg3);border-bottom:1px solid var(--border);}
-.card-table-row{display:grid;padding:16px 20px;border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer;}
-.card-table-row:last-child{border-bottom:none;}
-.card-table-row:hover{background:rgba(167,139,250,.04);}
-.card-table-head,.card-table-row{grid-template-columns:2fr 1.2fr 1fr 1fr 1.2fr 160px;}
-.ctl{font-size:.72rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
-
-/* 申请状态 */
-.app-list{display:flex;flex-direction:column;gap:10px;}
-.app-item{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.app-item-main{flex:1;}
-.app-item-code{font-size:.88rem;font-weight:700;font-family:monospace;}
-.app-item-meta{font-size:.75rem;color:var(--text3);margin-top:2px;}
-
-/* ══ 开卡申请表单 ══ */
-.stepper{display:flex;align-items:center;gap:0;margin-bottom:28px;}
-.step{display:flex;align-items:center;gap:8px;}
-.step-num{
-  width:28px;height:28px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-size:.78rem;font-weight:700;flex-shrink:0;
-  border:2px solid var(--border2);color:var(--text3);
-}
-.step.active .step-num{background:var(--grad);border-color:transparent;color:#fff;}
-.step.done .step-num{background:var(--green);border-color:transparent;color:#fff;}
-.step-label{font-size:.82rem;color:var(--text3);font-weight:500;}
-.step.active .step-label{color:var(--text);font-weight:600;}
-.step-line{flex:1;height:1px;background:var(--border);margin:0 12px;}
-
-/* bin卡段选择 */
-.bin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
-.bin-card{
-  border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;
-  cursor:pointer;transition:all .18s;background:var(--bg3);
-}
-.bin-card:hover,.bin-card.selected{
-  border-color:rgba(167,139,250,.6);
-  background:rgba(167,139,250,.07);
-}
-.bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
-.bin-code{font-size:.95rem;font-weight:700;font-family:monospace;color:var(--purple);margin-bottom:6px;}
-.bin-info{font-size:.75rem;color:var(--text2);}
-
-/* ══════════════════════════════════════════════
-   PAGE: TOPUP (充值)
-══════════════════════════════════════════════ */
-.topup-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;}
-.topup-amount-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;}
-.amount-chip{
-  padding:10px;border-radius:10px;border:1.5px solid var(--border);
-  background:var(--bg3);cursor:pointer;text-align:center;
-  font-size:.9rem;font-weight:600;color:var(--text2);transition:all .18s;
-}
-.amount-chip:hover,.amount-chip.selected{
-  border-color:var(--purple);background:rgba(167,139,250,.1);color:var(--purple);
-}
-.network-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
-.network-chip{
-  padding:12px;border-radius:12px;border:1.5px solid var(--border);
-  background:var(--bg3);cursor:pointer;transition:all .18s;
-  display:flex;align-items:center;gap:8px;
-}
-.network-chip:hover,.network-chip.selected{border-color:var(--purple);background:rgba(167,139,250,.08);}
-.nc-icon{font-size:1.2rem;}
-.nc-name{font-size:.85rem;font-weight:600;}
-.nc-sub{font-size:.72rem;color:var(--text3);}
-
-/* 充值类型选择弹窗 */
-.topup-type-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
-  z-index:900;display:flex;align-items:center;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity .22s;
-}
-.topup-type-overlay.open{opacity:1;pointer-events:all;}
-.topup-type-modal{
-  background:var(--bg2);border:1px solid var(--border);border-radius:20px;
-  padding:32px 28px;width:440px;max-width:95vw;
-}
-.topup-type-title{font-size:1.1rem;font-weight:700;margin-bottom:6px;}
-.topup-type-sub{font-size:.82rem;color:var(--text3);margin-bottom:24px;}
-.topup-type-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.topup-type-card{
-  border:2px solid var(--border);border-radius:16px;padding:22px 18px;
-  background:var(--bg3);cursor:pointer;transition:all .2s;text-align:center;
-}
-.topup-type-card:hover{border-color:var(--purple);background:rgba(167,139,250,.07);transform:translateY(-2px);}
-.ttc-icon{font-size:2.2rem;margin-bottom:10px;}
-.ttc-name{font-size:1rem;font-weight:700;margin-bottom:4px;}
-.ttc-desc{font-size:.76rem;color:var(--text3);line-height:1.5;}
-/* 禁用卡片 */
-.topup-type-card--disabled{cursor:not-allowed;position:relative;overflow:hidden;}
-.topup-type-card--disabled:hover{border-color:var(--border)!important;background:transparent!important;transform:none!important;}
-/* 等待开放角标 */
-.ttc-coming{
-  position:absolute;top:10px;right:-20px;
-  background:linear-gradient(135deg,#a78bfa,#e879f9);
-  color:#fff;font-size:.65rem;font-weight:700;
-  padding:3px 28px;
-  transform:rotate(35deg);
-  letter-spacing:.05em;
-  pointer-events:none;
-}
-.topup-type-cancel{
-  display:block;margin:16px auto 0;
-  padding:10px 40px;
-  font-size:.88rem;font-weight:700;
-  color:#fff;
-  background:var(--grad);
-  border:none;
-  border-radius:10px;
-  cursor:pointer;
-  transition:all .2s;
-  letter-spacing:.04em;
-}
-.topup-type-cancel:hover{
-  opacity:.88;
-  transform:translateY(-1px);
-  box-shadow:0 6px 24px rgba(167,139,250,.4);
-}
-
-/* 充值类型标签 */
-.topup-type-badge{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:600;
-  cursor:pointer;margin-left:10px;
-  border:1px solid var(--border);background:var(--bg3);color:var(--text2);
-  transition:all .15s;
-}
-.topup-type-badge:hover{border-color:var(--purple);color:var(--purple);}
-
-/* 充值历史 */
-.topup-history{display:flex;flex-direction:column;gap:6px;}
-.th-item{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;flex-direction:column;gap:0;}
-.th-item-row{display:flex;align-items:center;justify-content:space-between;}
-.th-left{flex:1;}
-.th-amount{font-size:1rem;font-weight:700;}
-.th-meta{font-size:.75rem;color:var(--text3);margin-top:2px;}
-.th-right{text-align:right;display:flex;align-items:center;gap:8px;}
-/* 填写金额行 */
-.th-amt-row{
-  display:none;align-items:center;gap:8px;
-  margin-top:10px;padding-top:10px;
-  border-top:1px solid var(--border2);
-}
-.th-amt-row.open{display:flex;}
-.th-amt-input{
-  flex:1;height:32px;padding:0 10px;font-size:.82rem;
-  background:var(--bg2);border:1px solid var(--border2);
-  border-radius:7px;color:var(--text);outline:none;
-  transition:border-color .15s;
-}
-.th-amt-input:focus{border-color:var(--cyan);}
-.th-amt-save{
-  height:32px;padding:0 14px;font-size:.8rem;font-weight:600;
-  border-radius:7px;border:none;cursor:pointer;transition:all .15s;
-  background:linear-gradient(135deg,var(--cyan),#4f8fff);color:#0a0f1e;
-}
-.th-amt-save:hover{opacity:.85;transform:translateY(-1px);}
-.th-amt-cancel{
-  height:32px;padding:0 10px;font-size:.8rem;
-  border-radius:7px;border:1px solid var(--border2);
-  background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;
-}
-.th-amt-cancel:hover{border-color:var(--red);color:var(--red);}
-/* 填写金额按钮 */
-.th-fill-btn{
-  font-size:.72rem;padding:3px 9px;border-radius:6px;
-  border:1px solid rgba(0,242,254,.35);
-  background:rgba(0,242,254,.06);color:var(--cyan);
-  cursor:pointer;transition:all .15s;white-space:nowrap;
-}
-.th-fill-btn:hover{background:rgba(0,242,254,.14);}
-/* 已填金额展示 */
-.th-filled-amt{font-size:.78rem;color:var(--green);font-weight:600;}
-/* 充值记录滚动条 */
-#topupHistory::-webkit-scrollbar{width:4px;}
-#topupHistory::-webkit-scrollbar-track{background:transparent;}
-#topupHistory::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
-#topupHistory::-webkit-scrollbar-thumb:hover{background:rgba(0,242,254,.25);}
-
-/* ══ EMPTY STATE ══ */
-.empty-state{padding:48px 20px;text-align:center;color:var(--text3);}
-.empty-icon{font-size:2.5rem;margin-bottom:12px;opacity:.5;}
-.empty-text{font-size:.9rem;}
-.empty-sub{font-size:.8rem;margin-top:6px;color:var(--text3);}
-
-/* ══ LOADING ══ */
-.skeleton{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-/* ══ SPINNER ══ */
-.spinner{width:18px;height:18px;border:2px solid rgba(167,139,250,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* ══ NOTIFICATION DOT ══ */
-.notif-dot{position:relative;}
-.notif-dot::after{content:'';position:absolute;top:1px;right:1px;width:7px;height:7px;border-radius:50%;background:var(--pink);border:1.5px solid var(--bg2);}
-/* ══ USDT TAB + QR ══ */
-.usdt-tab-bar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
-.usdt-tab{
-  border-radius:12px;border:1.5px solid var(--border2);
-  background:var(--bg3);padding:12px 16px;cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;gap:10px;
-}
-.usdt-tab:hover{border-color:var(--cyan);background:rgba(0,242,254,.06);}
-.usdt-tab.selected{
-  border-color:var(--cyan);background:rgba(0,242,254,.1);
-  box-shadow:0 0 0 2px rgba(0,242,254,.15);
-}
-.usdt-tab-icon{font-size:1.4rem;line-height:1;}
-.usdt-tab-name{font-size:.95rem;font-weight:700;color:var(--text);}
-.usdt-tab-sub{font-size:.72rem;color:var(--text3);}
-.usdt-qr-panel{
-  position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;
-  padding:24px 20px 20px;border-radius:16px;margin-bottom:0;overflow:hidden;
-  background:linear-gradient(145deg,#0d1829,#111d30);
-  border:1px solid rgba(0,242,254,.2);
-  box-shadow:0 0 28px rgba(0,242,254,.07),inset 0 0 40px rgba(0,0,0,.2);
-}
-/* 背景光斑 */
-.usdt-qr-panel::before{
-  content:'';position:absolute;top:-40px;right:-40px;
-  width:140px;height:140px;border-radius:50%;
-  background:radial-gradient(circle,rgba(0,242,254,.12),transparent 70%);
-  pointer-events:none;
-}
-.usdt-qr-panel::after{
-  content:'';position:absolute;bottom:-30px;left:-30px;
-  width:100px;height:100px;border-radius:50%;
-  background:radial-gradient(circle,rgba(79,143,255,.1),transparent 70%);
-  pointer-events:none;
-}
-/* 二维码外框：渐变描边 */
-.usdt-qr-ring{
-  padding:3px;border-radius:16px;
-  background:linear-gradient(135deg,#00f2fe,#4f8fff,#00c758);
-  box-shadow:0 0 20px rgba(0,242,254,.3),0 4px 20px rgba(0,0,0,.4);
-  position:relative;z-index:1;
-}
-.usdt-qr-box{
-  width:160px;height:160px;background:#fff;border-radius:13px;
-  padding:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;
-}
-.usdt-qr-box canvas,.usdt-qr-box img{width:140px;height:140px;}
-/* 网络标签 */
-.usdt-network-label{
-  display:inline-flex;align-items:center;gap:5px;
-  font-size:.72rem;font-weight:600;letter-spacing:.04em;
-  color:var(--cyan);background:rgba(0,242,254,.1);
-  border:1px solid rgba(0,242,254,.25);border-radius:20px;
-  padding:3px 10px;position:relative;z-index:1;
-}
-.usdt-network-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse-dot 1.8s ease-in-out infinite;}
-@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
-/* 地址区 */
-.usdt-addr-wrap{
-  position:relative;z-index:1;width:100%;
-  background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.06);
-  border-radius:10px;padding:10px 12px;
-}
-.usdt-addr-label{font-size:.65rem;color:var(--text3);margin-bottom:4px;letter-spacing:.05em;}
-.usdt-addr{
-  font-size:.68rem;font-family:monospace;color:#8ff5ff;word-break:break-all;
-  line-height:1.7;text-align:center;
-}
-.usdt-copy-btn{
-  position:relative;z-index:1;
-  font-size:.78rem;padding:7px 22px;border-radius:8px;
-  border:1px solid rgba(0,242,254,.4);
-  background:linear-gradient(135deg,rgba(0,242,254,.12),rgba(79,143,255,.08));
-  color:var(--cyan);cursor:pointer;transition:all .18s;font-weight:600;letter-spacing:.02em;
-}
-.usdt-copy-btn:hover{
-  background:linear-gradient(135deg,rgba(0,242,254,.22),rgba(79,143,255,.15));
-  box-shadow:0 0 12px rgba(0,242,254,.2);
-  transform:translateY(-1px);
-}
-
-/* 管理员警告横幅 */
-.alert {
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 16px;
-  border: 1px solid;
-}
-
-.alert-warning {
-  background: rgba(255, 191, 71, 0.08);
-  border-color: rgba(255, 191, 71, 0.3);
-  color: #ffb347;
-}
-
-.alert-danger {
-  background: rgba(255, 95, 95, 0.08);
-  border-color: rgba(255, 95, 95, 0.3);
-  color: #ff5f5f;
-}
-
-/* 状态指示灯 */
-.status-indicator {
-  font-size: 1.2rem;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-/* 管理员统计卡片 */
-.grad-text {
-  background: linear-gradient(135deg, #00f2fe, #4f8fff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* 管理员表格样式 */
-.au-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.au-table th {
-  text-align: left;
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text2);
-  font-weight: 600;
-}
-
-.au-table td {
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.au-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.au-btn {
-  font-size: 0.75rem;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.au-btn-enable {
-  background: linear-gradient(135deg, #00c758 0%, #00a849 100%);
-  color: white;
-  border: none;
-  font-weight: 700;
-  font-size: .75rem;
-  padding: 6px 14px;
-  border-radius: 10px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  letter-spacing: 0.3px;
-  transition: all .2s ease;
-}
-
-.au-btn-disable {
-  background: linear-gradient(135deg, #ff5f5f 0%, #e53935 100%);
-  color: white;
-  border: none;
-  font-weight: 700;
-  font-size: .75rem;
-  padding: 6px 14px;
-  border-radius: 10px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  letter-spacing: 0.3px;
-  transition: all .2s ease;
-}
-
-.au-btn-enable:hover {
-  background: linear-gradient(135deg, #00e472 0%, #00d062 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-}
-
-.au-btn-disable:hover {
-  background: linear-gradient(135deg, #ff7b7b 0%, #ff5252 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-}
-.au-btn-disabled {
-  opacity: 0.6;
-  background: linear-gradient(135deg, #2d3746 0%, #1a2332 100%) !important;
-  color: #9fa8ba !important;
-  border: none !important;
-  cursor: not-allowed !important;
-  font-weight: 700;
-  font-size: .75rem;
-  padding: 6px 14px;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  letter-spacing: 0.3px;
-}
-
-/* 工具类 */
-.flex { display: flex; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-2 { gap: 8px; }
-.gap-3 { gap: 12px; }
-.mt-2 { margin-top: 8px; }
-.mt-3 { margin-top: 12px; }
-.mt-4 { margin-top: 16px; }
-.hidden { display: none !important; }
-
-/* 模态框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-}
-.modal-overlay.show {
-  opacity: 1;
-  visibility: visible;
-}
-.modal {
-  background: var(--bg2, #13192a);
-  border: 1px solid rgba(0, 242, 254, 0.2);
-  border-radius: 20px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 85vh;
-  overflow-y: auto;
-  padding: 25px;
-  position: relative;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  transform: translateY(20px);
-  transition: transform 0.3s ease;
-  /* 自定义滚动条 - 细窄美观 */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 242, 254, 0.25) transparent;
-}
-/* Webkit浏览器滚动条优化 */
-.modal::-webkit-scrollbar {
-  width: 4px;
-}
-.modal::-webkit-scrollbar-track {
-  background: transparent;
-  margin: 8px 0;
-}
-.modal::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(0, 242, 254, 0.2), rgba(167, 139, 250, 0.2));
-  border-radius: 99px;
-  border: 1px solid rgba(0, 242, 254, 0.1);
-}
-.modal::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(0, 242, 254, 0.4), rgba(167, 139, 250, 0.4));
-}
-.modal-overlay.show .modal {
-  transform: translateY(0);
-}
-.modal-close {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(0, 242, 254, 0.3);
-  color: var(--cyan);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 18px;
-  transition: all 0.2s;
-}
-.modal-close:hover {
-  background: rgba(0, 242, 254, 0.2);
-  border-color: rgba(0, 242, 254, 0.5);
-}
-.modal-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text1);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.modal-title .tag {
-  font-size: 12px;
-  padding: 3px 10px;
-}
-.modal-subtitle {
-  font-size: 14px;
-  color: var(--text3);
-  margin-bottom: 25px;
-}
-/* ── 管理员卡片详情：只读字段 ── */
-.ro-grid{display:flex;flex-direction:column;gap:0;margin-bottom:25px;}
-.ro-field{display:flex;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--border);}
-.ro-field:last-child{border-bottom:none;}
-.ro-label{font-size:13px;color:var(--text3);font-weight:500;flex-shrink:0;width:100px;}
-.ro-value{font-size:14px;color:var(--text1);font-weight:600;text-align:left;word-break:break-all;}
-.ro-value.copyable{cursor:pointer;transition:color .15s;display:inline-flex;align-items:center;gap:6px;}
-.ro-value.copyable:hover{color:var(--cyan);}
-.ro-value.copyable .copy-ico{font-size:11px;color:var(--text3);opacity:0;transition:opacity .15s;}
-.ro-value.copyable:hover .copy-ico{opacity:.7;}
-.ro-value.mono{font-family:'JetBrains Mono','Consolas',monospace;letter-spacing:.3px;}
-.ro-value.amount{color:var(--green);font-weight:700;font-size:15px;}
-.btn-copy-all{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;border:1px solid rgba(167,139,250,.25);background:rgba(167,139,250,.08);color:var(--purple);font-size:.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
-.btn-copy-all:hover{background:rgba(167,139,250,.18);border-color:rgba(167,139,250,.4);}
-.btn-copy-all:active{transform:scale(.96);}
-.modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
-.modal-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-.modal-user-info{display:flex;align-items:center;font-size:13px;color:var(--text2);}
-.modal-user-email{font-family:monospace;color:var(--cyan);}
-</style>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js?v=1776961835" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js?v=1776961835" defer></script>
-<!-- BUILD_VERSION: 1776963443 -->
-</head>
-<body>
-<!-- 骨架屏：首屏立即可见，HTML/CSS加载后立即显示 -->
-<div id="splash" style="position:fixed;inset:0;background:#0b0d17;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;transition:opacity .3s">
-  <div style="font-size:48px;margin-bottom:16px">💳</div>
-  <div style="font-size:20px;font-weight:700;background:linear-gradient(135deg,#7eb8f7,#a78bfa,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent">NovaCard</div>
-  <div style="margin-top:24px;width:120px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden">
-    <div id="splashBar" style="width:0;height:100%;background:linear-gradient(90deg,#7eb8f7,#a78bfa,#e879f9);border-radius:2px;transition:width .3s"></div>
-  </div>
-  <div id="splashText" style="margin-top:12px;font-size:13px;color:#6b7a90">正在加载...</div>
-</div>
-
-
-<div id="toast"></div>
-
-
-<canvas id="authCanvas"></canvas>
-<div id="authWrap">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">💳</div>
-      <h1><span class="grad-text">NovaCard</span></h1>
-      <p>一卡畅享全球支付体验</p>
-    </div>
-
-    
-    <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">登 录</button>
-      <button class="auth-tab" id="tabReg" onclick="switchTab('reg')">注 册</button>
-    </div>
-
-    
-    <div id="loginForm">
-      <div class="form-group">
-        <label>邮箱地址</label>
-        <input class="form-control" type="email" id="loginEmail" placeholder="your@email.com"
-          oninput="validateLoginField()" onkeydown="if(event.key==='Enter')doLogin()"/>
-        <div class="field-error" id="loginEmailErr"></div>
-      </div>
-      <div class="form-group">
-        <label>密码</label>
-        <div style="position:relative;">
-          <input class="form-control" type="password" id="loginPwd" placeholder="请输入密码"
-            oninput="validateLoginField()" onkeydown="if(event.key==='Enter')doLogin()"
-            style="padding-right:40px;"/>
-          <span onclick="togglePwd('loginPwd',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;opacity:.6;font-size:16px;">👁</span>
-        </div>
-        <div class="field-error" id="loginPwdErr"></div>
-      </div>
-      
-      <button class="btn btn-primary btn-block btn-lg mt-2" id="loginBtn" onclick="doLogin()">登 录</button>
-    </div>
-
-    
-    <div id="regForm" class="hidden">
-      <div class="form-group">
-        <label>用户名</label>
-        <input class="form-control" type="text" id="regName" placeholder="请输入用户名"/>
-        <div class="field-error" id="regNameErr"></div>
-      </div>
-      <div class="form-group">
-        <label>邮箱地址</label>
-        <input class="form-control" type="email" id="regEmail" placeholder="your@email.com"
-          oninput="validateRegField()"/>
-        <div class="field-error" id="regEmailErr"></div>
-      </div>
-      <div class="form-group">
-        <label>密码</label>
-        <div style="position:relative;">
-          <input class="form-control" type="password" id="regPwd" placeholder="8-16位，含大小写+数字+特殊字符"
-            oninput="onRegPwdInput()" style="padding-right:40px;"/>
-          <span onclick="togglePwd('regPwd',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;opacity:.6;font-size:16px;">👁</span>
-        </div>
-        
-        <div class="pwd-strength-wrap" id="pwdStrengthWrap" style="display:none;margin-top:8px;">
-          <div class="pwd-strength-bar">
-            <div class="pwd-strength-fill" id="pwdStrengthFill"></div>
-          </div>
-          <span class="pwd-strength-label" id="pwdStrengthLabel"></span>
-        </div>
-        <div class="pwd-rules" id="pwdRules">
-          <span id="r-len">✗ 8-16位</span>
-          <span id="r-upper">✗ 含大写字母</span>
-          <span id="r-num">✗ 含数字</span>
-          <span id="r-special">✗ 含特殊字符</span>
-        </div>
-        <div class="field-error" id="regPwdErr"></div>
-      </div>
-      <div class="form-group">
-        <label>确认密码</label>
-        <div style="position:relative;">
-          <input class="form-control" type="password" id="regPwd2" placeholder="再次输入密码"
-            oninput="validateRegField()" style="padding-right:40px;"/>
-          <span onclick="togglePwd('regPwd2',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;opacity:.6;font-size:16px;">👁</span>
-        </div>
-        <div class="field-error" id="regPwd2Err"></div>
-      </div>
-      
-      <button class="btn btn-primary btn-block btn-lg mt-2" id="regBtn" onclick="doRegister()">注 册</button>
-    </div>
-  </div>
-</div>
-
-
-<div id="dashWrap" class="hidden">
-
-  
-  <aside class="sidebar">
-    <div class="sidebar-top" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;">
-      
-      <div class="sidebar-brand">
-        <div class="sidebar-brand-icon">💳</div>
-        <div>
-          <div class="sidebar-brand-name">NovaCard</div>
-          <div class="sidebar-brand-sub">一卡畅享全球支付</div>
-        </div>
-      </div>
-
-      
-      <nav>
-        <div class="nav-section">
-          <div class="nav-section-label">虚拟卡</div>
-          <div class="nav-item" id="nav-cards" onclick="gotoPage('cards')">
-            <span class="nav-icon">🃏</span><span>账户总览</span>
-          </div>
-          <div class="nav-item" id="nav-apply" onclick="gotoPage('apply')">
-            <span class="nav-icon">✨</span><span>申请开卡</span>
-          </div>
-          <div class="nav-item" id="nav-card-mgmt" onclick="gotoPage('card-mgmt')">
-            <span class="nav-icon">💳</span><span>卡片管理</span>
-          </div>
-        </div>
-        
-        <div class="nav-section" id="nav-finance-section" style="margin-top:16px;">
-          <div class="nav-section-label">账务</div>
-          <div class="nav-item" id="nav-topup" onclick="openTopupTypeModal()">
-            <span class="nav-icon">💰</span><span>充值</span>
-          </div>
-          <div class="nav-item" id="nav-balance-detail" onclick="gotoPage('balance-detail')">
-            <span class="nav-icon">📊</span><span>账务明细</span>
-          </div>
-          <div class="nav-item" id="nav-ledger" onclick="gotoPage('ledger')">
-            <span class="nav-icon">📋</span><span>账户流水</span>
-          </div>
-          <div class="nav-item" id="nav-card-tx" onclick="gotoPage('card-tx')">
-            <span class="nav-icon">💳</span><span>卡交易记录</span>
-          </div>
-          <div class="nav-item" id="nav-card-settle" onclick="gotoPage('card-settle')">
-            <span class="nav-icon">✅</span><span>卡结算记录</span>
-          </div>
-        </div>
-        
-        <div class="nav-section hidden" id="nav-admin-section" style="margin-top:16px;">
-          <div class="nav-section-label">管理</div>
-          <div class="nav-item" id="nav-admin-dashboard" onclick="gotoPage('admin-dashboard')">
-            <span class="nav-icon">📊</span><span>管理总览</span>
-          </div>
-          <div class="nav-item" id="nav-admin-users" onclick="gotoPage('admin-users')">
-            <span class="nav-icon">👥</span><span>用户管理</span>
-          </div>
-          <div class="nav-item" id="nav-admin-cards" onclick="gotoPage('card-mgmt')">
-            <span class="nav-icon">💳</span><span>卡片管理</span>
-          </div>
-          <div class="nav-item" id="nav-admin-fee-config" onclick="gotoPage('admin-fee-config')">
-            <span class="nav-icon">💰</span><span>费用设置</span>
-          </div>
-          <div class="nav-item" id="nav-admin-card-review" onclick="gotoPage('admin-card-review')">
-            <span class="nav-icon">🔍</span><span>开卡审核</span>
-          </div>
-          <div class="nav-item" id="nav-admin-topup-review" onclick="gotoPage('admin-topup-review')">
-            <span class="nav-icon">💵</span><span>充值审核</span>
-          </div>
-          <div class="nav-item" id="nav-admin-finance" onclick="gotoPage('admin-finance')">
-            <span class="nav-icon">🏦</span><span>财务中心</span>
-          </div>
-          <div class="nav-item" id="nav-admin-tx-monitor" onclick="gotoPage('admin-tx-monitor')">
-            <span class="nav-icon">📡</span><span>交易监控</span>
-          </div>
-          <div class="nav-item" id="nav-admin-settings" onclick="gotoPage('admin-settings')">
-            <span class="nav-icon">⚙️</span><span>系统设置</span>
-          </div>
-        </div>
-      </nav>
-    </div>
-
-    <div class="sidebar-bottom" style="flex-shrink:0;">
-      <div class="user-chip">
-        <div class="user-avatar" id="sidebarAvatar">U</div>
-        <div>
-          <div class="user-name" id="sidebarName">用户</div>
-          <div class="user-role" id="sidebarRole">普通用户</div>
-        </div>
-        <button class="logout-btn" ti      </div>
-      <button class="logout-btn" title="退出登录" onclick="doLogout()">⏏</button>
-    </div>
-    
-
-    </div>
-  </aside>
-
-  
-  <main class="main">
-    
-    
-
-    <div class="content-area" id="contentArea">
-      
-    </div>
-  </main>
-</div>
-
-
-<div class="modal-overlay" id="cardModal" onclick="closeCardModal(event)">
-  <div class="modal" id="cardModalInner">
-    <button class="modal-close" onclick="closeCardModal()">×</button>
-    <div id="cardModalBody"></div>
-  </div>
-</div>
-
-
-<div class="topup-type-overlay" id="topupTypeOverlay">
-  <div class="topup-type-modal">
-    <div class="topup-type-title">选择充值方式</div>
-    <div class="topup-type-sub">请选择您希望使用的充值类型</div>
-    <div class="topup-type-cards">
-      <div class="topup-type-card" onclick="selectTopupType('usdt')">
-        <div class="ttc-icon">₮</div>
-        <div class="ttc-name">USDT</div>
-        <div class="ttc-desc">加密稳定币<br>TRC20 / ERC20 网络<br>快速到账</div>
-      </div>
-      <div class="topup-type-card topup-type-card--disabled" onclick="toast('🔒 USD 充值即将开放，敬请期待')">
-        <div class="ttc-coming">等待开放</div>
-        <div class="ttc-icon" style="opacity:.45">💵</div>
-        <div class="ttc-name" style="opacity:.45">USD</div>
-        <div class="ttc-desc" style="opacity:.35">美元法币<br>银行电汇<br>Wire Transfer</div>
-      </div>
-    </div>
-    <button class="topup-type-cancel" onclick="closeTopupTypeModal()">取消</button>
-  </div>
-</div>
-
-
-<div class="modal-overlay" id="rechargeModal" onclick="closeRechargeModal(event)">
-  <div class="modal modal-sm" id="rechargeModalInner">
-    <button class="modal-close" onclick="closeRechargeModal()">×</button>
-    <div class="modal-title">💰 卡片充值</div>
-    <div id="rechargeCardInfo" style="margin-bottom:16px;font-size:.82rem;color:var(--text2)"></div>
-    <div class="form-group">
-      <label>充值金额（USD）</label>
-      <input class="form-control" type="number" id="rechargeAmt" placeholder="最低 $10" min="10"/>
-    </div>
-    <button class="btn btn-primary btn-block mt-3" id="rechargeConfirmBtn" onclick="confirmRecharge()">确认充值</button>
-  </div>
-</div>
-
-<script>
-
-// ═══════════════ 全局 Confirm 模态框 ═══════════════
-let _confirmResolve = null;
-let _confirmReject = null;
-
-function confirmModal(msg, opts) {
-  opts = opts || {};
-  return new Promise((resolve, reject) => {
-    _confirmResolve = resolve;
-    _confirmReject = reject;
-    const overlay = document.getElementById("confirmModalOverlay");
-    const text = document.getElementById("confirmModalText");
-    const icon = document.getElementById("confirmModalIcon");
-    const okBtn = document.getElementById("confirmModalOk");
-    const cancelBtn = document.getElementById("confirmModalCancel");
-    
-    text.textContent = msg;
-    icon.textContent = opts.icon || "⚠️";
-    
-    // 按钮配色
-    const okColor = opts.okColor || "#00f2fe";
-    const okBg = opts.okBg || "rgba(0,242,254,.15)";
-    okBtn.style.background = okBg;
-    okBtn.style.color = okColor;
-    okBtn.style.border = "1px solid " + okColor + "44";
-    okBtn.textContent = opts.okText || "确认";
-    cancelBtn.textContent = opts.cancelText || "取消";
-    
-    // hover 效果
-    okBtn.onmouseenter = () => { okBtn.style.filter = "brightness(1.2)"; };
-    okBtn.onmouseleave = () => { okBtn.style.filter = "none"; };
-    cancelBtn.onmouseenter = () => { cancelBtn.style.background = "rgba(255,255,255,.15)"; cancelBtn.style.color = "var(--text1)"; };
-    cancelBtn.onmouseleave = () => { cancelBtn.style.background = "rgba(255,255,255,.08)"; cancelBtn.style.color = "var(--text3)"; };
-    
-    overlay.classList.add("show");
-  });
-}
-
-function confirmModalOk() {
-  document.getElementById("confirmModalOverlay").classList.remove("show");
-  if (_confirmResolve) { _confirmResolve(true); _confirmResolve = null; }
-}
-
-function confirmModalCancel() {
-  document.getElementById("confirmModalOverlay").classList.remove("show");
-  if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
-}
-// ════════════════════════════════════════════════════
-
 // ══════════════════════════════════════════════
 //  CONFIG & STATE
 // ══════════════════════════════════════════════
@@ -1907,11 +582,15 @@ function gotoPage(page) {
     if (el) el.classList.add('active');
   });
   // topbar
+  const meta = PAGE_META[page] || {};
+  document.getElementById('topbarTitle').textContent = meta.title||page;
+  document.getElementById('topbarSub').textContent   = meta.sub||'';
   // 渲染页面
   area.scrollTo && area.scrollTo({top:0});
-  if (page==='cards') renderCards();
-  else if (page==='apply') renderApply();
-  else if (page==='topup') renderTopup();
+  if (page==='overview') (window.renderOverview || renderOverview)();
+  else if (page==='cards') (window.renderCards || renderCards)();
+  else if (page==='apply') (window.renderApply || renderApply)();
+  else if (page==='topup') (window.renderTopup || renderTopup)();
   else if (page==='card-mgmt') renderCardManage();
   else if (page==='ledger') renderLedger();
   else if (page==='card-tx') renderCardTx();
@@ -1926,6 +605,8 @@ function gotoPage(page) {
   else if (page==='admin-tx-monitor') renderAdminTxMonitor();
   else if (page==='admin-settings') renderAdminSettingsPage();
 }
+
+function refreshPage() { gotoPage(_curPage); }
 
 // ══════════════════════════════════════════════
 //  PAGE: 账户总览
@@ -2421,7 +1102,16 @@ async function renderApply() {
           <div class="form-group"><label>卡片标签</label><input class="form-control" id="ap_label" placeholder="例如：广告投放卡"/></div>
           <div class="form-group"><label>邮箱</label><input class="form-control" type="email" id="ap_email" placeholder="留空使用登录邮箱"/></div>
         </div>
-        
+
+        <div class="divider"></div>
+        <div style="font-weight:700;margin-bottom:16px">账单地址</div>
+        <div class="form-row col2">
+          <div class="form-group" style="grid-column:span 2"><label>地址行 1*</label><input class="form-control" id="ap_addr1" placeholder="123 Main St"/></div>
+          <div class="form-group" style="grid-column:span 2"><label>地址行 2</label><input class="form-control" id="ap_addr2" placeholder="Apt 4B（可选）"/></div>
+          <div class="form-group"><label>城市</label><input class="form-control" id="ap_city" placeholder="San Jose"/></div>
+          <div class="form-group"><label>州/省</label><input class="form-control" id="ap_state" placeholder="CA"/></div>
+          <div class="form-group"><label>国家</label><input class="form-control" id="ap_country" placeholder="US" value="US"/></div>
+          <div class="form-group"><label>邮政编码</label><input class="form-control" id="ap_postcode" placeholder="95131"/></div>
         </div>
 
         <div class="divider"></div>
@@ -2551,11 +1241,144 @@ async function submitApply() {
     first_name:   g('ap_first'),
     last_name:    g('ap_last'),
     label:        g('ap_label'),
+    // 移除手机号字段（area_code, mobile）
     email:        g('ap_email')||(_me?.email||''),
     amount:       parseFloat(g('ap_amount'))||0,
     single_limit: parseFloat(g('ap_single'))||0,
     day_limit:    parseFloat(g('ap_day'))||0,
     month_limit:  parseFloat(g('ap_month'))||0,
+    card_address:{
+      address_line_one: g('ap_addr1'),
+      address_line_two: g('ap_addr2'),
+      city:    g('ap_city'),
+      state:   g('ap_state'),
+      country: g('ap_country')||'US',
+      post_code: g('ap_postcode'),
+    }
+  };
+  if (!payload.first_name||!payload.last_name) { toast('⚠️ 请填写持卡人姓名'); return; }
+  
+  if (!payload.card_address.address_line_one) { toast('⚠️ 请填写账单地址行1'); return; }
+
+  const btn = document.getElementById('submitApplyBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 提交中…';
+  try {
+    const res = await apiFetch('/cards',{method:'POST',body:JSON.stringify(payload)});
+    if (res.code!==0) { toast('❌ 提交失败：'+(res.msg||'')); return; }
+    toast('✅ 申请已提交，等待管理员审批');
+    backToStep1();
+    loadMyApplications();
+  } catch(e) {
+    if (e.message!=='Unauthorized') toast('❌ 提交失败');
+  } finally {
+    btn.disabled=false; btn.textContent='🚀 提交开卡申请';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  PAGE: 充值
+// ══════════════════════════════════════════════
+let _topupType = 'usdt'; // 当前充值类型：'usdt' | 'usd'
+
+function openTopupTypeModal() {
+  document.getElementById('topupTypeOverlay').classList.add('open');
+}
+function closeTopupTypeModal() {
+  document.getElementById('topupTypeOverlay').classList.remove('open');
+}
+function selectTopupType(type) {
+  _topupType = type;
+  closeTopupTypeModal();
+  // 更新导航激活状态
+  document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+  const navEl = document.getElementById('nav-topup');
+  if (navEl) navEl.classList.add('active');
+  gotoPage('topup');
+}
+
+async function renderTopup() {
+  const area = document.getElementById('contentArea');
+  const isUSDT = _topupType === 'usdt';
+  const typeLabel = isUSDT ? '₮ USDT' : '💵 USD';
+  const typeName  = isUSDT ? 'USDT（加密稳定币）' : 'USD（美元电汇）';
+
+  // 根据类型决定展示哪些支付方式（USD 保持原样选择框）
+  const networkChips = `
+    <div class="network-chip" id="nc_wire" onclick="selectNetwork('Wire Transfer',this)">
+      <span class="nc-icon">🏦</span>
+      <div><div class="nc-name">银行电汇</div><div class="nc-sub">Wire Transfer</div></div>
+    </div>
+    <div class="network-chip" id="nc_swift" onclick="selectNetwork('SWIFT',this)">
+      <span class="nc-icon">🌐</span>
+      <div><div class="nc-name">SWIFT 汇款</div><div class="nc-sub">国际电汇</div></div>
+    </div>
+  `;
+
+  const remarkPlaceholder = '例如：汇款参考号、汇款银行';
+
+  // USDT 专属：收款地址
+  const TRC20_ADDR = 'TWJ7pHoj1uSBeHHaFDM9eFJNNmfYt1X9zr';
+  const ERC20_ADDR = '0x0984967bbe780dd605ac815c6a2845ba8062fa32';
+
+  // 左侧面板：USDT 展示二维码 / USD 展示金额选择
+  const leftPanel = isUSDT ? `
+        <div class="panel">
+          <div style="font-weight:700;margin-bottom:20px">发起充值申请</div>
+
+          
+          <div class="usdt-tab-bar">
+            <div class="usdt-tab selected" id="tab_trc20" onclick="switchUsdtTab('trc20')">
+              <span class="usdt-tab-icon">₮</span>
+              <div>
+                <div class="usdt-tab-name">TRC20</div>
+                <div class="usdt-tab-sub">Tron 网络</div>
+              </div>
+            </div>
+            <div class="usdt-tab" id="tab_erc20" onclick="switchUsdtTab('erc20')">
+              <span class="usdt-tab-icon">₮</span>
+              <div>
+                <div class="usdt-tab-name">ERC20</div>
+                <div class="usdt-tab-sub">Ethereum 网络</div>
+              </div>
+            </div>
+          </div>
+
+          
+          <div class="usdt-qr-panel">
+            <div class="usdt-network-label" id="usdt_net_label">
+              <span class="usdt-network-dot"></span>
+              <span id="usdt_net_label_text">USDT · TRC20 (Tron)</span>
+            </div>
+            <div class="usdt-qr-ring">
+              <div class="usdt-qr-box" id="usdt_qr_main"></div>
+            </div>
+            <div class="usdt-addr-wrap">
+              <div class="usdt-addr-label">收款地址</div>
+              <div class="usdt-addr" id="usdt_addr_main">${TRC20_ADDR}</div>
+            </div>
+            <button class="usdt-copy-btn" id="usdt_copy_main" onclick="copyAddr(event, document.getElementById('usdt_addr_main').textContent)">📋 复制地址</button>
+          </div>
+
+          <div class="form-group" style="margin-top:20px">
+            <label>TxHash 交易哈希</label>
+            <input class="form-control" id="topupRemark" placeholder="转账后请填写链上 TxHash"/>
+          </div>
+
+          <button class="btn btn-primary btn-block btn-lg" id="topupSubmitBtn" onclick="submitTopup()">
+            提交充值申请
+          </button>
+          <div style="font-size:.75rem;color:var(--text3);text-align:center;margin-top:10px">
+            扫码转账后填写 TxHash，管理员将在 1-24 小时内审核到账
+          </div>
+        </div>
+  ` : `
+        <div class="panel">
+          <div style="font-weight:700;margin-bottom:20px">发起充值申请</div>
+
+          <div class="form-group">
+            <label>选择金额（USD）</label>
+            <div class="topup-amount-grid" id="amtChips">
+              ${[100,200,500,1000].map(v=>`<div class="amount-chip" onclick="selectAmt(${v},this)">$${v}</div>`).join('')}
             </div>
             <input class="form-control" type="number" id="topupAmt" placeholder="或手动输入金额" min="1"/>
           </div>
@@ -2807,11 +1630,7 @@ async function renderCardManage() {
       <div class="skeleton" style="height:240px;border-radius:16px;"></div>
     </div></div>`;
   
-  setTimeout(function() {
-    if (document.getElementById('cmDr_trigger')) {
-        drInit();
-    }
-}, 100);  // 初始化日期范围选择器
+  drInit();  // 初始化日期范围选择器
   loadCmList();
 }
 
@@ -2962,11 +1781,7 @@ DateRangePicker.prototype.init = function() {
   html += '</div></div></div></div></div></div>';
 
   var wrap = typeof this.container === 'string' ? document.querySelector(this.container) : this.container;
-  if (!wrap) {
-    console.warn('[DateRangePicker] Container not found:', this.container);
-    return;
-  }
-  {
+  if (wrap) {
     var div = document.createElement('div'); div.innerHTML = html;
     wrap.appendChild(div.firstElementChild);
   }
@@ -2976,7 +1791,7 @@ DateRangePicker.prototype.init = function() {
   this._trigger = trigger; // 保存引用供 _shortcut 使用
   this._cal0 = document.getElementById(this.id + '_cal0'); // 保存日历引用
   this._cal1 = document.getElementById(this.id + '_cal1');
-  if (trigger) trigger.addEventListener('click', function(e) { self._toggle(e); });
+  trigger.addEventListener('click', function(e) { self._toggle(e); });
   var clearBtn = document.getElementById(this.id + '_clear');
   var confirmBtn = document.getElementById(this.id + '_confirm');
   var cancelBtn = document.getElementById(this.id + '_cancel');
@@ -3583,13 +2398,15 @@ function renderCmList(cards) {
     // 按钮逻辑：失效卡片显示"失效"、"详情"、"已冻结"
     var freezeBtn = '';
     if (isDeleted) {
-      freezeBtn = '<button class="cm-btn cm-btn-disabled" disabled style="background:#374151;color:#9CA3AF;cursor:not-allowed;border:1px solid #4B5563;">已删除</button>';
+      // 已删除卡片：显示灰色的"已删除"按钮（不可点击）
+      freezeBtn = '<button class="cm-btn cm-btn-disabled" disabled style="background:#374151;color:#9CA3AF;cursor:not-allowed;border:1px solid #4B5563;">🗑️ 已失效</button>';
     } else if (isInvalid) {
-      freezeBtn = '<button class="cm-btn cm-btn-frozen" disabled>已冻结</button>';
+      // 失效卡片：显示红色的"已冻结"按钮（不可点击）
+      freezeBtn = '<button class="cm-btn cm-btn-frozen" disabled>❄️ 已冻结</button>';
     } else if (isActive) {
-      freezeBtn = '<button class="cm-btn cm-btn-freeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'CANCELLED\',this)">冻结</button>';
+      freezeBtn = '<button class="cm-btn cm-btn-freeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'CANCELLED\',this)">❄️ 冻结</button>';
     } else if (isFrozen) {
-      freezeBtn = '<button class="cm-btn cm-btn-unfreeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'ACTIVE\',this)">解冻</button>';
+      freezeBtn = '<button class="cm-btn cm-btn-unfreeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'ACTIVE\',this)">✅ 解冻</button>';
     }
     
     // 处理有效期显示
@@ -3918,7 +2735,7 @@ async function renderAdminDashboard() {
       <div class="ov-stat-card" style="background: linear-gradient(135deg, #1e253a 0%, #13192a 100%); border: 1px solid #2d344a;">
         <div class="flex" style="justify-content:space-between;align-items:center;">
           <div class="ov-stat-label">商户余额</div>
-          <button class="btn btn-primary btn-sm" onclick="loadMerchantBalanceForce()" style="font-size:.7rem;padding:3px 10px;">⟳ 刷新</button>
+          <button class="btn btn-primary btn-sm" onclick="loadMerchantBalance(true)" style="font-size:.7rem;padding:3px 10px;">⟳ 刷新</button>
         </div>
         <div class="ov-stat-val grad-text" id="adminMerchantBalance">$—</div>
         <div class="ov-stat-sub" id="adminWalletBalance">额度钱包：$—</div>
@@ -3972,10 +2789,10 @@ async function renderAdminDashboard() {
       <div style="font-weight: 700; margin-bottom: 12px;">同步状态</div>
       <div class="flex items-center justify-between">
         <div>
-          <div style="font-size: 0.9rem; color: var(--text2);">自动同步频率：<span style="color: var(--text1);">30分钟</span></div>
+          <div style="font-size: 0.9rem; color: var(--text2);">自动同步频率：<span style="color: var(--text1);">每分钟</span></div>
           <div style="font-size: 0.8rem; color: var(--text3); margin-top: 4px;">服务端定时从 vmcardio 拉取最新余额</div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="loadMerchantBalanceForce()">手动同步</button>
+        <button class="btn btn-outline btn-sm" onclick="loadMerchantBalance(true)">手动同步</button>
       </div>
       <div class="mt-3" style="font-size: 0.8rem; color: var(--text3);">
         <div>最后同步时间：<span id="syncTimestamp">—</span></div>
@@ -3986,26 +2803,6 @@ async function renderAdminDashboard() {
 
   // 异步加载数据（不阻塞 UI 渲染）
   Promise.all([loadMerchantBalance(), loadAdminStats()]).catch(e => console.error('管理总览数据加载异常:', e));
-}
-
-// Force refresh merchant balance
-async function loadMerchantBalanceForce() {
-  try {
-    const btn = document.getElementById("adminLastSync");
-    if (btn) btn.textContent = "Syncing...";
-    const res = await apiFetch("/admin/merchant-balance?force=true&_t=" + Date.now());
-    if (res.code !== 0) throw new Error(res.msg);
-    const data = res.data;
-    if (!document.getElementById("adminMerchantBalance")) return;
-    document.getElementById("adminMerchantBalance").textContent = "$" + data.balance.toFixed(2);
-    document.getElementById("adminWalletBalance").textContent = "Wallet: $" + (data.wallet_balance || 0).toFixed(2);
-    const syncTime = data.last_sync ? new Date(data.last_sync).toLocaleString("zh-CN") : "Just now";
-    document.getElementById("adminLastSync").textContent = "Last sync: " + syncTime;
-    var syncTsEl = document.getElementById("syncTimestamp");
-    if (syncTsEl) syncTsEl.textContent = syncTime;
-  } catch(e) {
-    console.error("Sync failed:", e.message);
-  }
 }
 
 // 加载商户余额
@@ -4359,18 +3156,18 @@ function openTopupModal(userId, userName, currentBalance) {
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
-(function init() {
+function initApp() {
   if (_token && _me) {
     enterDash();
   } else {
     showAuth();
   }
-})();
+}
 
 // ══════════════════════════════════════════════
 //  PARTICLE NETWORK — 鼠标交互连线粒子（登录页）
 // ══════════════════════════════════════════════
-(function initParticles() {
+function initParticles() {
   const canvas = document.getElementById('authCanvas');
   if (!canvas) return;
 
@@ -4507,7 +3304,7 @@ function openTopupModal(userId, userName, currentBalance) {
 
   resize();
   rebuild();
-})();
+}
 
 // 管理员卡片详情模态框
 const cardDetailModal = document.createElement('div');
@@ -5621,369 +4418,147 @@ pageRenderers['balance-detail'] = renderBalanceDetailPage;
 // ══════════════════════════════════════════════════════════════
 //  开卡审核页面
 // ══════════════════════════════════════════════════════════════
-window._crTab = "pending";
-window._crSearch = "";
-window._crSelected = new Set();
-window._crCurrentList = [];
-
 async function renderCardReviewPage() {
-  if (_me?.role !== "admin") return gotoPage("cards");
-  const area = document.getElementById("contentArea");
+  if (_me?.role !== 'admin') return gotoPage('cards');
+  const area = document.getElementById('contentArea');
   area.innerHTML = `
-    <style>
-      .cr-container { padding: 0px 4px 28px; max-width: 1400px; margin: 0 auto; }
-      .cr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
-      .cr-header-left h2 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.5px; }
-      .cr-header-left p { margin: 6px 0 0; font-size: .85rem; color: var(--text3); }
-      .cr-header-right { display: flex; gap: 8px; }
-      .cr-btn-icon { background: transparent; color: #8fa0c7; border: 1px solid rgba(255,255,255,0.08); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: .85rem; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-      .cr-btn-icon:hover { border-color: rgba(255,255,255,0.18); color: var(--text2); background: rgba(255,255,255,0.02); }
-      .cr-stats { display: flex; gap: 16px; margin-bottom: 20px; }
-      .cr-stat-card { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px 24px; min-width: 130px; flex: 1; text-align: center; transition: all 0.2s; }
-      .cr-stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
-      .cr-stat-num { font-size: 1.8rem; font-weight: 700; line-height: 1; margin-bottom: 8px; }
-      .cr-stat-label { font-size: .8rem; color: var(--text3); letter-spacing: 0.5px; }
-      .cr-toolbar { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-      .cr-toolbar-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-      .cr-search-wrap { flex: 1; min-width: 300px; max-width: 420px; position: relative; }
-      .cr-search-wrap input { width: 100%; background: #0a0f1c; border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px 10px 38px; border-radius: 8px; color: var(--text1); outline: none; font-size: .9rem; transition: all 0.2s; box-sizing: border-box; }
-      .cr-search-wrap input:focus { border-color: rgba(0,242,254,0.35); box-shadow: 0 0 0 3px rgba(0,242,254,0.08); }
-      .cr-search-wrap::before { content: "🔍"; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: .85rem; opacity: 0.5; }
-      .cr-tabs { display: flex; gap: 6px; align-items: center; background: #0a0f1c; padding: 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
-      .cr-tab { padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 500; border: none; background: transparent; color: var(--text3); transition: all 0.2s; white-space: nowrap; }
-      .cr-tab:hover { color: var(--text2); }
-      .cr-tab.active { background: #1a2340; color: #fff; }
-      .cr-tab.active[data-tab="all"] { background: rgba(0,242,254,0.12); color: #00f2fe; }
-      .cr-tab.active[data-tab="pending"] { background: rgba(255,170,0,0.12); color: #ffaa00; }
-      .cr-tab.active[data-tab="approved"] { background: rgba(0,199,88,0.12); color: #00c758; }
-      .cr-tab.active[data-tab="rejected"] { background: rgba(255,95,95,0.12); color: #ff5f5f; }
-      .cr-btn { padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: .9rem; font-weight: 500; border: none; transition: all 0.2s; white-space: nowrap; }
-      .cr-btn-search { background: linear-gradient(135deg, rgba(0,242,254,0.12), rgba(0,242,254,0.06)); color: #00f2fe; border: 1px solid rgba(0,242,254,0.2); }
-      .cr-btn-search:hover { background: linear-gradient(135deg, rgba(0,242,254,0.2), rgba(0,242,254,0.1)); border-color: rgba(0,242,254,0.3); }
-      .cr-btn-reset { background: transparent; color: #8fa0c7; border: 1px solid rgba(255,255,255,0.08); }
-      .cr-btn-reset:hover { border-color: rgba(255,255,255,0.15); color: var(--text2); background: rgba(255,255,255,0.02); }
-      .cr-batch-bar { display: none; margin-top: 16px; padding: 14px 18px; background: rgba(0,242,254,0.03); border: 1px solid rgba(0,242,254,0.08); border-radius: 10px; align-items: center; }
-      .cr-batch-bar.show { display: flex; }
-      .cr-batch-info { color: var(--text3); font-size: .9rem; margin-right: auto; display: flex; align-items: center; gap: 6px; }
-      .cr-batch-info strong { color: #00f2fe; font-size: 1.1rem; }
-      .cr-btn-batch-pass { background: linear-gradient(135deg, #00c758, #00a844); color: #fff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 500; margin-left: 8px; transition: all 0.2s; }
-      .cr-btn-batch-pass:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,199,88,0.3); }
-      .cr-btn-batch-reject { background: linear-gradient(135deg, #ff5f5f, #e04444); color: #fff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 500; margin-left: 8px; transition: all 0.2s; }
-      .cr-btn-batch-reject:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,95,95,0.3); }
-      .cr-btn-batch-clear { background: transparent; color: #8fa0c7; border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: .85rem; margin-left: 8px; transition: all 0.2s; }
-      .cr-btn-batch-clear:hover { border-color: rgba(255,255,255,0.2); color: var(--text2); }
-      .cr-table-wrap { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
-      .cr-table { width: 100%; border-collapse: collapse; }
-      .cr-table thead th { text-align: left; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text3); font-size: .78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
-      .cr-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
-      .cr-table tbody tr:hover { background: rgba(255,255,255,0.02); }
-      .cr-table tbody td { padding: 14px 16px; vertical-align: middle; }
-      .cr-table .col-check { width: 44px; text-align: center; }
-      .cr-table .col-id { width: 60px; color: var(--text3); font-size: .8rem; }
-      .cr-table .col-applicant { min-width: 160px; }
-      .cr-table .col-product { width: 100px; }
-      .cr-table .col-holder { width: 120px; }
-      .cr-table .col-amount { width: 90px; }
-      .cr-table .col-status { width: 100px; }
-      .cr-table .col-time { width: 130px; }
-      .cr-table .col-action { width: 140px; }
-      .cr-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: #00f2fe; }
-      .cr-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: .8rem; font-weight: 500; }
-      .cr-tag-pending { background: rgba(255,170,0,0.1); color: #ffaa00; }
-      .cr-tag-approved { background: rgba(0,199,88,0.1); color: #00c758; }
-      .cr-tag-rejected { background: rgba(255,95,95,0.1); color: #ff5f5f; }
-      .cr-amount { color: #00f2fe; font-weight: 600; font-size: .95rem; }
-      .cr-applicant-name { font-size: .9rem; font-weight: 500; }
-      .cr-applicant-email { font-size: .78rem; color: var(--text3); margin-top: 3px; }
-      .cr-time { font-size: .82rem; color: var(--text3); }
-      .cr-btn-action { padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .8rem; font-weight: 500; border: none; transition: all 0.2s; }
-      .cr-btn-pass { background: rgba(0,199,88,0.1); color: #00c758; }
-      .cr-btn-pass:hover { background: rgba(0,199,88,0.2); }
-      .cr-btn-reject { background: rgba(255,95,95,0.1); color: #ff5f5f; }
-      .cr-btn-reject:hover { background: rgba(255,95,95,0.2); }
-      .cr-empty { text-align: center; padding: 80px 40px; }
-      .cr-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
-      .cr-empty-text { color: var(--text3); font-size: .95rem; }
-    </style>
-
-    <div class="cr-container">
-            <div class="cr-stats" id="crStats"></div>
-
-      <div class="cr-toolbar">
-        <div class="cr-toolbar-row">
-          <div class="cr-search-wrap">
-            <input type="text" id="crSearchInput" placeholder="搜索申请人、邮箱、卡产品..." onkeypress="if(event.key===&quot;Enter&quot;)crDoSearch()">
-          </div>
-          <div class="cr-tabs">
-            <button class="cr-tab" data-tab="all" onclick="crSetTab(&quot;all&quot;)">全部</button>
-            <button class="cr-tab active" data-tab="pending" onclick="crSetTab(&quot;pending&quot;)">待审核</button>
-            <button class="cr-tab" data-tab="approved" onclick="crSetTab(&quot;approved&quot;)">已通过</button>
-            <button class="cr-tab" data-tab="rejected" onclick="crSetTab(&quot;rejected&quot;)">已拒绝</button>
-          </div>
-          <button class="cr-btn cr-btn-search" onclick="crDoSearch()">搜索</button>
-          <button class="cr-btn cr-btn-reset" onclick="crResetSearch()">重置</button>
-        </div>
-
-        <div class="cr-batch-bar" id="crBatchBar">
-          <span class="cr-batch-info">已选择 <strong id="crSelectedCount">0</strong> 条记录</span>
-          <button class="cr-btn-batch-pass" onclick="crBatchApprove()">✅ 批量通过</button>
-          <button class="cr-btn-batch-reject" onclick="crBatchReject()">❌ 批量拒绝</button>
-          <button class="cr-btn-batch-clear" onclick="crClearSelection()">取消选择</button>
+    <div style="padding:24px;">
+      
+      <div style="display:flex;gap:12px;margin-bottom:20px;" id="crStats"></div>
+      
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" id="crTabAll"    onclick="crSetTab('all')"     style="background:#1a2340;border:1px solid #00f2fe33;color:#00f2fe;padding:6px 14px;border-radius:6px;cursor:pointer;">全部</button>
+          <button class="btn btn-sm" id="crTabPending" onclick="crSetTab('pending')" style="background:#1a2340;border:1px solid #ffaa0033;color:#ffaa00;padding:6px 14px;border-radius:6px;cursor:pointer;">待审核</button>
+          <button class="btn btn-sm" id="crTabApproved" onclick="crSetTab('approved')" style="background:#1a2340;border:1px solid #00c75833;color:#00c758;padding:6px 14px;border-radius:6px;cursor:pointer;">已通过</button>
+          <button class="btn btn-sm" id="crTabRejected" onclick="crSetTab('rejected')" style="background:#1a2340;border:1px solid #ff5f5f33;color:#ff5f5f;padding:6px 14px;border-radius:6px;cursor:pointer;">已拒绝</button>
         </div>
       </div>
-
-      <div id="crList"><div class="loading-spinner" style="margin:60px auto;"></div></div>
+      
+      <div id="crList"><div class="loading-spinner" style="margin:40px auto;"></div></div>
     </div>
   `;
-  window._crSelected = new Set();
-  window._crTab = "pending";
-  window._crSearch = "";
+  window._crTab = window._crTab || 'pending';
   await crLoad();
 }
 
+window._crTab = 'pending';
 function crSetTab(tab) {
   window._crTab = tab;
-  // 更新tab样式
-  document.querySelectorAll('.cr-tab').forEach(el => {
-    el.classList.toggle('active', el.dataset.tab === tab);
+  ['all','pending','approved','rejected'].forEach(t => {
+    const el = document.getElementById('crTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.style.opacity = t === tab ? '1' : '0.5';
   });
   crLoad();
-}
-
-function crDoSearch() {
-  window._crSearch = (document.getElementById("crSearchInput") || {value:""}).value.trim().toLowerCase();
-  crLoad();
-}
-
-function crResetSearch() {
-  window._crSearch = "";
-  const input = document.getElementById("crSearchInput");
-  if (input) input.value = "";
-  crLoad();
-}
-
-function crRefresh() {
-  crLoad();
-}
-
-function crClearSelection() {
-  window._crSelected = new Set();
-  crLoad();
-}
-
-function crToggleSelect(id) {
-  if (window._crSelected.has(id)) {
-    window._crSelected.delete(id);
-  } else {
-    window._crSelected.add(id);
-  }
-  crUpdateUI();
-}
-
-function crToggleSelectAll() {
-  const list = window._crCurrentList || [];
-  const pendingList = list.filter(a => a.status === "pending");
-  if (pendingList.length === 0) return;
-  const allSelected = pendingList.every(a => window._crSelected.has(a.id));
-  if (allSelected) {
-    pendingList.forEach(a => window._crSelected.delete(a.id));
-  } else {
-    pendingList.forEach(a => window._crSelected.add(a.id));
-  }
-  crUpdateUI();
-}
-
-function crUpdateUI() {
-  // 更新所有复选框状态
-  const list = window._crCurrentList || [];
-  list.forEach(a => {
-    const cb = document.getElementById("crCheck_" + a.id);
-    if (cb) cb.checked = window._crSelected.has(a.id);
-  });
-
-  // 更新全选复选框
-  const pendingList = list.filter(a => a.status === "pending");
-  const allSelected = pendingList.length > 0 && pendingList.every(a => window._crSelected.has(a.id));
-  const someSelected = pendingList.some(a => window._crSelected.has(a.id));
-  const selectAll = document.getElementById("crSelectAll");
-  if (selectAll) {
-    selectAll.checked = allSelected;
-    selectAll.indeterminate = someSelected && !allSelected;
-  }
-
-  // 更新批量操作栏
-  const bar = document.getElementById("crBatchBar");
-  const count = document.getElementById("crSelectedCount");
-  if (bar && count) {
-    const size = window._crSelected.size;
-    count.textContent = size;
-    if (size > 0) {
-      bar.classList.add("show");
-    } else {
-      bar.classList.remove("show");
-    }
-  }
 }
 
 async function crLoad() {
-  const tab = window._crTab || "pending";
-  const statusParam = tab === "all" ? "" : "?status=" + tab;
-  const r = await apiFetch("/admin/card-applications" + statusParam, {}, true);
+  const tab = window._crTab || 'pending';
+  const statusParam = tab === 'all' ? '' : '?status=' + tab;
+  const r = await apiFetch('/admin/card-applications' + statusParam, {}, true);
   if (!r || r.code !== 0) return;
-  let list = r.data || [];
-
-  // 搜索过滤
-  const search = window._crSearch || "";
-  if (search) {
-    list = list.filter(a => {
-      const name = (a.user_name || "").toLowerCase();
-      const email = (a.user_email || "").toLowerCase();
-      const product = (a.product_code || "").toLowerCase();
-      return name.includes(search) || email.includes(search) || product.includes(search);
-    });
-  }
-
-  window._crCurrentList = list;
+  const list = r.data || [];
 
   // 统计
-  const statsEl = document.getElementById("crStats");
+  const statsEl = document.getElementById('crStats');
   if (statsEl) {
-    const all = await apiFetch("/admin/card-applications", {}, true);
+    const all = await apiFetch('/admin/card-applications', {}, true);
     const allList = all?.data || [];
     const cnt = { pending: 0, approved: 0, rejected: 0 };
     allList.forEach(a => { if (cnt[a.status] !== undefined) cnt[a.status]++; });
     statsEl.innerHTML = [
-      { label: "待审核", val: cnt.pending, color: "#ffaa00" },
-      { label: "已通过", val: cnt.approved, color: "#00c758" },
-      { label: "已拒绝", val: cnt.rejected, color: "#ff5f5f" },
-      { label: "共计", val: allList.length, color: "#00f2fe" },
-    ].map(s => `<div class="cr-stat-card"><div class="cr-stat-num" style="color:${s.color}">${s.val}</div><div class="cr-stat-label">${s.label}</div></div>`).join("");
+      { label:'待审核', val: cnt.pending, color:'#ffaa00' },
+      { label:'已通过', val: cnt.approved, color:'#00c758' },
+      { label:'已拒绝', val: cnt.rejected, color:'#ff5f5f' },
+      { label:'共计', val: allList.length, color:'#00f2fe' },
+    ].map(s => '<div style="background:#0d1322;border:1px solid #ffffff0f;border-radius:10px;padding:14px 20px;min-width:100px;">' +
+      '<div style="font-size:1.4rem;font-weight:700;color:' + s.color + ';">' + s.val + '</div>' +
+      '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + s.label + '</div></div>'
+    ).join('');
   }
 
-  const wrap = document.getElementById("crList");
+  // Tab 高亮
+  ['all','pending','approved','rejected'].forEach(t => {
+    const el = document.getElementById('crTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.style.opacity = t === tab ? '1' : '0.5';
+  });
+
+  const wrap = document.getElementById('crList');
   if (!wrap) return;
   if (!list.length) {
-    wrap.innerHTML = `<div class="cr-empty"><div class="cr-empty-icon">📭</div><div class="cr-empty-text">暂无符合条件的申请记录</div></div>`;
-    crUpdateUI();
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无申请记录</div></div>';
     return;
   }
 
-  const statusMap = { pending: "待审核", approved: "已通过", rejected: "已拒绝" };
-  const statusClass = { pending: "cr-tag-pending", approved: "cr-tag-approved", rejected: "cr-tag-rejected" };
+  const statusMap = { pending:'待审核', approved:'已通过', rejected:'已拒绝' };
+  const statusColor = { pending:'#ffaa00', approved:'#00c758', rejected:'#ff5f5f' };
 
-  const pendingList = list.filter(a => a.status === "pending");
-  const allSelected = pendingList.length > 0 && pendingList.every(a => window._crSelected.has(a.id));
-
-  wrap.innerHTML = `<div class="cr-table-wrap"><table class="cr-table"><thead><tr>` +
-    `<th class="col-check"><input type="checkbox" class="cr-checkbox" id="crSelectAll" onchange="crToggleSelectAll()" ${allSelected ? "checked" : ""}></th>` +
-    `<th class="col-id">ID</th>` +
-    `<th class="col-applicant">申请人</th>` +
-    `<th class="col-product">卡产品</th>` +
-    `<th class="col-holder">持卡人</th>` +
-    `<th class="col-amount">金额</th>` +
-    `<th class="col-status">状态</th>` +
-    `<th class="col-time">申请时间</th>` +
-    `<th class="col-action">操作</th>` +
-    `</tr></thead><tbody>` +
+  wrap.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+    '<th>ID</th><th>申请人</th><th>卡产品</th><th>持卡人</th><th>金额</th><th>状态</th><th>申请时间</th><th>操作</th>' +
+    '</tr></thead><tbody>' +
     list.map(a => {
-      const isPending = a.status === "pending";
+      const isPending = a.status === 'pending';
       const st = statusMap[a.status] || a.status;
-      const sc = statusClass[a.status] || "";
-      const dt = (a.created_at || "").replace("T", " ").slice(0, 16);
-      const checked = window._crSelected.has(a.id) ? "checked" : "";
-      return `<tr>` +
-        `<td class="col-check">${isPending ? `<input type="checkbox" class="cr-checkbox" id="crCheck_${a.id}" onchange="crToggleSelect(${a.id})" ${checked}>` : ""}</td>` +
-        `<td class="col-id">#${a.id}</td>` +
-        `<td class="col-applicant"><div class="cr-applicant-name">${a.user_name || "-"}</div><div class="cr-applicant-email">${a.user_email || ""}</div></td>` +
-        `<td class="col-product"><span class="cr-tag" style="background:#1a2340;color:var(--text2)">${a.product_code || "-"}</span></td>` +
-        `<td class="col-holder">${(a.first_name || "") + " " + (a.last_name || "")}</td>` +
-        `<td class="col-amount">$${Number(a.amount || 0).toFixed(2)}</td>` +
-        `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? `<div style="font-size:.75rem;color:#ff5f5f;margin-top:4px">原因: ${a.reject_reason}</div>` : ""}</td>` +
-        `<td class="col-time">${dt}</td>` +
-        `<td class="col-action">${isPending ? `<button class="cr-btn-action cr-btn-pass" onclick="crApprove(${a.id})">通过</button><button class="cr-btn-action cr-btn-reject" onclick="crReject(${a.id})">拒绝</button>` : `<span style="color:var(--text3);font-size:.85rem">—</span>`}</td>` +
-        `</tr>`;
-    }).join("") +
-    `</tbody></table></div>`;
-
-  crUpdateUI();
+      const sc = statusColor[a.status] || '#aaa';
+      const dt = (a.created_at||'').replace('T',' ').slice(0,16);
+      return '<tr>' +
+        '<td style="color:var(--text3);font-size:.8rem;">#' + a.id + '</td>' +
+        '<td>' +
+          '<div style="font-size:.85rem;">' + (a.user_name||'-') + '</div>' +
+          '<div style="font-size:.75rem;color:var(--text3);">' + (a.user_email||'') + '</div>' +
+        '</td>' +
+        '<td><span style="background:#1a2340;padding:3px 8px;border-radius:4px;font-size:.8rem;">' + (a.product_code||'-') + '</span></td>' +
+        '<td style="font-size:.85rem;">' + (a.first_name||'') + ' ' + (a.last_name||'') + '</td>' +
+        '<td style="color:#00f2fe;font-weight:600;">$' + Number(a.amount||0).toFixed(2) + '</td>' +
+        '<td><span style="background:' + sc + '22;color:' + sc + ';padding:3px 10px;border-radius:12px;font-size:.78rem;">' + st + '</span>' +
+          (a.reject_reason ? '<div style="font-size:.72rem;color:#ff5f5f;margin-top:2px;">原因: ' + a.reject_reason + '</div>' : '') +
+        '</td>' +
+        '<td style="font-size:.8rem;color:var(--text3);">' + dt + '</td>' +
+        '<td>' +
+          (isPending
+            ? '<button class="btn btn-sm" onclick="crApprove(' + a.id + ')" style="background:#00c75822;color:#00c758;border:1px solid #00c75844;padding:4px 10px;border-radius:5px;cursor:pointer;margin-right:4px;">✅ 通过</button>' +
+              '<button class="btn btn-sm" onclick="crReject(' + a.id + ')" style="background:#ff5f5f22;color:#ff5f5f;border:1px solid #ff5f5f44;padding:4px 10px;border-radius:5px;cursor:pointer;">❌ 拒绝</button>'
+            : '<span style="color:var(--text3);font-size:.8rem;">—</span>'
+          ) +
+        '</td>' +
+        '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
 }
 
 async function crApprove(id) {
-  const ok = await confirmModal("确认审批通过该开卡申请？系统将调用 vmcardio 真实开卡，此操作不可撤销。", { icon: "✅", okText: "确认通过", okColor: "#00c758", okBg: "rgba(0,199,88,.15)" }); if (!ok) return;
+  if (!confirm('确认审批通过该开卡申请？系统将调用 vmcardio 真实开卡，此操作不可撤销。')) return;
   const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = "开卡中…";
+  btn.disabled = true; btn.textContent = '开卡中…';
   try {
-    const r = await apiFetch("/admin/card-applications/" + id + "/approve", { method: "POST" });
+    const r = await apiFetch('/admin/card-applications/' + id + '/approve', { method:'POST' });
     if (r.code === 0) {
-      window._crSelected.delete(id);
-      toast("✅ 审批通过，卡片已创建：" + r.data.card_id);
+      toast('✅ 审批通过，卡片已创建：' + r.data.card_id);
       crLoad();
     } else {
-      toast("❌ 开卡失败：" + (r.msg || "未知错误"));
-      btn.disabled = false;
-      btn.textContent = "通过";
+      toast('❌ 开卡失败：' + (r.msg || '未知错误'));
+      btn.disabled = false; btn.textContent = '✅ 通过';
     }
-  } catch (e) {
-    toast("❌ 请求失败：" + e.message);
-    btn.disabled = false;
-    btn.textContent = "通过";
+  } catch(e) {
+    toast('❌ 请求失败：' + e.message);
+    btn.disabled = false; btn.textContent = '✅ 通过';
   }
 }
 
 async function crReject(id) {
-  const ok = await confirmModal("确认拒绝该开卡申请？", { icon: "❌", okText: "确认拒绝", okColor: "#ff5f5f", okBg: "rgba(255,95,95,.15)" }); if (!ok) return;
+  const reason = prompt('请输入拒绝原因（可留空）：');
+  if (reason === null) return;
   try {
-    const r = await apiFetch("/admin/card-applications/" + id + "/reject", {
-      method: "POST",
-      body: JSON.stringify({ reason: "" })
+    const r = await apiFetch('/admin/card-applications/' + id + '/reject', {
+      method: 'POST',
+      body: JSON.stringify({ reason })
     });
-    if (r.code === 0) {
-      window._crSelected.delete(id);
-      toast("已拒绝该申请");
-      crLoad();
-    } else {
-      toast("❌ " + (r.msg || "操作失败"));
-    }
-  } catch (e) {
-    toast("❌ 请求失败：" + e.message);
-  }
+    if (r.code === 0) { toast('已拒绝该申请'); crLoad(); }
+    else toast('❌ ' + (r.msg || '操作失败'));
+  } catch(e) { toast('❌ 请求失败：' + e.message); }
 }
 
-async function crBatchApprove() {
-  const ids = Array.from(window._crSelected);
-  if (ids.length === 0) return;
-  const ok = await confirmModal("确认批量通过 " + ids.length + " 个开卡申请？系统将逐个调用 vmcardio 开卡，此操作不可撤销。", { icon: "✅", okText: "确认通过", okColor: "#00c758", okBg: "rgba(0,199,88,.15)" }); if (!ok) return;
-  let success = 0, failed = 0;
-  for (const id of ids) {
-    try {
-      const r = await apiFetch("/admin/card-applications/" + id + "/approve", { method: "POST" });
-      if (r.code === 0) { success++; window._crSelected.delete(id); }
-      else { failed++; }
-    } catch (e) { failed++; }
-  }
-  toast("批量操作完成：成功 " + success + " 个，失败 " + failed + " 个");
-  crLoad();
-}
-
-async function crBatchReject() {
-  const ids = Array.from(window._crSelected);
-  if (ids.length === 0) return;
-  const ok = await confirmModal("确认批量拒绝 " + ids.length + " 个开卡申请？", { icon: "❌", okText: "确认拒绝", okColor: "#ff5f5f", okBg: "rgba(255,95,95,.15)" }); if (!ok) return;
-  let success = 0, failed = 0;
-  for (const id of ids) {
-    try {
-      const r = await apiFetch("/admin/card-applications/" + id + "/reject", {
-        method: "POST",
-        body: JSON.stringify({ reason: "" })
-      });
-      if (r.code === 0) { success++; window._crSelected.delete(id); }
-      else { failed++; }
-    } catch (e) { failed++; }
-  }
-  toast("批量操作完成：成功 " + success + " 个，失败 " + failed + " 个");
-  crLoad();
-}
+// ══════════════════════════════════════════════════════════════
 //  充值审核页面
 // ══════════════════════════════════════════════════════════════
 async function renderTopupReviewPage() {
@@ -6704,8 +5279,13 @@ async function renderAdminFinance() {
   }
 }
 
-// 页面加载时自动获取登录验证码（暂时注释）
+// 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
+  // 初始化应用
+  initApp();
+  // 初始化粒子背景
+  initParticles();
+
   // 移除加载骨架屏
   const splash = document.getElementById('splash');
   if (splash) {
@@ -6718,21 +5298,4 @@ document.addEventListener('DOMContentLoaded', function() {
     const s = document.getElementById('splash');
     if (s) { s.style.opacity = '0'; setTimeout(() => s.remove(), 300); }
   }, 5000);
-  // refreshCaptcha('login');
 });
-</script>
-
-
-<!-- 全局 Confirm 模态框 -->
-<div class="modal-overlay" id="confirmModalOverlay" onclick="if(event.target===this)confirmModalCancel()">
-  <div class="modal modal-sm" style="padding:28px;text-align:center;">
-    <div id="confirmModalIcon" style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
-    <div id="confirmModalText" style="font-size:1rem;color:var(--text1);line-height:1.6;margin-bottom:24px;"></div>
-    <div style="display:flex;gap:12px;justify-content:center;">
-      <button id="confirmModalCancel" onclick="confirmModalCancel()" style="background:rgba(255,255,255,.08);color:var(--text3);border:1px solid rgba(255,255,255,.12);padding:10px 24px;border-radius:10px;cursor:pointer;font-size:.9rem;transition:all .2s;">取消</button>
-      <button id="confirmModalOk" onclick="confirmModalOk()" style="padding:10px 24px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;transition:all .2s;border:none;">确认</button>
-    </div>
-  </div>
-</div>
-</body>
-</html>
