@@ -406,7 +406,23 @@ router.get('/cards', async (req, res, next) => {
       ${whereClause}
     `).get(...queryParams);
     
-    // 查询统计信息
+    // 查询统计信息（只使用不涉及 users 表的过滤条件）
+    const hasUref = whereConditions.some(c => /[^a-zA-Z]u\./.test(c));
+    let statsQueryConditions = [];
+    let statsParams = [];
+    if (status) {
+      statsQueryConditions.push('c.status = ?');
+      statsParams.push(status);
+    }
+    if (date_from) {
+      statsQueryConditions.push('c.created_at >= ?');
+      statsParams.push(date_from);
+    }
+    if (date_to) {
+      statsQueryConditions.push('c.created_at <= ?');
+      statsParams.push(date_to + ' 23:59:59');
+    }
+    const statsWhere = statsQueryConditions.length > 0 ? 'WHERE ' + statsQueryConditions.join(' AND ') : '';
     const stats = db.prepare(`
       SELECT 
         COUNT(*) as total_cards,
@@ -415,8 +431,8 @@ router.get('/cards', async (req, res, next) => {
         COUNT(CASE WHEN c.status = 'active' THEN 1 END) as active_cards,
         COUNT(CASE WHEN c.status = 'frozen' THEN 1 END) as frozen_cards
       FROM cards c
-      ${whereClause ? `WHERE ${whereClause.replace(/c\./g, 'c.').replace(/u\./g, 'u.')}` : ''}
-    `).get(...queryParams);
+      ${statsWhere}
+    `).get(...statsParams);
     
     // 格式化到期日字段
     const formattedCards = cards.map(c => {
