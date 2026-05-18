@@ -486,14 +486,46 @@ router.get('/cards', async (req, res, next) => {
       LIMIT ? OFFSET ?
     `).all(...queryParams, pageSize, offset);
     
-    // sync=true：对当前页每张卡从上游拉取最新状态
-    if (sync === 'true' && cards.length > 0) {
-      console.log(`[Admin Cards] 实时同步 ${cards.length} 张卡片状态...`);
-      for (const card of cards) {
-        try {
-          await syncSingleCard(card.card_id);
-        } catch (err) {
-          console.warn(`[Admin Cards] 同步卡片 ${card.card_id} 失败:`, err.message);
+    // sync=true：先从上游拉取全量卡片列表，再对当前页逐张同步状态
+    if (sync === 'true') {
+      console.log('[Admin Cards] 从上游拉取全量卡片列表...');
+      try {
+        const listResult = await sdk.cardList({ pageSize: 200, page: 1 });
+        if (listResult && Array.isArray(listResult.list) && listResult.list.length > 0) {
+          const upsert = db.prepare(`
+            INSERT INTO cards (card_id, user_id, card_number, product_code, status, available_amount, expiry_month, expiry_year, last_verified, verified_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'synced')
+            ON CONFLICT(card_id) DO UPDATE SET
+              status = excluded.status,
+              available_amount = excluded.available_amount,
+              last_verified = datetime('now'),
+              verified_status = 'synced'
+          `);
+          for (const up of listResult.list) {
+            const vmStatus = (up.status || '').toUpperCase();
+            const mappedStatus = vmStatus === 'ACTIVE' ? 'active' : vmStatus === 'CANCELLED' ? 'frozen' : 'active';
+            upsert.run(
+              up.card_id, 2, up.card_number || '',
+              up.product_code || '', mappedStatus,
+              up.available_amount || 0,
+              up.expiry_month || null, up.expiry_year || null
+            );
+          }
+          console.log(`[Admin Cards] 上游同步完成：更新/插入了 ${listResult.list.length} 张卡`);
+        }
+      } catch (err) {
+        console.warn('[Admin Cards] 上游列表拉取失败，仅同步本地已有卡片:', err.message);
+      }
+
+      // 对当前页每张卡从上游拉取最新状态（含 DELETED 标记）
+      if (cards.length > 0) {
+        console.log(`[Admin Cards] 实时同步 ${cards.length} 张卡片状态...`);
+        for (const card of cards) {
+          try {
+            await syncSingleCard(card.card_id);
+          } catch (err) {
+            console.warn(`[Admin Cards] 同步卡片 ${card.card_id} 失败:`, err.message);
+          }
         }
       }
       // 重新拉取最新数据
@@ -746,14 +778,40 @@ async function syncAllCardsFromUpstream() {
   const startTime = Date.now();
   
   try {
-    // 获取所有卡片（含 deleted，以便重新确认）
-    const cards = db.prepare(`
-      SELECT card_id, status FROM cards 
-      ORDER BY updated_at ASC
-      LIMIT 200
-    `).all();
+    // 第一步：从上游拉取全量卡片列表，同步到本地
+    console.log('[CardSync] 拉取上游全量卡片列表...');
+    try {
+      const listResult = await sdk.cardList({ pageSize: 200, page: 1 });
+      if (listResult && Array.isArray(listResult.list) && listResult.list.length > 0) {
+        const upsert = db.prepare(`
+          INSERT INTO cards (card_id, user_id, card_number, product_code, status, available_amount, expiry_month, expiry_year, last_verified, verified_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'synced')
+          ON CONFLICT(card_id) DO UPDATE SET
+            status = excluded.status,
+            available_amount = excluded.available_amount,
+            last_verified = datetime('now'),
+            verified_status = 'synced'
+        `);
+        for (const up of listResult.list) {
+          const vmStatus = (up.status || '').toUpperCase();
+          const mappedStatus = vmStatus === 'ACTIVE' ? 'active' : vmStatus === 'CANCELLED' ? 'frozen' : 'active';
+          upsert.run(
+            up.card_id, 2, up.card_number || '',
+            up.product_code || '', mappedStatus,
+            up.available_amount || 0,
+            up.expiry_month || null, up.expiry_year || null
+          );
+        }
+        console.log(`[CardSync] 上游列表同步完成：更新/插入了 ${listResult.list.length} 张卡`);
+      }
+    } catch (err) {
+      console.warn('[CardSync] 上游列表拉取失败，仅同步本地已有卡片:', err.message);
+    }
+
+    // 第二步：获取所有本地卡片，逐张同步详细状态
+    const cards = db.prepare(`SELECT card_id, status FROM cards ORDER BY updated_at ASC LIMIT 200`).all();
     
-    console.log(`[CardSync] 找到 ${cards.length} 张卡片需要同步`);
+    console.log(`[CardSync] 找到 ${cards.length} 张卡片需要详细同步`);
     
     let successCount = 0;
     let failCount = 0;

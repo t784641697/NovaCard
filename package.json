@@ -1,6 +1,6 @@
 {
   "name": "vcc-backend",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "VCC Hub \u540e\u7aef\u670d\u52a1 - vmcardio API \u7f51\u5173\u5c42",
   "main": "src/app.js",
   "scripts": {
