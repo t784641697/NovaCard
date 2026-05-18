@@ -119,6 +119,7 @@ db.exec(`
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     -- 申请参数（完整存储，审批通过时直接用来调 vmcardio）
     product_code TEXT    NOT NULL DEFAULT '',
+    card_bin     TEXT    NOT NULL DEFAULT '',
     first_name   TEXT    NOT NULL DEFAULT '',
     last_name    TEXT    NOT NULL DEFAULT '',
     label        TEXT    NOT NULL DEFAULT '',

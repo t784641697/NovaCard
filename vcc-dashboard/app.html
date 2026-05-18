@@ -2541,6 +2541,7 @@ async function submitApply() {
   const g = id => (document.getElementById(id)||{}).value||'';
   const payload = {
     product_code: _selectedBin.code||_selectedBin.product_code,
+    card_bin:     _selectedBin.bin||'',
     first_name:   g('ap_first'),
     last_name:    g('ap_last'),
     label:        g('ap_label'),

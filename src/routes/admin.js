@@ -820,7 +820,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     for (let i = 0; i < qty; i++) {
       try {
         const result = await sdk.createCard({
-          product_code: app.product_code,
+          product_code: app.card_bin || app.product_code,
           first_name: app.first_name,
           last_name: app.last_name,
           label: app.label || '',

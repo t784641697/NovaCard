@@ -33,8 +33,8 @@ const BalanceService = require('../services/balanceService');
 router.post('/', createCardLimiter, async (req, res, next) => {
   try {
     const {
-      product_code, first_name, last_name, label,
-      topup_amount, quantity, email
+      product_code, card_bin, first_name, last_name, label,
+      topup_amount, quantity
     } = req.body;
 
     if (!product_code || !first_name || !last_name) {
@@ -82,18 +82,19 @@ router.post('/', createCardLimiter, async (req, res, next) => {
     // 插入申请记录（待审批）
     const result = db.prepare(`
       INSERT INTO card_applications
-        (user_id, product_code, first_name, last_name, label,
+        (user_id, product_code, card_bin, first_name, last_name, label,
          topup_amount, quantity, email, fee_amount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       req.user.id,
       product_code,
+      card_bin || '',
       first_name,
       last_name,
       label || '',
       topupAmt,
       qty,
-      email || req.user.email,
+      req.body.email || req.user.email,
       cardCreationFee
     );
 
