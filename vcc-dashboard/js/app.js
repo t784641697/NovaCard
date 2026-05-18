@@ -1104,9 +1104,6 @@ async function renderApply() {
         </div>
 
         <div class="divider"></div>
-        </div>
-
-        <div class="divider"></div>
         <div style="font-weight:700;margin-bottom:16px">金额 / 限额</div>
         <div class="form-row col2">
           <div class="form-group"><label>初始金额（储值卡）</label><input class="form-control" type="number" id="ap_amount" placeholder="0"/></div>
@@ -1239,6 +1236,128 @@ async function submitApply() {
     single_limit: parseFloat(g('ap_single'))||0,
     day_limit:    parseFloat(g('ap_day'))||0,
     month_limit:  parseFloat(g('ap_month'))||0,
+    };
+  if (!payload.first_name||!payload.last_name) { toast('⚠️ 请填写持卡人姓名'); return; }
+
+  const btn = document.getElementById('submitApplyBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 提交中…';
+  try {
+    const res = await apiFetch('/cards',{method:'POST',body:JSON.stringify(payload)});
+    if (res.code!==0) { toast('❌ 提交失败：'+(res.msg||'')); return; }
+    toast('✅ 申请已提交，等待管理员审批');
+    backToStep1();
+    loadMyApplications();
+  } catch(e) {
+    if (e.message!=='Unauthorized') toast('❌ 提交失败');
+  } finally {
+    btn.disabled=false; btn.textContent='🚀 提交开卡申请';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  PAGE: 充值
+// ══════════════════════════════════════════════
+let _topupType = 'usdt'; // 当前充值类型：'usdt' | 'usd'
+
+function openTopupTypeModal() {
+  document.getElementById('topupTypeOverlay').classList.add('open');
+}
+function closeTopupTypeModal() {
+  document.getElementById('topupTypeOverlay').classList.remove('open');
+}
+function selectTopupType(type) {
+  _topupType = type;
+  closeTopupTypeModal();
+  // 更新导航激活状态
+  document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+  const navEl = document.getElementById('nav-topup');
+  if (navEl) navEl.classList.add('active');
+  gotoPage('topup');
+}
+
+async function renderTopup() {
+  const area = document.getElementById('contentArea');
+  const isUSDT = _topupType === 'usdt';
+  const typeLabel = isUSDT ? '₮ USDT' : '💵 USD';
+  const typeName  = isUSDT ? 'USDT（加密稳定币）' : 'USD（美元电汇）';
+
+  // 根据类型决定展示哪些支付方式（USD 保持原样选择框）
+  const networkChips = `
+    <div class="network-chip" id="nc_wire" onclick="selectNetwork('Wire Transfer',this)">
+      <span class="nc-icon">🏦</span>
+      <div><div class="nc-name">银行电汇</div><div class="nc-sub">Wire Transfer</div></div>
+    </div>
+    <div class="network-chip" id="nc_swift" onclick="selectNetwork('SWIFT',this)">
+      <span class="nc-icon">🌐</span>
+      <div><div class="nc-name">SWIFT 汇款</div><div class="nc-sub">国际电汇</div></div>
+    </div>
+  `;
+
+  const remarkPlaceholder = '例如：汇款参考号、汇款银行';
+
+  // USDT 专属：收款地址
+  const TRC20_ADDR = 'TWJ7pHoj1uSBeHHaFDM9eFJNNmfYt1X9zr';
+  const ERC20_ADDR = '0x0984967bbe780dd605ac815c6a2845ba8062fa32';
+
+  // 左侧面板：USDT 展示二维码 / USD 展示金额选择
+  const leftPanel = isUSDT ? `
+        <div class="panel">
+          <div style="font-weight:700;margin-bottom:20px">发起充值申请</div>
+
+          
+          <div class="usdt-tab-bar">
+            <div class="usdt-tab selected" id="tab_trc20" onclick="switchUsdtTab('trc20')">
+              <span class="usdt-tab-icon">₮</span>
+              <div>
+                <div class="usdt-tab-name">TRC20</div>
+                <div class="usdt-tab-sub">Tron 网络</div>
+              </div>
+            </div>
+            <div class="usdt-tab" id="tab_erc20" onclick="switchUsdtTab('erc20')">
+              <span class="usdt-tab-icon">₮</span>
+              <div>
+                <div class="usdt-tab-name">ERC20</div>
+                <div class="usdt-tab-sub">Ethereum 网络</div>
+              </div>
+            </div>
+          </div>
+
+          
+          <div class="usdt-qr-panel">
+            <div class="usdt-network-label" id="usdt_net_label">
+              <span class="usdt-network-dot"></span>
+              <span id="usdt_net_label_text">USDT · TRC20 (Tron)</span>
+            </div>
+            <div class="usdt-qr-ring">
+              <div class="usdt-qr-box" id="usdt_qr_main"></div>
+            </div>
+            <div class="usdt-addr-wrap">
+              <div class="usdt-addr-label">收款地址</div>
+              <div class="usdt-addr" id="usdt_addr_main">${TRC20_ADDR}</div>
+            </div>
+            <button class="usdt-copy-btn" id="usdt_copy_main" onclick="copyAddr(event, document.getElementById('usdt_addr_main').textContent)">📋 复制地址</button>
+          </div>
+
+          <div class="form-group" style="margin-top:20px">
+            <label>TxHash 交易哈希</label>
+            <input class="form-control" id="topupRemark" placeholder="转账后请填写链上 TxHash"/>
+          </div>
+
+          <button class="btn btn-primary btn-block btn-lg" id="topupSubmitBtn" onclick="submitTopup()">
+            提交充值申请
+          </button>
+          <div style="font-size:.75rem;color:var(--text3);text-align:center;margin-top:10px">
+            扫码转账后填写 TxHash，管理员将在 1-24 小时内审核到账
+          </div>
+        </div>
+  ` : `
+        <div class="panel">
+          <div style="font-weight:700;margin-bottom:20px">发起充值申请</div>
+
+          <div class="form-group">
+            <label>选择金额（USD）</label>
+            <div class="topup-amount-grid" id="amtChips">
+              ${[100,200,500,1000].map(v=>`<div class="amount-chip" onclick="selectAmt(${v},this)">$${v}</div>`).join('')}
             </div>
             <input class="form-control" type="number" id="topupAmt" placeholder="或手动输入金额" min="1"/>
           </div>
