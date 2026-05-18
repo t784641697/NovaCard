@@ -382,14 +382,6 @@ select.form-control option{background:var(--bg3);}
 
 /* MAIN */
 .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;}
-.topbar{
-  height:62px;background:rgba(11,13,23,.85);backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--border);padding:0 28px;
-  display:flex;align-items:center;justify-content:space-between;
-  position:sticky;top:0;z-index:50;
-}
-.topbar-title{font-size:1rem;font-weight:700;}
-.topbar-sub{font-size:.78rem;color:var(--text3);margin-top:1px;}
 .content-area{flex:1;padding:28px;max-width:1100px;width:100%;}
 
 /* ══════════════════════════════════════════════
@@ -1229,15 +1221,7 @@ select.form-control option{background:var(--bg3);}
   
   <main class="main">
     
-    <div class="topbar">
-      <div>
-        <div class="topbar-title" id="topbarTitle">账户总览</div>
-        <div class="topbar-sub" id="topbarSub">管理您的所有虚拟卡</div>
-      </div>
-      <div class="flex items-center gap-3">
-        <button class="btn btn-outline btn-sm" onclick="refreshPage()">⟳ 刷新</button>
-      </div>
-    </div>
+    
 
     <div class="content-area" id="contentArea">
       
@@ -1923,9 +1907,6 @@ function gotoPage(page) {
     if (el) el.classList.add('active');
   });
   // topbar
-  const meta = PAGE_META[page] || {};
-  document.getElementById('topbarTitle').textContent = meta.title||page;
-  document.getElementById('topbarSub').textContent   = meta.sub||'';
   // 渲染页面
   area.scrollTo && area.scrollTo({top:0});
   if (page==='cards') renderCards();
@@ -1944,15 +1925,6 @@ function gotoPage(page) {
   else if (page==='admin-finance') renderAdminFinance();
   else if (page==='admin-tx-monitor') renderAdminTxMonitor();
   else if (page==='admin-settings') renderAdminSettingsPage();
-}
-
-function refreshPage() {
-  if (_curPage === "admin-dashboard") {
-    loadMerchantBalanceForce();
-    loadAdminStats();
-  } else {
-    gotoPage(_curPage);
-  }
 }
 
 // ══════════════════════════════════════════════
