@@ -114,5 +114,17 @@ node src/app.js
 
 1. **数据库**: SQLite 使用 WAL 模式，数据存储在 `data/vcc.db`。服务启动时自动建表和种子数据。
 2. **外部依赖**: vmcardio API (虚拟卡发行商) 为外部服务，需要配置 `.env` 中的 VMCARDIO_* 变量才能使用卡片申请/交易等功能。
-3. **腾讯云短信**: 需要配置 TENCENT_SMS_* 环境变量，否则短信功能不可用。
+3. **腾讯云短信**: 需要配置 TENCENT_SMS_* 环境变量，否则短信，否则短信功能不可用。
 4. **前端**: 单页应用，所有逻辑在 `app.html` 中内联，通过 CDN 加载 Chart.js 和 QRCode.js。
+
+### 📌 已知问题和修复记录
+
+| 版本 | 日期 | 修复内容 |
+|------|------|---------|
+| v1.0.0 | 2026-05-18 | 初始版本，从 XiuXiu Card 迁移 |
+| v1.0.1 | 2026-05-18 | 移除顶部标题栏，品牌名 XiuXiu Card → NovaCard |
+| v1.0.2 | 2026-05-18 | **修复卡片管理搜索**: `GET /api/admin/cards` 统计查询 SQL 双重 WHERE 语法错误，导致带过滤条件的搜索全部 500 错误 |
+
+### 🐛 常见 Bug
+
+- **搜索功能 SQL 错误**: `GET /api/admin/cards` 中 stats 查询的 WHERE 子句双重拼接。修复: 用独立的 statsQueryConditions 数组代替复用 whereClause，并移除对 users 表的引用依赖。
