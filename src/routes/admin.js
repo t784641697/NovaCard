@@ -767,6 +767,140 @@ router.get('/users', (req, res) => {
   });
 });
 
+// ── 开卡申请管理 ────────────────────────────────────────────────────────────
+/**
+ * GET  /api/admin/card-applications         — 查询所有开卡申请（支持 ?status= 过滤）
+ * POST /api/admin/card-applications/:id/approve — 审批通过（调 vmcardio 开卡）
+ * POST /api/admin/card-applications/:id/reject  — 拒绝申请
+ */
+
+// 查询开卡申请列表
+router.get('/card-applications', (req, res) => {
+  const { status, search } = req.query;
+  let where = 'WHERE 1=1';
+  const params = [];
+  if (status && status !== 'all') {
+    where += ' AND a.status = ?';
+    params.push(status);
+  }
+  if (search) {
+    where += ' AND (u.name LIKE ? OR u.email LIKE ? OR a.product_code LIKE ?)';
+    const term = `%${search}%`;
+    params.push(term, term, term);
+  }
+  const rows = db.prepare(`
+    SELECT a.*, u.name as user_name, u.email as user_email,
+           (SELECT COUNT(*) FROM card_applications WHERE status='pending') as pending_count,
+           (SELECT COUNT(*) FROM card_applications WHERE status='approved') as approved_count,
+           (SELECT COUNT(*) FROM card_applications WHERE status='rejected') as rejected_count
+    FROM card_applications a
+    JOIN users u ON u.id = a.user_id
+    ${where}
+    ORDER BY a.created_at DESC
+    LIMIT 200
+  `).all(...params);
+  res.json({ code: 0, msg: 'ok', data: rows });
+});
+
+// 审批通过 — 调用 vmcardio 创建卡片
+router.post('/card-applications/:id/approve', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const app = db.prepare('SELECT * FROM card_applications WHERE id = ?').get(id);
+    if (!app) return res.status(404).json({ code: 404, msg: '申请记录不存在' });
+    if (app.status !== 'pending') return res.status(400).json({ code: 400, msg: '该申请已被处理' });
+
+    const topupAmt = Number(app.topup_amount);
+    const qty = Math.max(1, Number(app.quantity) || 1);
+    if (topupAmt < 20) return res.status(400).json({ code: 400, msg: '卡内充值金额不能低于 $20' });
+
+    const createdCards = [];
+    let lastError = null;
+
+    for (let i = 0; i < qty; i++) {
+      try {
+        const result = await sdk.createCard({
+          product_code: app.product_code,
+          first_name: app.first_name,
+          last_name: app.last_name,
+          label: app.label || '',
+          amount: topupAmt,
+        });
+        if (result && result.card_id) {
+          // 写入本地 cards 表
+          const cardInfo = result.card_info || result;
+          db.prepare(`
+            INSERT INTO cards (card_id, user_id, product_code, label, card_type, status,
+              available_amount, single_limit, day_limit, month_limit,
+              card_number, expiry_month, expiry_year, cvv,
+              created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          `).run(
+            result.card_id,
+            app.user_id,
+            app.product_code,
+            app.label || '',
+            cardInfo.card_type || 'virtual',
+            'active',
+            topupAmt,
+            cardInfo.single_limit || 0,
+            cardInfo.day_limit || 0,
+            cardInfo.month_limit || 0,
+            cardInfo.card_number || null,
+            cardInfo.expiry_month || null,
+            cardInfo.expiry_year || null,
+            cardInfo.cvv || null
+          );
+          createdCards.push(result.card_id);
+        }
+      } catch (err) {
+        lastError = err;
+        break; // 中途失败不再继续创建
+      }
+      // 避免请求过快
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    if (createdCards.length > 0) {
+      db.prepare(`UPDATE card_applications SET status = 'approved', card_id = ?, updated_at = datetime('now') WHERE id = ?`)
+        .run(createdCards.join(','), id);
+      res.json({
+        code: 0, msg: `已成功创建 ${createdCards.length}/${qty} 张卡片`,
+        data: { card_ids: createdCards, total: qty, success: createdCards.length }
+      });
+    } else {
+      db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?`)
+        .run('开卡失败: ' + (lastError?.message || '未知错误'), id);
+      // 退还费用
+      db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(app.fee_amount, app.user_id);
+      res.status(422).json({ code: 422, msg: '开卡失败: ' + (lastError?.message || '未知错误') });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 拒绝申请
+router.post('/card-applications/:id/reject', (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const app = db.prepare('SELECT * FROM card_applications WHERE id = ?').get(id);
+    if (!app) return res.status(404).json({ code: 404, msg: '申请记录不存在' });
+    if (app.status !== 'pending') return res.status(400).json({ code: 400, msg: '该申请已被处理' });
+
+    // 退还开卡费 + 充值冻结金额
+    const refund = (app.fee_amount || 0) + (app.topup_amount || 0) * Math.max(1, Number(app.quantity) || 1);
+    db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(refund, app.user_id);
+    db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?`)
+      .run(reason || '管理员拒绝了申请', id);
+
+    res.json({ code: 0, msg: '已拒绝该申请，费用已退还' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── 全量同步 ────────────────────────────────────────────────────────────────
 /**
  * 遍历本地所有卡（含 deleted 状态），逐一从上游拉取最新状态

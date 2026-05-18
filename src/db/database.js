@@ -122,14 +122,10 @@ db.exec(`
     first_name   TEXT    NOT NULL DEFAULT '',
     last_name    TEXT    NOT NULL DEFAULT '',
     label        TEXT    NOT NULL DEFAULT '',
-    amount       REAL    NOT NULL DEFAULT 0,
-    single_limit REAL    NOT NULL DEFAULT 0,
-    day_limit    REAL    NOT NULL DEFAULT 0,
-    month_limit  REAL    NOT NULL DEFAULT 0,
-    area_code    TEXT    NOT NULL DEFAULT '',
-    mobile       TEXT    NOT NULL DEFAULT '',
+    -- 新开卡参数：充值金额（每张卡最低$20） + 开卡数量
+    topup_amount REAL    NOT NULL DEFAULT 0,
+    quantity     INTEGER NOT NULL DEFAULT 1,
     email        TEXT    NOT NULL DEFAULT '',
-    card_address TEXT    NOT NULL DEFAULT '{}',  -- JSON 字符串
     -- 审批状态
     status       TEXT    NOT NULL DEFAULT 'pending',  -- pending / approved / rejected
     reject_reason TEXT   NOT NULL DEFAULT '',

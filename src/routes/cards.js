@@ -34,48 +34,66 @@ router.post('/', createCardLimiter, async (req, res, next) => {
   try {
     const {
       product_code, first_name, last_name, label,
-      amount, single_limit, day_limit, month_limit,
-      card_address, area_code, mobile, email
+      topup_amount, quantity, email
     } = req.body;
 
     if (!product_code || !first_name || !last_name) {
       return res.status(400).json({ code: 400, msg: '缺少必填参数：product_code / first_name / last_name' });
     }
 
-    // 1. 计算开卡费（默认$10）
+    const topupAmt = Number(topup_amount) || 0;
+    const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+
+    // 上游要求：每张卡充值金额 ≥ $20
+    if (topupAmt < 20) {
+      return res.status(400).json({ code: 400, msg: '卡内充值金额不能低于 $20' });
+    }
+
+    // 开卡数量限制
+    if (qty > 50) {
+      return res.status(400).json({ code: 400, msg: '单次开卡数量不能超过 50 张' });
+    }
+
+    // 计算总开卡费（每张卡收取固定开卡费）
     const feeResult = FeeCalculator.calculateFee('card_creation', 0, req.user.id);
-    const cardCreationFee = feeResult.fee_fixed; // 开卡费是固定费用
-    
-    // 2. 通过余额服务扣除开卡费（开卡费计入total_spend和total_fees）
+    const cardCreationFee = feeResult.fee_fixed * qty;
+    const totalAmount = topupAmt * qty; // 充值总额（冻结在余额里）
+
+    // 检查用户余额是否足够（开卡费 + 充值费）
+    const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(req.user.id);
+    const userBalance = Number(user?.balance || 0);
+    const totalCost = cardCreationFee + totalAmount;
+    if (userBalance < totalCost) {
+      return res.status(400).json({ code: 400, msg: `余额不足。需要 $${totalCost.toFixed(2)}（开卡费 $${cardCreationFee.toFixed(2)} + 充值 $${totalAmount.toFixed(2)}），当前余额 $${userBalance.toFixed(2)}` });
+    }
+
+    // 通过余额服务扣除开卡费（计入 total_spend 和 total_fees）
     const spendResult = BalanceService.recordSpend(
       req.user.id,
-      0, // 开卡费没有消费金额，只有手续费
+      totalAmount, // 充值金额计入消费
       'card_creation',
       cardCreationFee,
-      `申请虚拟卡 ${product_code || '虚拟卡'} 开卡手续费`
+      `申请 ${qty} 张虚拟卡 ${product_code || ''}，每张充值 $${topupAmt}`
     );
 
-    // 3. 插入申请记录（待审批）
+    // 冻结充值金额（余额扣除，审批通过后转到卡上）
+    db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(totalAmount, req.user.id);
+
+    // 插入申请记录（待审批）
     const result = db.prepare(`
       INSERT INTO card_applications
         (user_id, product_code, first_name, last_name, label,
-         amount, single_limit, day_limit, month_limit,
-         area_code, mobile, email, card_address, fee_amount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         topup_amount, quantity, email, fee_amount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       req.user.id,
       product_code,
       first_name,
       last_name,
       label || '',
-      Number(amount) || 0,
-      Number(single_limit) || 0,
-      Number(day_limit) || 0,
-      Number(month_limit) || 0,
-      area_code || '',
-      mobile || '',
+      topupAmt,
+      qty,
       email || req.user.email,
-      JSON.stringify(card_address || {}),
       cardCreationFee
     );
 
@@ -99,7 +117,7 @@ router.get('/applications', (req, res, next) => {
   try {
     const rows = db.prepare(`
       SELECT id, product_code, first_name, last_name, label,
-             amount, single_limit, day_limit, month_limit,
+             topup_amount, quantity,
              status, reject_reason, card_id, created_at, updated_at
       FROM card_applications
       WHERE user_id = ?

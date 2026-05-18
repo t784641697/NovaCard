@@ -2394,12 +2394,10 @@ async function renderApply() {
           <div class="form-group"><label>邮箱</label><input class="form-control" type="email" id="ap_email" placeholder="留空使用登录邮箱"/></div>
         </div>
         <div class="divider"></div>
-        <div style="font-weight:700;margin-bottom:16px">金额 / 限额</div>
+        <div style="font-weight:700;margin-bottom:16px">充值 / 数量</div>
         <div class="form-row col2">
-          <div class="form-group"><label>初始金额（储值卡）</label><input class="form-control" type="number" id="ap_amount" placeholder="0"/></div>
-          <div class="form-group"><label>单笔限额</label><input class="form-control" type="number" id="ap_single" placeholder="0"/></div>
-          <div class="form-group"><label>日限额</label><input class="form-control" type="number" id="ap_day" placeholder="0"/></div>
-          <div class="form-group"><label>月限额</label><input class="form-control" type="number" id="ap_month" placeholder="0"/></div>
+          <div class="form-group"><label>卡内充值金额 * (≥$20/张)</label><input class="form-control" type="number" id="ap_topup" placeholder="20" min="20"/></div>
+          <div class="form-group"><label>开卡数量</label><input class="form-control" type="number" id="ap_qty" placeholder="1" value="1" min="1"/></div>
         </div>
 
         <button class="btn btn-primary btn-lg btn-block mt-2" id="submitApplyBtn" onclick="submitApply()">
@@ -2521,10 +2519,8 @@ async function submitApply() {
     last_name:    g('ap_last'),
     label:        g('ap_label'),
     email:        g('ap_email')||(_me?.email||''),
-    amount:       parseFloat(g('ap_amount'))||0,
-    single_limit: parseFloat(g('ap_single'))||0,
-    day_limit:    parseFloat(g('ap_day'))||0,
-    month_limit:  parseFloat(g('ap_month'))||0,
+    amount:       parseFloat(g('ap_topup'))||0,
+    quantity:     parseInt(g('ap_qty'))||1,
   };
   if (!payload.first_name||!payload.last_name) { toast('⚠️ 请填写持卡人姓名'); return; }
 
@@ -5761,7 +5757,7 @@ async function crLoad() {
   const statusColor = { pending:'#ffaa00', approved:'#00c758', rejected:'#ff5f5f' };
 
   wrap.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-    '<th>ID</th><th>申请人</th><th>卡产品</th><th>持卡人</th><th>金额</th><th>状态</th><th>申请时间</th><th>操作</th>' +
+    '<th>ID</th><th>申请人</th><th>卡产品</th><th>持卡人</th><th>充值/数量</th><th>状态</th><th>申请时间</th><th>操作</th>' +
     '</tr></thead><tbody>' +
     list.map(a => {
       const isPending = a.status === 'pending';
@@ -5777,6 +5773,7 @@ async function crLoad() {
         '<td><span style="background:#1a2340;padding:3px 8px;border-radius:4px;font-size:.8rem;">' + (a.product_code||'-') + '</span></td>' +
         '<td style="font-size:.85rem;">' + (a.first_name||'') + ' ' + (a.last_name||'') + '</td>' +
         '<td style="color:#00f2fe;font-weight:600;">$' + Number(a.amount||0).toFixed(2) + '</td>' +
+          '<td>' + (a.quantity||1) + '</td>' +
         '<td><span style="background:' + sc + '22;color:' + sc + ';padding:3px 10px;border-radius:12px;font-size:.78rem;">' + st + '</span>' +
           (a.reject_reason ? '<div style="font-size:.72rem;color:#ff5f5f;margin-top:2px;">原因: ' + a.reject_reason + '</div>' : '') +
         '</td>' +

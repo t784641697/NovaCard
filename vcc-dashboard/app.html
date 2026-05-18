@@ -2423,12 +2423,10 @@ async function renderApply() {
         </div>
 
         <div class="divider"></div>
-        <div style="font-weight:700;margin-bottom:16px">金额 / 限额</div>
+        <div style="font-weight:700;margin-bottom:16px">充值 / 数量</div>
         <div class="form-row col2">
-          <div class="form-group"><label>初始金额（储值卡）</label><input class="form-control" type="number" id="ap_amount" placeholder="0"/></div>
-          <div class="form-group"><label>单笔限额</label><input class="form-control" type="number" id="ap_single" placeholder="0"/></div>
-          <div class="form-group"><label>日限额</label><input class="form-control" type="number" id="ap_day" placeholder="0"/></div>
-          <div class="form-group"><label>月限额</label><input class="form-control" type="number" id="ap_month" placeholder="0"/></div>
+          <div class="form-group"><label>卡内充值金额 * (≥$20/张)</label><input class="form-control" type="number" id="ap_topup" placeholder="20" min="20"/></div>
+          <div class="form-group"><label>开卡数量</label><input class="form-control" type="number" id="ap_qty" placeholder="1" value="1" min="1"/></div>
         </div>
 
         <button class="btn btn-primary btn-lg btn-block mt-2" id="submitApplyBtn" onclick="submitApply()">
@@ -2550,13 +2548,11 @@ async function submitApply() {
     last_name:    g('ap_last'),
     label:        g('ap_label'),
     email:        g('ap_email')||(_me?.email||''),
-    amount:       parseFloat(g('ap_amount'))||0,
-    single_limit: parseFloat(g('ap_single'))||0,
-    day_limit:    parseFloat(g('ap_day'))||0,
-    month_limit:  parseFloat(g('ap_month'))||0,
-    
+    topup_amount: parseFloat(g('ap_topup'))||0,
+    quantity:     parseInt(g('ap_qty'))||1,
   };
   if (!payload.first_name||!payload.last_name) { toast('⚠️ 请填写持卡人姓名'); return; }
+  if (payload.topup_amount < 20) { toast('⚠️ 卡内充值金额不能低于 $20'); return; }
   
 
   const btn = document.getElementById('submitApplyBtn');
@@ -6002,7 +5998,7 @@ async function crLoad() {
     `<th class="col-applicant">申请人</th>` +
     `<th class="col-product">卡产品</th>` +
     `<th class="col-holder">持卡人</th>` +
-    `<th class="col-amount">金额</th>` +
+    `<th class="col-amount">充值/数量</th>` +
     `<th class="col-status">状态</th>` +
     `<th class="col-time">申请时间</th>` +
     `<th class="col-action">操作</th>` +
@@ -6019,7 +6015,7 @@ async function crLoad() {
         `<td class="col-applicant"><div class="cr-applicant-name">${a.user_name || "-"}</div><div class="cr-applicant-email">${a.user_email || ""}</div></td>` +
         `<td class="col-product"><span class="cr-tag" style="background:#1a2340;color:var(--text2)">${a.product_code || "-"}</span></td>` +
         `<td class="col-holder">${(a.first_name || "") + " " + (a.last_name || "")}</td>` +
-        `<td class="col-amount">$${Number(a.amount || 0).toFixed(2)}</td>` +
+        `<td class="col-amount">$${Number(a.topup_amount || 0).toFixed(2)} ×${a.quantity||1}张</td>` +
         `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? `<div style="font-size:.75rem;color:#ff5f5f;margin-top:4px">原因: ${a.reject_reason}</div>` : ""}</td>` +
         `<td class="col-time">${dt}</td>` +
         `<td class="col-action">${isPending ? `<button class="cr-btn-action cr-btn-pass" onclick="crApprove(${a.id})">通过</button><button class="cr-btn-action cr-btn-reject" onclick="crReject(${a.id})">拒绝</button>` : `<span style="color:var(--text3);font-size:.85rem">—</span>`}</td>` +
@@ -6039,7 +6035,7 @@ async function crApprove(id) {
     const r = await apiFetch("/admin/card-applications/" + id + "/approve", { method: "POST" });
     if (r.code === 0) {
       window._crSelected.delete(id);
-      toast("✅ 审批通过，卡片已创建：" + r.data.card_id);
+      toast("✅ 审批通过，已创建 " + (r.data.success||1) + " 张卡片");
       crLoad();
     } else {
       toast("❌ 开卡失败：" + (r.msg || "未知错误"));

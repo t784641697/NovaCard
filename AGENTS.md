@@ -97,7 +97,11 @@ node src/app.js
 | `/api/auth/login` | POST | 登录 |
 | `/api/auth/register` | POST | 注册 |
 | `/api/auth/captcha` | GET | 验证码 |
-| `/api/cards/*` | GET/POST | 卡片管理 |
+| `/api/cards` | POST | 提交开卡申请（参数：topup_amount≥$20, quantity） |
+| `/api/admin/cards/*` | GET/POST | 卡片管理 |
+| `/api/admin/card-applications` | GET | 管理员开卡申请列表（?status=pending/approved/rejected） |
+| `/api/admin/card-applications/:id/approve` | POST | 审批通过开卡申请，创建 cards |
+| `/api/admin/card-applications/:id/reject` | POST | 拒绝开卡申请 |
 | `/api/admin/*` | GET/POST | 管理后台 |
 | `/api/topup/*` | POST | 充值 |
 | `/api/transactions` | GET | 交易记录 |
@@ -124,7 +128,8 @@ node src/app.js
 | v1.0.0 | 2026-05-18 | 初始版本，从 XiuXiu Card 迁移 |
 | v1.0.1 | 2026-05-18 | 移除顶部标题栏，品牌名 XiuXiu Card → NovaCard |
 | v1.0.2 | 2026-05-18 | **修复卡片管理搜索功能**: `GET /api/admin/cards` 统计查询 SQL 双重 WHERE 语法错误。修复状态标签点击自动搜索 + 冻结状态值修正 |
-| v1.0.3 | 2026-05-18 | **卡片数据同步机制**: 上游 vmcardio 沙箱卡片已被删除，实现实时同步机制——管理员查看卡片列表时自动 `&sync=true` 从上游拉取最新状态，DELETED 的卡片本地标记为 `deleted`，保持与上游真实数据一致 |
+| v1.0| v1.3 | 2026-05-18 | **卡片数据同步机制**: 上游 vmcardio 沙箱卡片已被删除，实现实时同步机制——管理员查看卡片列表时自动 `&sync=true` 从上游拉取最新状态，DELETED 的卡片本地标记为 `deleted`，保持与上游真实数据一致 |
+| v1.0.5 | 2026-05-18 | **开卡申请表单重构**: 移除旧的"初始金额/单笔限额/日限额/月限额"字段，改为"卡内充值金额（≥$20/张）+ 开卡数量"；移除手机号/区号/地址字段；后端增加管理员审批流程API（列表/通过/拒绝） |
 
 ### 🐛 常见 Bug
 
