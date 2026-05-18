@@ -105,6 +105,7 @@ const frontendDir = process.env.FRONTEND_DIR
   ? path.resolve(process.env.FRONTEND_DIR)
   : path.join(__dirname, '../../vcc-dashboard');
 const frontendPath = path.join(frontendDir, 'app.html');
+const indexPath = path.join(frontendDir, 'index.html');
 if (fs.existsSync(frontendPath)) {
   // 提供前端HTML文件
   app.get('/', (req, res) => {
@@ -113,6 +114,11 @@ if (fs.existsSync(frontendPath)) {
   app.get('/app.html', (req, res) => {
     res.sendFile(frontendPath);
   });
+  if (fs.existsSync(indexPath)) {
+    app.get('/index.html', (req, res) => {
+      res.sendFile(indexPath);
+    });
+  }
   // 提供其他静态资源（CSS、JS等）
   app.use('/static', express.static(frontendDir));
   logger.info('📁 前端静态文件服务已启用：' + frontendDir);
