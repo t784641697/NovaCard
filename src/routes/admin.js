@@ -820,11 +820,12 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     for (let i = 0; i < qty; i++) {
       try {
         const result = await sdk.createCard({
+          app_id:      process.env.VMCARDIO_APP_ID,
           product_code: app.card_bin || app.product_code,
-          first_name: app.first_name,
-          last_name: app.last_name,
-          label: app.label || '',
-          amount: topupAmt,
+          first_name:  app.first_name,
+          last_name:   app.last_name,
+          label:       app.label || '',
+          amount:      topupAmt,
         });
         if (result && result.card_id) {
           // 写入本地 cards 表
