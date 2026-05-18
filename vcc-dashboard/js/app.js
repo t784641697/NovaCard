@@ -1664,6 +1664,7 @@ function renderCmSearchBar() {
     + '<button class="' + tabCls('') + '" onclick="cmSelectTab(this,\'\')">全部</button>'
     + '<button class="' + tabCls('active') + '" onclick="cmSelectTab(this,\'active\')">正常</button>'
     + '<button class="' + tabCls('cancelled') + '" onclick="cmSelectTab(this,\'cancelled\')">冻结</button>'
+    + '<button class="' + tabCls('deleted') + '" onclick="cmSelectTab(this,\'deleted\')">已删除</button>'
     + '</div>'
     // 日期选择器前标签
     + '<span class="cm-date-label">卡片创建时间</span>'
