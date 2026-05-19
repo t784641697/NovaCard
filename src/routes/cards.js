@@ -396,12 +396,38 @@ router.get('/:cardId/fb-codes', async (req, res, next) => {
 });
 
 // ── 产品码列表（开卡选项）────────────────────────────────────────────────
+// 硬编码已知产品（Web API 独有的卡段可能不会被 Merchant API 返回）
+const HARDCODED_PRODUCTS = [
+  {
+    product_code: 'VC113',
+    bin: '537872',
+    network: 'Mastercard',
+    issuing_area: '美国',
+    type: 'save',
+    card_price: '1.50',
+    description: 'AI/Agent工具付费卡段',
+  },
+];
+
 router.get('/meta/products', async (req, res, next) => {
   try {
     const result = await sdk.getProductCode();
-    res.json({ code: 0, msg: 'ok', data: result });
+    // 合并 API 返回的产品列表 + 硬编码默认产品（去重）
+    const apiList = (result && result.list) || [];
+    const merged = [...apiList];
+    for (const hp of HARDCODED_PRODUCTS) {
+      if (!merged.some(m => m.product_code === hp.product_code)) {
+        merged.push(hp);
+      }
+    }
+    res.json({ code: 0, msg: 'ok', data: { ...result, list: merged } });
   } catch (err) {
-    next(err);
+    // API 调用失败时，至少返回硬编码列表
+    res.json({
+      code: 0,
+      msg: 'ok',
+      data: { list: HARDCODED_PRODUCTS },
+    });
   }
 });
 

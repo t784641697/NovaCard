@@ -832,8 +832,12 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           user_name:         'taoliang.light@gmail.com',
           alias:             app.label || '',
         });
-        // Web API 创建成功（异步处理，不立即返回 card_id）
-        createdCards.push(`processing-${Date.now()}-${i}`);
+        // 立即创建本地卡片记录，用户可立即看到此卡
+        const localCardId = `WEB-${app.product_code || app.card_bin || app.product_code}-${Date.now()}-${i}`;
+        db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', datetime('now'), datetime('now'))`).run(
+          localCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Web Card'
+        );
+        createdCards.push(localCardId);
       } catch (err) {
         lastError = err;
         break;
@@ -843,8 +847,12 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     }
 
     if (createdCards.length > 0) {
-      db.prepare(`UPDATE card_applications SET status = 'approved', updated_at = datetime('now') WHERE id = ?`)
-        .run(id);
+      db.prepare(`UPDATE card_applications SET card_id = ?, status = 'approved', updated_at = datetime('now') WHERE id = ?`)
+        .run(createdCards.join(','), id);
+      // 后台异步发现：尝试补齐上游 card_id（非阻塞）
+      discoverWebCardIds(id, app, createdCards).catch(err => {
+        logger.error('[WebCreate] Card discovery error:', err.message);
+      });
       res.json({
         code: 0,
         msg: `已成功提交 ${createdCards.length}/${qty} 张卡片的开卡请求（异步处理，约10-20秒完成），请稍后同步卡片列表查看`,
@@ -961,5 +969,71 @@ async function syncAllCardsFromUpstream() {
     throw err;
   }
 }
+
+// =============================================
+// Web API 卡片发现：后台尝试补全上游 card_id
+// =============================================
+async function discoverWebCardIds(applicationId, app, placeholderCardIds) {
+  if (!placeholderCardIds || placeholderCardIds.length === 0) return;
+  const maxAttempts = 6; // 6 × 3s = 18s 最大轮询
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      // 尝试通过 cardTransaction 发现新卡片（有 card_id 的情况下）
+      // 但上游无 cardList 端点，此方法仅尽力而为
+      const txResult = await sdk.cardTransaction({ page: 1, pageSize: 200 });
+      if (txResult && txResult.list && txResult.list.length > 0) {
+        for (const tx of txResult.list) {
+          if (tx.card_id && !db.prepare('SELECT 1 FROM cards WHERE card_id = ?').get(tx.card_id)) {
+            const matchBin = app.product_code || app.card_bin;
+            if (!matchBin || (tx.product_code || '').includes(matchBin)) {
+              // 找到匹配的卡片，更新本地记录
+              const oldId = placeholderCardIds.shift();
+              if (oldId) {
+                db.prepare('UPDATE cards SET card_id = ? WHERE card_id = ?').run(tx.card_id, oldId);
+                logger.info(`[WebCreate] Card discovered: ${tx.card_id} (was ${oldId})`);
+              }
+            }
+          }
+        }
+        if (placeholderCardIds.length === 0) return; // 全部找到
+      }
+    } catch (e) {
+      // 静默重试
+    }
+  }
+  if (placeholderCardIds.length > 0) {
+    logger.warn(`[WebCreate] ${placeholderCardIds.length} card(s) still undiscovered for application ${applicationId}`);
+  }
+}
+
+// =============================================
+// 手动关联上游 card_id（管理员通过 vmcardio 后台查到的 card_id）
+// POST /api/admin/cards/attach-web-id
+// =============================================
+router.post('/admin/cards/attach-web-id', async (req, res, next) => {
+  try {
+    const { placeholder_id, real_card_id, real_card_number } = req.body;
+    if (!placeholder_id || !real_card_id) {
+      return res.status(400).json({ code: 400, msg: '缺少 placeholder_id 或 real_card_id' });
+    }
+    const card = db.prepare('SELECT * FROM cards WHERE card_id = ?').get(placeholder_id);
+    if (!card) {
+      return res.status(404).json({ code: 404, msg: '占位卡片不存在' });
+    }
+    const updateFields = ['card_id = ?'];
+    const updateParams = [real_card_id];
+    if (real_card_number) {
+      updateFields.push('card_number = ?');
+      updateParams.push(real_card_number);
+    }
+    updateParams.push(placeholder_id);
+    db.prepare(`UPDATE cards SET ${updateFields.join(', ')} WHERE card_id = ?`).run(...updateParams);
+    logger.info(`[WebCreate] Admin manually attached card: ${placeholder_id} -> ${real_card_id}`);
+    res.json({ code: 0, msg: '卡片 ID 已更新' });
+  } catch (e) {
+    next(e);
+  }
+});
 
 module.exports = router;
