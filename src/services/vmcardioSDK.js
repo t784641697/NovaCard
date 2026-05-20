@@ -92,6 +92,9 @@ class VmcardioSDK {
       throw new Error('VMCARDIO_WEB_TOKEN 未配置，请在 .env 中添加');
     }
 
+    const webApiUrl  = process.env.VMCARDIO_WEB_API_URL || 'https://dev.vmcardio.com/web/createCard';
+    const originHost = process.env.VMCARDIO_WEB_ORIGIN  || 'https://sandbox.vmcardio.com';
+
     const payload = {
       bin:                  params.bin,
       amount:               params.amount,
@@ -113,13 +116,13 @@ class VmcardioSDK {
     logger.info('[vmcardio] -> POST /web/createCard (Web API)', { bin: params.bin, amount: params.amount, create_num: payload.create_num });
 
     const resp = await axios.post(
-      'https://dev.vmcardio.com/web/createCard',
+      webApiUrl,
       payload,
       {
         headers: {
           'token':          token,
           'Content-Type':   'application/json',
-          'Origin':         'https://sandbox.vmcardio.com',
+          'Origin':         originHost,
         },
         timeout: 60_000,
         validateStatus: s => true,
