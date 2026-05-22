@@ -5399,19 +5399,7 @@ function renderBalanceDetailPage() {
       <p class="text-muted mt-1">详细展示账户收支构成，清晰了解资金去向</p>
     </div>
     
-    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:30px;">
-      <button class="btn-primary" onclick="loadBalanceDetails()">
-        <span style="margin-right:8px">🔄</span>刷新数据
-      </button>
-      <button class="btn-secondary" onclick="loadTransactionStats()">
-        <span style="margin-right:8px">📊</span>查看分类统计
-      </button>
-      <button class="btn-secondary" onclick="loadBalanceTrend()">
-        <span style="margin-right:8px">📈</span>查看趋势图
-      </button>
-    </div>
-    
-    <div id="balanceDetailContainer">
+<div id="balanceDetailContainer">
       <div class="loading" style="text-align:center;padding:60px;">加载中...</div>
     </div>
   `;
