@@ -2928,9 +2928,9 @@ async function renderCardManage() {
     </div></div>`;
   
   setTimeout(function() {
-    if (document.getElementById('cmDr_trigger')) {
-        drInit();
-    }
+    // 首次进入时 cmDr_trigger 不存在，需执行初始化
+    // drInit 内部已有清理逻辑，多次调用安全
+    drInit();
 }, 100);  // 初始化日期范围选择器
   loadCmList();
 }
