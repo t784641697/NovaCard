@@ -5418,162 +5418,104 @@ async function loadBalanceDetails() {
     
     const data = res.data;
     
-    // 收入部分
     const incomeItems = [
       { label: '初始余额', value: data.income.initial, color: '#00f2fe' },
       { label: '管理员充值', value: data.income.topup, color: '#00c758' },
       { label: '退款返还', value: data.income.refund, color: '#00a8ff' },
       { label: '拒付返还', value: data.income.chargeback, color: '#9d4edd' }
-    ].filter(item => item.value > 0);
+    ].filter(function(item){return item.value > 0});
     
-    // 支出部分
     const outcomeItems = [
       { label: '总消费', value: data.outcome.spend, color: '#ff5f5f' },
       { label: '总手续费', value: data.outcome.fees, color: '#ffaa00' }
-    ].filter(item => item.value > 0);
+    ].filter(function(item){return item.value > 0});
     
-    const totalIncome = incomeItems.reduce((sum, item) => sum + item.value, 0);
-    const totalOutcome = outcomeItems.reduce((sum, item) => sum + item.value, 0);
-    const netBalance = totalIncome - totalOutcome;
+    var totalIncome = 0;
+    incomeItems.forEach(function(item){totalIncome += item.value});
+    var totalOutcome = 0;
+    outcomeItems.forEach(function(item){totalOutcome += item.value});
+    var netBalance = totalIncome - totalOutcome;
     
-    // 余额公式验证状态
-    const formulaStatus = data.is_consistent 
-      ? '<span class="tag tag-green" style="margin-left:10px;">✅ 余额一致</span>'
-      : `<span class="tag tag-red" style="margin-left:10px;">⚠️ 余额不一致 (差异 ${data.discrepancy.toFixed(2)})</span>`;
+    function renderBarItems(items, total) {
+      if (!items.length) return '';
+      var html = '';
+      items.forEach(function(item){
+        var pct = total > 0 ? (item.value / total * 100).toFixed(1) : 0;
+        html += '<div style="margin-bottom:14px;">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+          '<span style="color:var(--text1);font-size:.85rem;">' + item.label + '</span>' +
+          '<span style="color:' + item.color + ';font-weight:700;font-size:.85rem;">$' + item.value.toFixed(2) + '</span>' +
+          '</div>' +
+          '<div style="height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + item.color + ';border-radius:3px;"></div>' +
+          '</div>' +
+          '</div>';
+      });
+      return html;
+    }
     
-    container.innerHTML = `
-      <div class="grid-2-col" style="gap:24px;margin-bottom:30px;">
-        
-        <div class="card">
-          <div class="card-header">
-            <h3>账户余额总览</h3>
-            <div class="text-muted" style="font-size:.85rem;">${data.user_name} (${data.user_email})</div>
-          </div>
-          <div style="padding:24px;">
-            <div style="text-align:center;margin-bottom:24px;">
-              <div style="font-size:48px;line-height:1;margin-bottom:10px;color:#00f2fe;">$${data.balance.toFixed(2)}</div>
-              <div style="color:var(--text3);font-size:.9rem;">可用余额</div>
-            </div>
-            
-            <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:20px;">
-              <div style="margin-bottom:16px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                  <span style="color:var(--text2);font-size:.9rem;">余额公式</span>
-                  ${formulaStatus}
-                </div>
-                <div style="color:var(--text3);font-size:.8rem;line-height:1.4;">
-                  余额 = 初始余额 + 充值总额 - 净消费 - 总手续费<br>
-                  <span style="color:#00f2fe;">$${data.initial_balance.toFixed(2)} + $${data.topup_total.toFixed(2)} - $${data.total_net_spend.toFixed(2)} - $${data.total_fees.toFixed(2)} = $${data.calculated_balance.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div style="margin-bottom:8px;">
-                <div style="display:flex;justify-content:space-between;">
-                  <span style="color:var(--text2);">总收入</span>
-                  <span style="color:#00c758;font-weight:700;">$${totalIncome.toFixed(2)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;">
-                  <span style="color:var(--text2);">总支出</span>
-                  <span style="color:#ff5f5f;font-weight:700;">$${totalOutcome.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div style="height:1px;background:rgba(255,255,255,.1);margin:16px 0;"></div>
-              
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:var(--text1);font-weight:700;">净余额</span>
-                <span style="color:${netBalance >= 0 ? '#00c758' : '#ff5f5f'};font-weight:800;font-size:1.2rem;">$${netBalance.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        
-        <div class="card">
-          <div class="card-header">
-            <h3>收支构成</h3>
-            <div class="text-muted" style="font-size:.85rem;">收入来源与支出去向</div>
-          </div>
-          <div style="padding:24px;">
-            ${incomeItems.length > 0 ? `
-              <div style="margin-bottom:24px;">
-                <h4 style="margin:0 0 16px 0;color:#00c758;font-size:1rem;">收入 ($${totalIncome.toFixed(2)})</h4>
-                ${incomeItems.map(item => `
-                  <div style="margin-bottom:12px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                      <span style="color:var(--text1);font-size:.9rem;">${item.label}</span>
-                      <span style="color:${item.color};font-weight:700;">$${item.value.toFixed(2)}</span>
-                    </div>
-                    <div style="height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;">
-                      <div style="height:100%;width:${(item.value / totalIncome * 100).toFixed(1)}%;background:${item.color};border-radius:3px;"></div>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
-            
-            ${outcomeItems.length > 0 ? `
-              <div>
-                <h4 style="margin:0 0 16px 0;color:#ff5f5f;font-size:1rem;">支出 ($${totalOutcome.toFixed(2)})</h4>
-                ${outcomeItems.map(item => `
-                  <div style="margin-bottom:12px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                      <span style="color:var(--text1);font-size:.9rem;">${item.label}</span>
-                      <span style="color:${item.color};font-weight:700;">$${item.value.toFixed(2)}</span>
-                    </div>
-                    <div style="height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;">
-                      <div style="height:100%;width:${(item.value / totalOutcome * 100).toFixed(1)}%;background:${item.color};border-radius:3px;"></div>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      </div>
-      
-      
-      <div class="card" style="margin-top:20px;">
-        <div class="card-header">
-          <h3>统计详情</h3>
-          <div class="text-muted" style="font-size:.85rem;">详细统计指标</div>
-        </div>
-        <div style="padding:20px;">
-          <div class="grid-4-col" style="gap:16px;">
-            <div class="stat-card">
-              <div class="stat-value" style="color:#00c758;">$${data.topup_total.toFixed(2)}</div>
-              <div class="stat-label">充值总额</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" style="color:#ff5f5f;">$${data.total_spend.toFixed(2)}</div>
-              <div class="stat-label">消费总额</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" style="color:#00a8ff;">$${(data.total_refund + data.total_chargeback).toFixed(2)}</div>
-              <div class="stat-label">退款/拒付返还</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" style="color:#ffaa00;">$${data.total_fees.toFixed(2)}</div>
-              <div class="stat-label">手续费合计</div>
-            </div>
-          </div>
-          
-          <div style="margin-top:20px;padding:16px;background:rgba(0,0,0,.2);border-radius:12px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-              <span style="color:var(--text2);">净消费</span>
-              <span style="color:#ff5f5f;font-weight:700;">$${data.total_net_spend.toFixed(2)}</span>
-            </div>
-            <div style="color:var(--text3);font-size:.85rem;">
-              净消费 = 消费总额($${data.total_spend.toFixed(2)}) - 退款($${data.total_refund.toFixed(2)}) - 拒付($${data.total_chargeback.toFixed(2)})
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+    var incomeHtml = '';
+    if (incomeItems.length > 0) {
+      incomeHtml = '<div class="card"><div class="card-header"><h3>收入构成</h3></div><div style="padding:20px;">' +
+        '<div style="font-size:1.05rem;font-weight:700;color:#00c758;margin-bottom:16px;">+ $' + totalIncome.toFixed(2) + '</div>' +
+        renderBarItems(incomeItems, totalIncome) +
+        '</div></div>';
+    }
+    
+    var outcomeHtml = '';
+    if (outcomeItems.length > 0) {
+      outcomeHtml = '<div class="card"><div class="card-header"><h3>支出构成</h3></div><div style="padding:20px;">' +
+        '<div style="font-size:1.05rem;font-weight:700;color:#ff5f5f;margin-bottom:16px;">- $' + totalOutcome.toFixed(2) + '</div>' +
+        renderBarItems(outcomeItems, totalOutcome) +
+        '</div></div>';
+    }
+    
+    var hasBreakdown = incomeItems.length > 0 || outcomeItems.length > 0;
+    var breakdownHtml = hasBreakdown
+      ? '<div class="grid-2-col" style="gap:24px;margin-bottom:24px;">' + incomeHtml + outcomeHtml + '</div>'
+      : '';
+    
+    var statusBadge = data.is_consistent
+      ? '<span style="color:#00c758;font-size:.8rem;">\u2713 余额一致</span>'
+      : '<span style="color:#ff5f5f;font-size:.8rem;cursor:pointer;" onclick="alert(\'\u4f59\u989d\u5dee\u5f02: $\' + ' + JSON.stringify(data.discrepancy.toFixed(2)) + ' + \'\\n\u516c\u5f0f: \u521d\u59cb\u4f59\u989d + \u5145\u503c - \u51c0\u6d88\u8d39 - \u624b\u7eed\u8d39\')">\u26a0 \u4f59\u989d\u4e0d\u4e00\u81f4</span>';
+    
+    container.innerHTML = 
+      '<div class="card" style="margin-bottom:24px;">' +
+        '<div style="padding:28px 28px 20px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+            '<div>' +
+              '<div style="color:var(--text2);font-size:.85rem;margin-bottom:4px;">' + data.user_name + ' ' + data.user_email + '</div>' +
+              '<div style="font-size:42px;font-weight:800;color:#00f2fe;line-height:1.1;margin-bottom:4px;">$' + data.balance.toFixed(2) + '</div>' +
+              '<div style="color:var(--text3);font-size:.85rem;">可用余额</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="color:#00c758;font-weight:600;">+$' + totalIncome.toFixed(2) + '</div>' +
+              '<div style="color:#ff5f5f;font-weight:600;">-$' + totalOutcome.toFixed(2) + '</div>' +
+              '<div style="height:1px;background:rgba(255,255,255,.1);margin:6px 0;"></div>' +
+              '<div style="color:' + (netBalance >= 0 ? '#00c758' : '#ff5f5f') + ';font-weight:800;">净 $' + netBalance.toFixed(2) + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:40px;flex-wrap:wrap;">' +
+            '<div><span style="color:var(--text3);font-size:.8rem;">充值总额</span><br><span style="color:#00c758;font-weight:600;">$' + data.topup_total.toFixed(2) + '</span></div>' +
+            '<div><span style="color:var(--text3);font-size:.8rem;">消费总额</span><br><span style="color:#ff5f5f;font-weight:600;">$' + data.total_spend.toFixed(2) + '</span></div>' +
+            '<div><span style="color:var(--text3);font-size:.8rem;">退款/拒付</span><br><span style="color:#00a8ff;font-weight:600;">$' + (data.total_refund + data.total_chargeback).toFixed(2) + '</span></div>' +
+            '<div><span style="color:var(--text3);font-size:.8rem;">手续费</span><br><span style="color:#ffaa00;font-weight:600;">$' + data.total_fees.toFixed(2) + '</span></div>' +
+            '<div>' + statusBadge + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      breakdownHtml +
+      '<div style="padding:14px 20px;background:rgba(0,0,0,.15);border-radius:10px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+          '<span style="color:var(--text3);font-size:.78rem;">余额公式: 初始余额 + 充值 - (消费 - 退款 - 拒付) - 手续费 &nbsp;=&nbsp; <span style="color:#00f2fe;">$' + data.initial_balance.toFixed(2) + ' + $' + data.topup_total.toFixed(2) + ' - $' + data.total_net_spend.toFixed(2) + ' - $' + data.total_fees.toFixed(2) + ' = $' + data.calculated_balance.toFixed(2) + '</span></span>' +
+          statusBadge +
+        '</div>' +
+      '</div>';
   } catch(err) {
-    container.innerHTML = `<div class="error" style="text-align:center;padding:60px;color:#ff5f5f;">加载失败: ${err.message}</div>`;
+    container.innerHTML = '<div class="error" style="text-align:center;padding:60px;color:#ff5f5f;">加载失败: ' + err.message + '</div>';
   }
 }
+
 
 // 加载交易分类统计
 async function loadTransactionStats() {
