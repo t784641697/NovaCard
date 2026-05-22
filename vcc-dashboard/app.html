@@ -5482,9 +5482,7 @@ async function loadBalanceDetails() {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div style="padding:12px 20px;background:rgba(0,0,0,.12);border-radius:10px;display:flex;flex-wrap:wrap;gap:8px;">' +
-        '<span style="color:var(--text3);font-size:.75rem;">余额公式: 初始余额 + 充值 - (消费 - 退款 - 拒付) - 手续费 = <span style="color:#00f2fe;">$' + data.calculated_balance.toFixed(2) + '</span></span>' +
-      '</div>';
+';
   } catch(err) {
     container.innerHTML = '<div class="error" style="text-align:center;padding:60px;color:#ff5f5f;">加载失败: ' + err.message + '</div>';
   }
