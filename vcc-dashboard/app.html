@@ -5462,11 +5462,7 @@ async function loadBalanceDetails() {
     
     container.innerHTML =
       '<div class="card" style="margin-bottom:24px;">' +
-        '<div style="padding:24px 28px 4px;display:flex;justify-content:space-between;align-items:flex-start;">' +
-          '<div style="color:var(--text2);font-size:.82rem;">' + data.user_name + ' <span style="color:var(--text3)">' + data.user_email + '</span></div>' +
-          '<div>' + statusIcon + '</div>' +
-        '</div>' +
-        '<div style="display:flex;align-items:baseline;gap:12px;padding:2px 28px 20px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:2px 28px 20px;">' +
           '<span style="font-size:48px;font-weight:800;color:#00f2fe;line-height:1;letter-spacing:-2px;">$' + data.balance.toFixed(2) + '</span>' +
           '<span style="color:var(--text3);font-size:.85rem;">可用余额</span>' +
         '</div>' +
@@ -5480,8 +5476,7 @@ async function loadBalanceDetails() {
       detailHtml +
       '<div style="padding:12px 20px;background:rgba(0,0,0,.12);border-radius:10px;display:flex;flex-wrap:wrap;gap:8px;">' +
         '<span style="color:var(--text3);font-size:.75rem;">余额公式: 初始余额 + 充值 - (消费 - 退款 - 拒付) - 手续费 = <span style="color:#00f2fe;">$' + data.calculated_balance.toFixed(2) + '</span></span>' +
-        '<span style="color:var(--text3);margin:0 4px;">·</span>' +
-        statusIcon +
+        '</span>' +
       '</div>';
   } catch(err) {
     container.innerHTML = '<div class="error" style="text-align:center;padding:60px;color:#ff5f5f;">加载失败: ' + err.message + '</div>';
