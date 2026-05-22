@@ -523,6 +523,9 @@ select.form-control option{background:var(--bg3);}
 .bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
 .bin-code{font-size:.95rem;font-weight:700;font-family:monospace;color:var(--purple);margin-bottom:6px;}
 .bin-info{font-size:.75rem;color:var(--text2);}
+.bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
+.bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
+.card-badge{position:absolute;bottom:8px;right:10px;font-size:.62rem;padding:2px 8px;border-radius:6px;background:var(--text2);color:var(--bg);font-weight:600;letter-spacing:.3px;}
 
 /* ══════════════════════════════════════════════
    PAGE: TOPUP (充值)
@@ -2469,18 +2472,21 @@ function renderBins(list, filter) {
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
-    return `<div class="bin-card" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+    const isAvailable = p.available === true;
+    return `<div class="bin-card${isAvailable?'':' disabled'}"${isAvailable?' onclick="selectBin('+JSON.stringify(p).replace(/"/g,'&quot;')+')"':''}>
       <div class="flex items-center justify-between mb-2">
         <span class="bin-code">${p.product_code}</span>
         <span class="tag ${isVisa?'tag-cyan':'tag-yellow'}">${p.network}</span>
       </div>
       <div class="bin-info">BIN: ${p.bin} · ${p.issuing_area}</div>
       <div class="bin-info mt-1" style="color:${p.type==='save'?'var(--green)':'var(--purple)'}">${p.type==='save'?'储值卡':'额度卡'}</div>
+      ${!isAvailable?'<span class="card-badge">暂不可用</span>':''}
     </div>`;
   }).join('');
 }
 
 function selectBin(p) {
+  if (p.available !== true) return;
   _selectedBin = p;
   document.getElementById('selBinCode').textContent    = p.product_code;
   document.getElementById('selBinNetwork').textContent = p.network;
