@@ -5434,9 +5434,6 @@ async function loadBalanceDetails() {
     var totalOutcome = outcomeItems.reduce(function(s,i){return s+i.value}, 0);
     var netBalance = totalIncome - totalOutcome;
     
-    var statusIcon = data.is_consistent
-      ? '<span style="display:inline-flex;align-items:center;gap:4px;color:#00c758;font-size:.78rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>余额一致</span>'
-      : '<span style="display:inline-flex;align-items:center;gap:4px;color:#ff5f5f;font-size:.78rem;cursor:pointer;" onclick="alert(\'余额差异: $' + data.discrepancy.toFixed(2) + '\\n公式: 初始余额 + 充值 - 净消费 - 手续费\')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>余额不一致</span>';
     
     // 渲染收支明细行
     function renderRow(label, value, isIncome) {
@@ -5464,7 +5461,6 @@ async function loadBalanceDetails() {
               '<div style="font-size:42px;font-weight:800;color:#00f2fe;line-height:1;letter-spacing:-2px;">$' + data.balance.toFixed(2) + '</div>' +
               '<div style="color:var(--text3);font-size:.85rem;margin-top:4px;">可用余额</div>' +
             '</div>' +
-            '<div style="text-align:right;">' + statusIcon + '</div>' +
           '</div>' +
         '</div>' +
         '<div style="padding:14px 28px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;border-top:1px solid rgba(255,255,255,.06);">' +
