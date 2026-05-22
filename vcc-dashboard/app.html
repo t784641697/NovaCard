@@ -5423,17 +5423,17 @@ async function loadBalanceDetails() {
       { label: '管理员充值', value: data.income.topup, color: '#00c758' },
       { label: '退款返还', value: data.income.refund, color: '#00a8ff' },
       { label: '拒付返还', value: data.income.chargeback, color: '#9d4edd' }
-    ].filter(function(i){return i.value > 0});
+    ];
     
     const outcomeItems = [
       { label: '总消费', value: data.outcome.spend, color: '#ff5f5f' },
       { label: '总手续费', value: data.outcome.fees, color: '#ffaa00' }
-    ].filter(function(i){return i.value > 0});
+    ];
     
     var totalIncome = incomeItems.reduce(function(s,i){return s+i.value}, 0);
     var totalOutcome = outcomeItems.reduce(function(s,i){return s+i.value}, 0);
     
-    var hasDetail = incomeItems.length > 0 || outcomeItems.length > 0;
+    var hasDetail = true;
     
     var statusIcon = data.is_consistent
       ? '<span style="display:inline-flex;align-items:center;gap:4px;color:#00c758;font-size:.78rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>余额一致</span>'
