@@ -5,3 +5,8 @@ node_modules/
 .env
 .DS_Store
 .cozeproj/reduction
+assets/
+*.bak
+test_createCard.js
+tmp_restore.js
+nova-backup.skill
