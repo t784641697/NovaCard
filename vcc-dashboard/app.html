@@ -3621,8 +3621,9 @@ async function loadCmList(forceRefresh = false) {
       <div class="empty-state">
         <div class="empty-icon">💳</div>
         <div class="empty-text">暂无卡片</div>
-        <div class="empty-sub">${s.q ? '未找到匹配的卡片，试试其他搜索条件' : '点击右上角申请您的第一张虚拟卡'}</div>
-        <button class="btn btn-primary mt-4" onclick="${s.q ? 'resetCmSearch()' : 'gotoPage(\'apply\')'}">✨ ${s.q ? '重置搜索' : '立即申请'}</button>
+        <div class="empty-sub">${s.q ? '未找到匹配的卡片，试试其他搜索条件' : isAdmin ? '暂无用户申请卡片' : '点击右上角申请您的第一张虚拟卡'}</div>
+        ${!isAdmin ? '<button class="btn btn-primary mt-4" onclick=\"gotoPage(\'apply\')\">✨ 立即申请</button>' : ''}
+        ${s.q ? '<button class="btn btn-primary mt-4" onclick=\"resetCmSearch()\">✨ 重置搜索</button>' : ''}
       </div>`;
     return;
   }
