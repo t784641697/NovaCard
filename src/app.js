@@ -19,6 +19,7 @@ require('./db/database');
 const authRouter         = require('./routes/auth');
 const cardsRouter        = require('./routes/cards');
 const transactionsRouter = require('./routes/transactions');
+const ledgerRouter       = require('./routes/ledger');
 const adminRouter        = require('./routes/admin');
 const topupRouter        = require('./routes/topup');
 const webhookRouter      = require('./webhooks/vmcardio');
@@ -84,6 +85,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth',         authRouter);
 app.use('/api/cards',        cardsRouter);
 app.use('/api/transactions', transactionsRouter);
+app.use('/api/ledger',       ledgerRouter);
 app.use('/api/admin',        adminRouter);
 app.use('/api/topup',        topupRouter);
 app.use('/api/user/balance', require('./routes/userBalance')); // 用户余额明细
