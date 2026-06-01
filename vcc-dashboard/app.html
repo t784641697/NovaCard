@@ -3839,8 +3839,9 @@ async function renderLedger() {
       <div><h2>账户流水</h2><p class="text-muted mt-1">账户余额变动历史记录</p></div>
     </div>
     <div class="panel" style="height:calc(100vh - 180px);display:flex;flex-direction:column;">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;font-size:.75rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px;font-size:.75rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         <div>交易时间</div>
+        <div>交易类型</div>
         <div>币种</div>
         <div style="text-align:right">交易金额</div>
         <div style="text-align:right">账户余额</div>
@@ -3867,9 +3868,13 @@ async function renderLedger() {
       const txAmt = item.amount || 0;
       const balance = item.balance || 0;
       const amtColor = txAmt > 0 ? 'var(--green)' : txAmt < 0 ? 'var(--red)' : 'var(--text2)';
+      const typeMap = { '充值':'充值','手续费':'手续费','消费':'消费','退款':'退款','开卡费':'开卡费' };
+      const typeLabel = typeMap[item.type] || item.type || '—';
+      const typeColor = item.type === '充值' ? 'var(--green)' : item.type === '手续费' ? 'var(--red)' : item.type === '消费' ? 'var(--blue, #60a5fa)' : item.type === '退款' ? 'var(--green)' : 'var(--text2)';
       return `
-      <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.03);display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:center;font-size:.85rem;transition:background .12s;">
+      <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.03);display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px;align-items:center;font-size:.85rem;transition:background .12s;">
         <div style="color:var(--text2);">${dt}</div>
+        <div><span style="color:${typeColor};font-weight:600;font-size:.78rem;background:rgba(255,255,255,.04);padding:2px 8px;border-radius:4px;">${typeLabel}</span></div>
         <div style="color:var(--text1);font-weight:600;">${currency}</div>
         <div style="text-align:right;font-weight:700;color:${amtColor};">${txAmt > 0 ? '+' : ''}${txAmt.toFixed(2)}</div>
         <div style="text-align:right;color:var(--text1);font-weight:600;">$${balance.toFixed(2)}</div>
