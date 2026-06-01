@@ -159,8 +159,16 @@ router.patch('/:id', requireAdmin, (req, res, next) => {
       const rate = rateRow ? (parseFloat(rateRow.value) || 1) : 1;
       const usdAmount = parseFloat((row.amount_usdt * rate).toFixed(2));
       db.prepare(`
-        UPDATE users SET balance = ROUND(balance + ?, 2), updated_at = datetime('now') WHERE id = ?
-      `).run(usdAmount, row.user_id);
+        UPDATE users SET balance = ROUND(balance + ?, 2), topup_total = ROUND(COALESCE(topup_total, 0) + ?, 2), updated_at = datetime('now') WHERE id = ?
+      `).run(usdAmount, usdAmount, row.user_id);
+
+      // 写入交易流水，记入账户流水
+      const oldBalance = db.prepare('SELECT balance FROM users WHERE id = ?').get(row.user_id);
+      const oldBal = oldBalance ? parseFloat((oldBalance.balance - usdAmount).toFixed(2)) : 0;
+      db.prepare(`
+        INSERT INTO transactions (user_id, type, amount, net_amount, description, created_at)
+        VALUES (?, '充值', ?, ?, ?, datetime('now'))
+      `).run(row.user_id, usdAmount, usdAmount, `管理员审核通过充值 $${row.amount_usdt} USDT，入账 $${usdAmount}`);
     }
 
     res.json({ code: 0, msg: status === 'approved' ? '已审批通过' : '已拒绝', data: { id, status } });
