@@ -180,6 +180,9 @@ class VmcardioSDK {
   }
 
   async cardTransaction(params = {}) {
+    // page/page_size must be numbers, not strings
+    if (params.page !== undefined) params.page = Number(params.page);
+    if (params.page_size !== undefined) params.page_size = Number(params.page_size);
     return this.request('/cardTransaction', params);
   }
 

@@ -89,6 +89,7 @@ app.use('/api/ledger',       ledgerRouter);
 app.use('/api/admin',        adminRouter);
 app.use('/api/topup',        topupRouter);
 app.use('/api/user/balance', require('./routes/userBalance')); // 用户余额明细
+app.use('/api/settlements',  require('./routes/settlements'));   // 卡结算记录
 app.use('/api/admin/fee-configs', require('./routes/feeConfig')); // 费率配置管理
 
 // ── 健康检查 ──────────────────────────────────────────────────────────────
