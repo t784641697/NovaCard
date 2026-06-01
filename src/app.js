@@ -31,6 +31,7 @@ app.set('trust proxy', 1);
 
 // ── 安全中间件 ─────────────────────────────────────────────────────────────
 app.use(helmet({
+  strictTransportSecurity: false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -38,10 +39,11 @@ app.use(helmet({
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https:", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https:", "data:"],
       formAction: ["'self'"],
       frameAncestors: ["'self'"],
+      upgradeInsecureRequests: null,
     },
   },
 }));
