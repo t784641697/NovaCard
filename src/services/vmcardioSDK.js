@@ -4,8 +4,12 @@
  */
 
 const axios   = require('axios');
+const https   = require('https');
 const rsa     = require('../utils/rsaCrypto');
 const logger  = require('../utils/logger');
+
+/** 强制 IPv4，避免上游未白名单 IPv6 导致请求被拒 */
+const _agent = new https.Agent({ family: 4 });
 
 class VmcardioSDK {
   constructor() {
@@ -23,6 +27,7 @@ class VmcardioSDK {
     logger.info('[vmcardio] 获取新 AccessToken...');
     const resp = await axios.get(`${this._baseURL}/getAccessToken`, {
       params: { app_id: this._appId, app_secret: this._appSecret },
+      httpsAgent: _agent,
       timeout: 10_000,
     });
     const body = resp.data;
@@ -44,6 +49,7 @@ class VmcardioSDK {
       { content },
       {
         headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+        httpsAgent: _agent,
         timeout: 45_000,
       }
     );
