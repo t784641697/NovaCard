@@ -525,6 +525,15 @@ select.form-control option{background:var(--bg3);}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
+
+/* 卡段提醒信息 */
+.reminder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 16px;}
+.reminder-item{display:flex;flex-direction:column;gap:2px;}
+.reminder-label{font-size:.72rem;color:var(--text3);font-weight:500;}
+.reminder-value{font-size:.85rem;color:var(--text);font-weight:600;}
+.reminder-prohib{grid-column:1 / -1;display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-top:8px;border-top:1px solid rgba(167,139,250,.15);}
+.reminder-prohib-list{display:flex;flex-wrap:wrap;gap:6px;}
+.prohib-tag{font-size:.75rem;padding:2px 10px;border-radius:20px;background:rgba(255,95,95,.12);color:#ff6b6b;border:1px solid rgba(255,95,95,.2);}
 .card-badge{position:absolute;bottom:8px;right:10px;font-size:.62rem;padding:2px 8px;border-radius:6px;background:var(--text2);color:var(--bg);font-weight:600;letter-spacing:.3px;}
 
 /* ══════════════════════════════════════════════
@@ -2409,6 +2418,12 @@ async function renderApply() {
         </div>
       </div>
 
+      <!-- ══ 卡段提醒信息 ══ -->
+      <div class="panel panel-sm mb-4" id="applyReminderPanel" style="display:none;border-color:rgba(167,139,250,.2);background:rgba(167,139,250,.03);">
+        <div style="font-size:.85rem;font-weight:600;color:var(--purple);margin-bottom:12px">📋 卡段使用说明</div>
+        <div class="reminder-grid" id="reminderGrid"></div>
+      </div>
+
       <div class="panel">
         <div style="font-weight:700;margin-bottom:20px">持卡人信息</div>
         <div class="form-row col2">
@@ -2487,6 +2502,40 @@ function selectBin(p) {
   document.getElementById('selBinNetwork').textContent = p.network;
   document.getElementById('selBinArea').textContent    = p.issuing_area;
   document.getElementById('selBinType').textContent    = p.type==='save'?'储值卡（预充值）':'额度卡';
+
+  // 填充提醒信息
+  const meta = p.metadata || {};
+  const grid = document.getElementById('reminderGrid');
+  if (grid) {
+    const rows = [
+      { label: '国家 / 地区',   value: meta.country || p.issuing_area || '—' },
+      { label: '卡段号',       value: p.bin || '—' },
+      { label: '卡片类型',      value: meta.card_type || p.network || '—' },
+      { label: '适用平台',      value: meta.applicable_platforms || '—' },
+      { label: '验证类型',      value: meta.verification || '—' },
+      { label: '单笔消费限额（$）', value: meta.single_limit ? '$' + Number(meta.single_limit).toLocaleString() : '—' },
+      { label: '每日消费限额（$）', value: meta.daily_limit ? '$' + Number(meta.daily_limit).toLocaleString() : '—' },
+      { label: '是否可多次充值',   value: meta.rechargeable ? '✅ 是' : '❌ 否' },
+    ];
+    grid.innerHTML = rows.map(r =>
+      `<div class="reminder-item">
+        <span class="reminder-label">${r.label}</span>
+        <span class="reminder-value">${r.value}</span>
+      </div>`
+    ).join('');
+
+    // 添加禁止事项
+    if (meta.prohibitions && meta.prohibitions.length) {
+      const prohibEl = document.createElement('div');
+      prohibEl.className = 'reminder-prohib';
+      prohibEl.innerHTML = '<span class="reminder-label">🚫 禁止事项</span><div class="reminder-prohib-list">' +
+        meta.prohibitions.map(p => `<span class="prohib-tag">${p}</span>`).join('') +
+        '</div>';
+      grid.appendChild(prohibEl);
+    }
+  }
+  document.getElementById('applyReminderPanel').style.display = '';
+
   // 步骤条更新
   document.getElementById('step1Indicator').classList.remove('active');
   document.getElementById('step1Indicator').classList.add('done');
@@ -2499,6 +2548,7 @@ function selectBin(p) {
 
 function backToStep1() {
   _selectedBin = null;
+  document.getElementById('applyReminderPanel').style.display = 'none';
   document.getElementById('step1Indicator').classList.remove('done');
   document.getElementById('step1Indicator').classList.add('active');
   document.getElementById('step2Indicator').classList.remove('active');
