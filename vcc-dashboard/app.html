@@ -2380,10 +2380,14 @@ async function renderApply() {
       <div class="panel">
         <div class="flex items-center justify-between mb-4">
           <div style="font-weight:700">可用卡段</div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap">
             <button class="btn btn-outline btn-sm" id="binAll"   onclick="filterBin('all')">全部</button>
             <button class="btn btn-outline btn-sm" id="binVisa"  onclick="filterBin('visa')">VISA</button>
             <button class="btn btn-outline btn-sm" id="binMC"    onclick="filterBin('mc')">Mastercard</button>
+            <span style="width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 4px"></span>
+            <button class="btn btn-outline btn-sm" id="sceneSocial" onclick="filterBin('scene:social')" style="font-size:.75rem">🌐 社交媒体</button>
+            <button class="btn btn-outline btn-sm" id="sceneEcom"   onclick="filterBin('scene:ecom')"   style="font-size:.75rem">🛒 电商</button>
+            <button class="btn btn-outline btn-sm" id="sceneAi"     onclick="filterBin('scene:ai')"     style="font-size:.75rem">🤖 AI订阅</button>
           </div>
         </div>
         <div id="binGrid" class="bin-grid">
@@ -2442,13 +2446,30 @@ async function renderApply() {
   loadMyApplications();
 }
 
+const SCENARIO_KEYS = {
+  social: { label: '社交媒体', keywords: ['Facebook','Twitter','Telegram','TikTok'] },
+  ecom:   { label: '电商',     keywords: ['Amazon','Shopify','Walmart','Alibaba','AliExpress'] },
+  ai:     { label: 'AI订阅',   keywords: ['OpenAI','AI/Agent'] },
+};
+
 let _binFilter = 'all';
 function filterBin(f) {
   _binFilter = f;
+  // 网络按钮重置
   ['All','Visa','MC'].forEach(n=>document.getElementById('bin'+n)?.classList.remove('btn-primary'));
   ['All','Visa','MC'].forEach(n=>document.getElementById('bin'+n)?.classList.add('btn-outline'));
-  const id = f==='all'?'binAll':f==='visa'?'binVisa':'binMC';
-  document.getElementById(id)?.classList.replace('btn-outline','btn-primary');
+  // 场景按钮重置
+  Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.remove('btn-primary'));
+  Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.add('btn-outline'));
+  // 高亮选中
+  if (f==='all') document.getElementById('binAll')?.classList.replace('btn-outline','btn-primary');
+  else if (f==='visa') document.getElementById('binVisa')?.classList.replace('btn-outline','btn-primary');
+  else if (f==='mc') document.getElementById('binMC')?.classList.replace('btn-outline','btn-primary');
+  else if (f.startsWith('scene:')) {
+    const s = f.split(':')[1];
+    const id = 'scene'+s.charAt(0).toUpperCase()+s.slice(1);
+    document.getElementById(id)?.classList.replace('btn-outline','btn-primary');
+  }
   if (_productList) renderBins(_productList, f);
 }
 
@@ -2467,9 +2488,21 @@ async function loadBins() {
 function renderBins(list, filter) {
   const grid = document.getElementById('binGrid');
   if (!grid) return;
-  const filtered = filter==='visa' ? list.filter(p=>/visa/i.test(p.network))
-                 : filter==='mc'   ? list.filter(p=>/master|mc/i.test(p.network))
-                 : list;
+  let filtered = list.slice();
+  // 网络筛选
+  if (filter==='visa') filtered = filtered.filter(p=>/visa/i.test(p.network));
+  else if (filter==='mc') filtered = filtered.filter(p=>/master|mc/i.test(p.network));
+  // 场景筛选
+  if (filter && filter.startsWith('scene:')) {
+    const sceneId = filter.split(':')[1];
+    const scene = SCENARIO_KEYS[sceneId];
+    if (scene) {
+      filtered = filtered.filter(p => {
+        const platforms = p.metadata?.applicable_platforms || '';
+        return scene.keywords.some(kw => platforms.includes(kw));
+      });
+    }
+  }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
