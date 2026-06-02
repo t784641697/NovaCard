@@ -2408,7 +2408,10 @@ async function renderApply() {
 
       <!-- ══ 卡段提醒信息 ══ -->
       <div class="panel panel-sm mb-4" id="applyReminderPanel" style="display:none;border-color:rgba(167,139,250,.2);background:rgba(167,139,250,.03);">
-        <div style="font-size:.85rem;font-weight:600;color:var(--purple);margin-bottom:12px">📋 卡段使用说明</div>
+        <div class="flex items-center justify-between" style="margin-bottom:12px">
+	          <div style="font-size:.85rem;font-weight:600;color:var(--purple)">📋 卡段使用说明</div>
+	          <button class="btn btn-ghost btn-sm" onclick="backToStep1()" style="font-size:.75rem">← 重新选择</button>
+	        </div>
         <div class="reminder-grid" id="reminderGrid"></div>
       </div>
 
