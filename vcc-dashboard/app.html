@@ -2404,19 +2404,7 @@ async function renderApply() {
     
     <div id="applyStep2" class="hidden">
       
-      <div class="panel panel-sm mb-4" style="border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.05);">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="tag tag-purple" id="selBinNetwork">VISA</span>
-              <span style="font-weight:700;font-family:monospace" id="selBinCode">—</span>
-              <span style="font-size:.8rem;color:var(--text2)" id="selBinArea">—</span>
-            </div>
-            <div style="font-size:.75rem;color:var(--text3);margin-top:4px" id="selBinType">—</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="backToStep1()">← 重新选择</button>
-        </div>
-      </div>
+      
 
       <!-- ══ 卡段提醒信息 ══ -->
       <div class="panel panel-sm mb-4" id="applyReminderPanel" style="display:none;border-color:rgba(167,139,250,.2);background:rgba(167,139,250,.03);">
@@ -2498,10 +2486,7 @@ function renderBins(list, filter) {
 function selectBin(p) {
   if (p.available !== true) return;
   _selectedBin = p;
-  document.getElementById('selBinCode').textContent    = p.product_code;
-  document.getElementById('selBinNetwork').textContent = p.network;
-  document.getElementById('selBinArea').textContent    = p.issuing_area;
-  document.getElementById('selBinType').textContent    = p.type==='save'?'储值卡（预充值）':'额度卡';
+  // 已移除卡段信息栏
 
   // 填充提醒信息
   const meta = p.metadata || {};
