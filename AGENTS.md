@@ -106,6 +106,29 @@ node src/app.js # 生产模式
 3. **腾讯云短信**: 需要配置 TENCENT_SMS_* 环境变量，否则短信功能不可用。
 4. **前端**: 单页应用，所有逻辑在 `app.html` 中内联，通过 CDN 加载 Chart.js 和 QRCode.js。
 
+### 🔧 生产服务器
+| 项目 | 信息 |
+|------|------|
+| 地址 | `http://43.135.26.36` |
+| SSH 账号 | `ubuntu` |
+| SSH 密码 | `System.error.9` |
+| 项目目录 | `/opt/vcc-hub` |
+| 入口文件 | `/opt/vcc-hub/src/app.js` |
+| 进程管理 | PM2（进程名: `vcc-hub`） |
+| 环境配置 | `/opt/vcc-hub/.env`（PORT=5000） |
+| 前端目录 | `/opt/vcc-hub/vcc-dashboard` |
+| 方向代理 | Nginx 80 → 后端 5000 |
+| Git 仓库 | `origin/main` → `github.com/t784641697/NovaCard` |
+
+**部署命令：**
+```bash
+# 拉取最新代码
+cd /opt/vcc-hub && git fetch origin && git reset --hard origin/main
+
+# 重启服务
+cd /opt/vcc-hub && pm2 delete vcc-hub && pm2 start src/app.js --name vcc-hub --update-env && pm2 save
+```
+
 ### 📌 已知问题和修复记录
 | 版本 | 日期 | 修复内容 |
 |------|------|---------|
