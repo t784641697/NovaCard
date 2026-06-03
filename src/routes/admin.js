@@ -289,17 +289,36 @@ router.get('/merchant-balance', async (req, res, next) => {
       },
     });
   } catch (err) {
-    logger.warn('[merchant-balance] 获取失败: ' + err.message);
-    res.json({
-      code: 0,
-      msg:  'ok',
-      data: {
-        balance: 0,
-        currency: 'USD',
-        updated_at: new Date().toISOString(),
-        error: err.message,
-      },
-    });
+    // 上游 API 失败时降级读取缓存余额
+    try {
+      const stmt = db.prepare('SELECT value, updated_at FROM settings WHERE key = ?');
+      const cached = stmt.get('merchant_balance_cached');
+      const lastSync = stmt.get('merchant_balance_last_sync');
+      logger.warn('[merchant-balance] 上游获取失败,降级到缓存: ' + err.message);
+      res.json({
+        code: 0,
+        msg:  'ok',
+        data: {
+          balance: cached ? parseFloat(cached.value) : 0,
+          currency: 'USD',
+          updated_at: lastSync?.value || new Date().toISOString(),
+          source: 'cache',
+          error: err.message,
+        },
+      });
+    } catch (dbErr) {
+      logger.error('[merchant-balance] 缓存读取失败: ' + dbErr.message);
+      res.json({
+        code: 0,
+        msg:  'ok',
+        data: {
+          balance: 0,
+          currency: 'USD',
+          updated_at: new Date().toISOString(),
+          source: 'fallback',
+        },
+      });
+    }
   }
 });
 
