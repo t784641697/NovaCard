@@ -2521,9 +2521,10 @@ function renderBins(list, filter) {
   // 国家筛选
   if (filter && filter.startsWith('country:')) {
     const countryId = filter.split(':')[1];
+    const countryMap = {hk:'香港',uk:'英国',sg:'新加坡',us:'美国'};
     filtered = filtered.filter(p => {
       const country = p.metadata?.country || '';
-      return country === countryId;
+      return country === countryMap[countryId];
     });
   }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
