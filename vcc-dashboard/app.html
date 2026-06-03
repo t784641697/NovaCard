@@ -2532,11 +2532,9 @@ function renderBins(list, filter) {
     const isAvailable = p.available === true;
     return `<div class="bin-card${isAvailable?'':' disabled'}"${isAvailable?' onclick="selectBin('+JSON.stringify(p).replace(/"/g,'&quot;')+')"':''}>
       <div class="flex items-center justify-between mb-2">
-        <span class="bin-code">${p.product_code}</span>
+        <span class="bin-code">BIN:${p.bin}</span>
         <span class="tag ${isVisa?'tag-cyan':'tag-yellow'}">${p.network}</span>
       </div>
-      <div class="bin-info">BIN: ${p.bin} · ${p.issuing_area}</div>
-      <div class="bin-info mt-1" style="color:${p.type==='save'?'var(--green)':'var(--purple)'}">${p.type==='save'?'储值卡':'额度卡'}</div>
       <div class="platform-icons-row mt-1">${getIcons(p.metadata?.applicable_platforms)}</div>
       ${!isAvailable?'<span class="card-badge">暂不可用</span>':''}
     </div>`;
