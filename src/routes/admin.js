@@ -288,7 +288,17 @@ router.get('/merchant-balance', async (req, res, next) => {
       },
     });
   } catch (err) {
-    next(err);
+    logger.warn('[merchant-balance] 获取失败: ' + err.message);
+    res.json({
+      code: 0,
+      msg:  'ok',
+      data: {
+        balance: 0,
+        currency: 'USD',
+        updated_at: new Date().toISOString(),
+        error: err.message,
+      },
+    });
   }
 });
 
@@ -335,6 +345,12 @@ router.get('/stats', async (req, res, next) => {
         code: 0,
         msg:  'ok',
         data: {
+          users: { total: db.prepare('SELECT COUNT(*) as c FROM users').get().c },
+          cards: {
+            total: upstreamCards.length,
+            active: activeCards,
+            frozen: frozenCards,
+          },
           total_cards: upstreamCards.length,
           total_balance: totalBalance.toFixed(2),
           active_cards: activeCards,
@@ -359,6 +375,12 @@ router.get('/stats', async (req, res, next) => {
       code: 0,
       msg:  'ok',
       data: {
+        users: { total: db.prepare('SELECT COUNT(*) as c FROM users').get().c },
+        cards: {
+          total: stats.total_cards || 0,
+          active: stats.active_cards || 0,
+          frozen: stats.frozen_cards || 0,
+        },
         total_cards: stats.total_cards || 0,
         total_balance: parseFloat(stats.total_balance || 0).toFixed(2),
         active_cards: stats.active_cards || 0,
