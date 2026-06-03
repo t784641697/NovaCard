@@ -276,13 +276,14 @@ async function syncSingleCard(cardId) {
 // ── 获取商户实时余额 ────────────────────────────────────────────────────────
 router.get('/merchant-balance', async (req, res, next) => {
   try {
-    const result = await sdk.balance();
+    const result = await sdk.getAccountBalance();
+    const balanceData = result?.data || {};
     res.json({
       code: 0,
       msg:  'ok',
       data: {
-        balance: result.balance || 0,
-        currency: result.currency || 'USD',
+        balance: balanceData.balance || balanceData.availableBalance || 0,
+        currency: balanceData.currency || 'USD',
         updated_at: new Date().toISOString(),
       },
     });
