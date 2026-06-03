@@ -13,6 +13,7 @@
 const express = require('express');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
+const logger  = require('../utils/logger');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
