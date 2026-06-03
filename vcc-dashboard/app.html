@@ -2532,7 +2532,7 @@ function renderBins(list, filter) {
     const isAvailable = p.available === true;
     return `<div class="bin-card${isAvailable?'':' disabled'}"${isAvailable?' onclick="selectBin('+JSON.stringify(p).replace(/"/g,'&quot;')+')"':''}>
       <div class="flex items-center justify-between mb-2">
-        <span class="bin-code">BIN:${p.bin}</span>
+        <span class="bin-code">${p.bin}</span>
         <span class="tag ${isVisa?'tag-cyan':'tag-yellow'}">${p.network}</span>
       </div>
       <div class="platform-icons-row mt-1">${getIcons(p.metadata?.applicable_platforms)}</div>
