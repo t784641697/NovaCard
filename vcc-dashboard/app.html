@@ -2392,6 +2392,11 @@ async function renderApply() {
             <button class="btn btn-outline btn-sm" id="sceneSocial" onclick="filterBin('scene:social')" style="font-size:.75rem">🌐 社交媒体</button>
             <button class="btn btn-outline btn-sm" id="sceneEcom"   onclick="filterBin('scene:ecom')"   style="font-size:.75rem">🛒 电商</button>
             <button class="btn btn-outline btn-sm" id="sceneAi"     onclick="filterBin('scene:ai')"     style="font-size:.75rem">🤖 AI订阅</button>
+            <span style="width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 4px"></span>
+            <button class="btn btn-outline btn-sm" id="countryHK"  onclick="filterBin('country:hk')"   style="font-size:.75rem">🇭🇰 香港</button>
+            <button class="btn btn-outline btn-sm" id="countryUK"  onclick="filterBin('country:uk')"   style="font-size:.75rem">🇬🇧 英国</button>
+            <button class="btn btn-outline btn-sm" id="countrySG"  onclick="filterBin('country:sg')"   style="font-size:.75rem">🇸🇬 新加坡</button>
+            <button class="btn btn-outline btn-sm" id="countryUS"  onclick="filterBin('country:us')"   style="font-size:.75rem">🇺🇸 美国</button>
           </div>
         </div>
         <div id="binGrid" class="bin-grid">
@@ -2465,6 +2470,9 @@ function filterBin(f) {
   // 场景按钮重置
   Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.remove('btn-primary'));
   Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.add('btn-outline'));
+  // 国家按钮重置
+  ['HK','UK','SG','US'].forEach(n=>document.getElementById('country'+n)?.classList.remove('btn-primary'));
+  ['HK','UK','SG','US'].forEach(n=>document.getElementById('country'+n)?.classList.add('btn-outline'));
   // 高亮选中
   if (f==='all') document.getElementById('binAll')?.classList.replace('btn-outline','btn-primary');
   else if (f==='visa') document.getElementById('binVisa')?.classList.replace('btn-outline','btn-primary');
@@ -2473,6 +2481,9 @@ function filterBin(f) {
     const s = f.split(':')[1];
     const id = 'scene'+s.charAt(0).toUpperCase()+s.slice(1);
     document.getElementById(id)?.classList.replace('btn-outline','btn-primary');
+  } else if (f.startsWith('country:')) {
+    const s = f.split(':')[1].toUpperCase();
+    document.getElementById('country'+s)?.classList.replace('btn-outline','btn-primary');
   }
   if (_productList) renderBins(_productList, f);
 }
@@ -2506,6 +2517,14 @@ function renderBins(list, filter) {
         return scene.keywords.some(kw => platforms.includes(kw));
       });
     }
+  }
+  // 国家筛选
+  if (filter && filter.startsWith('country:')) {
+    const countryId = filter.split(':')[1];
+    filtered = filtered.filter(p => {
+      const country = p.metadata?.country || '';
+      return country === countryId;
+    });
   }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
   const PLATFORM_ICONS = {
