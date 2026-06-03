@@ -525,6 +525,9 @@ select.form-control option{background:var(--bg3);}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
+.platform-icons-row{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;align-items:center;}
+.platform-icons-row img{width:16px;height:16px;border-radius:2px;object-fit:contain;opacity:.7;transition:opacity .15s;}
+.bin-card:hover .platform-icons-row img{opacity:1;}
 
 /* 卡段提醒信息 */
 .reminder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 16px;}
@@ -2504,6 +2507,20 @@ function renderBins(list, filter) {
     }
   }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
+  const PLATFORM_ICONS = {
+    facebook:{i:'facebook',c:'#1877F2'}, twitter:{i:'twitter',c:'#000000'},
+    telegram:{i:'telegram',c:'#26A5E4'}, tiktok:{i:'tiktok',c:'#000000'},
+    amazon:{i:'amazon',c:'#FF9900'}, shopify:{i:'shopify',c:'#7AB55C'},
+    walmart:{i:'walmart',c:'#0071CE'}, alibaba:{i:'alibaba',c:'#FF6A00'},
+    aliexpress:{i:'aliexpress',c:'#FF4747'}, openai:{i:'openai',c:'#412991'},
+  };
+  function getIcons(s) {
+    if (!s) return '';
+    const lc = s.toLowerCase();
+    return Object.entries(PLATFORM_ICONS).filter(([k])=>lc.includes(k)).map(([k,v])=>
+      `<img src="https://cdn.simpleicons.org/${v.i}/${v.c.replace('#','')}" alt="${k}" class="platform-icon" title="${k}" onerror="this.style.display='none'">`
+    ).join('');
+  }
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
     const isAvailable = p.available === true;
@@ -2514,6 +2531,7 @@ function renderBins(list, filter) {
       </div>
       <div class="bin-info">BIN: ${p.bin} · ${p.issuing_area}</div>
       <div class="bin-info mt-1" style="color:${p.type==='save'?'var(--green)':'var(--purple)'}">${p.type==='save'?'储值卡':'额度卡'}</div>
+      <div class="platform-icons-row mt-1">${getIcons(p.metadata?.applicable_platforms)}</div>
       ${!isAvailable?'<span class="card-badge">暂不可用</span>':''}
     </div>`;
   }).join('');
