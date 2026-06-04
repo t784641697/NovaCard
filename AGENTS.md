@@ -144,6 +144,7 @@ cd /opt/vcc-hub && pm2 delete vcc-hub && pm2 start src/app.js --name vcc-hub --u
 | v1.0.9 | 2026-05-22 | 完整项目备份到 GitHub，清理本地+生产服务器无用文件（assets截图、bak备份、嵌套目录、旧同步脚本等） |
 | v1.0.10 | 2026-05-22 | 卡段页面优化：可用/暂不可用区分展示（10可用+7不可用，置灰+暂不可用标签） |
 | v1.0.12 | 2026-06-02 | 卡段使用说明展示：后端 HARDCODED_PRODUCTS 扩充为全部10个可用卡段，增加 metadata（适用平台、验证类型、限额、禁止事项）；前端开卡 Step2 新增卡段提醒信息面板 |
+| v1.0.13 | 2026-06-04 | **RSA 密钥修复**：重新生成 merchant 密钥对（2048-bit），用户上传公钥到 vmcardio 后恢复正常解密；修复 `/api/admin/merchant-balance` 解析上游返回格式错误（result.balance → result.data.balance） |
 
 ### 🔴 重要：双 API 架构说明
 
@@ -157,3 +158,31 @@ cd /opt/vcc-hub && pm2 delete vcc-hub && pm2 start src/app.js --name vcc-hub --u
 | 当前用途 | 查询（cardDetail/freezeCard/rechargeCard 等） | 创建卡片（webCreateCard） |
 
 > **Token 来源**：登录 sandbox.vmcardio.com → F12 → Application → Local Storage → `auth.jwtToken` → 写入 `.env` `VMCARDIO_WEB_TOKEN`
+
+### 🔴 重要：RSA 密钥管理
+
+vmcardio 使用 RSA 加密传输，两对密钥：
+
+| 文件 | 角色 | 说明 |
+|------|------|------|
+| `config/vmcardio_platform_public.pem` | 平台公钥 | vmcardio 提供的公钥，用于加密请求（VM公钥） |
+| `config/merchant_private.pem` | 商户私钥 | 自己生成的私钥，用于解密响应 |
+| `config/merchant_public.pem` | 商户公钥 | 自己生成的公钥，需上传到 vmcardio 后台 |
+
+**流程**：
+1. 请求时：用 `vmcardio_platform_public.pem` RSA加密请求体 → vmcardio 用自己的私钥解密
+2. 响应时：vmcardio 用 `merchant_public.pem` RSA加密响应体 → 我们用 `merchant_private.pem` 解密
+
+**密钥更新步骤**（当 `merchant_private.pem` 丢失/不匹配时）：
+```bash
+# 1. 生成新密钥对
+openssl genpkey -algorithm RSA -out config/merchant_private.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.pem
+
+# 2. 登录 sandbox.vmcardio.com → API Key → 商户公钥 → 更新
+#    粘贴 config/merchant_public.pem 的内容保存
+
+# 3. 等待 5-10 分钟同步后，重启服务
+```
+
+**历史问题**：`merchant_private.pem` 在 git 历史中从未被正确保存（一直存的是公钥或错误的私钥）。2026-06-04 重新生成密钥对后才修复。
