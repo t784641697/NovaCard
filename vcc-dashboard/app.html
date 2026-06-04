@@ -5963,13 +5963,13 @@ async function renderTopupReviewPage() {
       .tr-time { font-size: .82rem; color: var(--text3); }
       .tr-user-name { font-size: .9rem; font-weight: 500; }
       .tr-user-email { font-size: .78rem; color: var(--text3); margin-top: 2px; }
-      .tr-btn { padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .8rem; font-weight: 500; border: none; transition: all 0.2s; }
+      .tr-btn { width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1rem; line-height: 1; border: none; transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center; }
       .tr-btn-pass { background: rgba(0,199,88,0.1); color: #00c758; }
-      .tr-btn-pass:hover { background: rgba(0,199,88,0.2); }
+      .tr-btn-pass:hover { background: rgba(0,199,88,0.25); transform: scale(1.1); }
       .tr-btn-reject { background: rgba(255,95,95,0.1); color: #ff5f5f; }
-      .tr-btn-reject:hover { background: rgba(255,95,95,0.2); }
-      .tr-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-      .tr-action-btns { display: inline-flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
+      .tr-btn-reject:hover { background: rgba(255,95,95,0.25); transform: scale(1.1); }
+      .tr-btn:active { transform: scale(0.92); }
+      .tr-action-btns { display: inline-flex; gap: 8px; align-items: center; flex-wrap: nowrap; }
       .tr-empty { text-align: center; padding: 80px 40px; }
       .tr-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
       .tr-empty-text { color: var(--text3); font-size: .95rem; }
@@ -6089,8 +6089,8 @@ async function trLoad() {
         '<td class="col-time"><span class="tr-time">' + dtFormat(a.created_at) + '</span></td>' +
         '<td class="col-action"><div class="tr-action-btns">' +
           (isPending
-            ? '<button class="tr-btn tr-btn-pass" onclick="trApprove(' + a.id + ',' + Number(a.amount_usdt||0) + ')">✅ 通过</button>' +
-              '<button class="tr-btn tr-btn-reject" onclick="trReject(' + a.id + ')">❌ 拒绝</button>'
+            ? '<button class="tr-btn tr-btn-pass" onclick="trApprove(' + a.id + ',' + Number(a.amount_usdt||0) + ')" title="通过">✓</button>' +
+              '<button class="tr-btn tr-btn-reject" onclick="trReject(' + a.id + ')" title="拒绝">✕</button>'
             : '<span style="color:var(--text3);font-size:.8rem;">—</span>'
           ) +
         '</div></td>' +
