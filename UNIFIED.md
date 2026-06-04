@@ -70,7 +70,44 @@ SQLite 生产库偶发索引损坏（`database disk image is malformed`），修
 
 ---
 
-## 4. 卡片产品 (Card Products)
+## 4. 页面样式规范 (UI Styling)
+
+### 4.1 管理后台页面风格统一
+所有管理后台页面**必须**与开卡审核（`renderCardReviewPage`）保持一致的卡片式布局风格：
+
+| 要素 | 规范 |
+|------|------|
+| 外层容器 | `<div class="XX-container" style="padding: 0px 4px 28px; max-width: 1400px; margin: 0 auto;">` |
+| 标题区域 | 左标题+副标题，右操作按钮 |
+| 统计卡片 | 使用 `XX-stats` flex 布局，每个统计为 `XX-stat-card`（深色背景+圆角+悬停微动效） |
+| 操作栏 | 使用 `XX-toolbar`（独立卡片）+ `XX-tabs`（内联标签按钮组） |
+| 数据表格 | 使用 `XX-table-wrap` + `XX-table` 包裹，表头大写+字母间距，行悬停高亮 |
+| 状态标签 | 使用 `XX-tag` + `XX-tag-pending/approved/rejected` 等类名 |
+| 空状态 | 使用 `XX-empty` + `XX-empty-icon` + `XX-empty-text` |
+
+> 所有 `XX` 前缀应为页面简称（如 `cr-` 开卡审核、`tr-` 充值审核），CSS 通过 `<style>` 标签内联在页面渲染函数中。
+
+### 4.2 禁止内联 style
+- ❌ 禁止在 HTML 模板中大量使用 `style="background:...color:...padding:..."` 等内联样式
+- ✅ **必须**提取为 CSS 类名，通过 `className` 或 `class` 引用
+- 例外：JavaScript 动态计算的值（如循环中的颜色变量）可保留内联
+
+### 4.3 充值审核页面 (tr-* 前缀)
+当前已实现的 `tr-*` 类名规范：
+- `.tr-container` / `.tr-header` / `.tr-header-left` — 页面容器和标题
+- `.tr-stats` / `.tr-stat-card` / `.tr-stat-num` / `.tr-stat-label` — 统计卡片
+- `.tr-toolbar` / `.tr-toolbar-row` / `.tr-tabs` / `.tr-tab` — 操作栏
+- `.tr-table-wrap` / `.tr-table` / `.col-*` — 数据表格
+- `.tr-tag` / `.tr-tag-pending/approved/rejected` — 状态标签
+- `.tr-amount` / `.tr-network` / `.tr-txhash` / `.tr-time` — 单元格内容
+- `.tr-user-name` / `.tr-user-email` — 用户信息
+- `.tr-btn` / `.tr-btn-pass` / `.tr-btn-reject` — 操作按钮
+- `.tr-empty` / `.tr-empty-icon` / `.tr-empty-text` — 空状态
+- `.tr-remark-cell` — 备注省略
+
+---
+
+## 5. 卡片产品 (Card Products)
 
 ### 4.1 数据来源
 产品列表由两部分合并：
