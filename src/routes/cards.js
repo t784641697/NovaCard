@@ -238,7 +238,7 @@ router.post('/:card_id/freeze', async (req, res, next) => {
           db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(refundAmt, card.user_id);
           db.prepare('UPDATE cards SET available_amount = 0 WHERE card_id = ?').run(card_id);
           // 记录交易流水
-          db.prepare("INSERT INTO transactions (user_id, type, amount, description, created_at) VALUES (?, 'card_refund', ?, ?, datetime('now'))")
+          db.prepare("INSERT INTO transactions (user_id, type, amount, description, created_at) VALUES (?, 'card_refund', ?, ?, nowiso())")
             .run(card.user_id, refundAmt, '卡片失效，余额自动退还 $' + refundAmt.toFixed(2));
         }
       } catch (refundErr) {

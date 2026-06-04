@@ -38,7 +38,7 @@ function generateCaptcha() {
   `).run(token, answer, expiresAt);
 
   // 定期清理过期验证码（每次生成时顺带清理）
-  db.prepare(`DELETE FROM captcha_store WHERE expires_at < datetime('now')`).run();
+  db.prepare(`DELETE FROM captcha_store WHERE expires_at < nowiso()`).run();
 
   return { token, svg: captcha.data };
 }

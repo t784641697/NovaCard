@@ -185,7 +185,7 @@ router.post('/login', loginRateLimiter, replayProtection, async (req, res) => {
       login_fail_cnt = 0,
       status = 'active',
       locked_until = '',
-      last_login_at = datetime('now'),
+      last_login_at = nowiso(),
       last_login_ip = ?
     WHERE id = ?
   `).run(ip, user.id);

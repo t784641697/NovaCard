@@ -95,7 +95,7 @@ class BalanceService {
     return db.transaction(() => {
       // 更新余额
       const newBalance = parseFloat((user.balance - netAmount).toFixed(2));
-      db.prepare("UPDATE users SET balance = ?, updated_at = datetime('now') WHERE id = ?")
+      db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
         .run(newBalance, userId);
       
       // 更新统计字段
@@ -103,7 +103,7 @@ class BalanceService {
         UPDATE users 
         SET total_spend = total_spend + ?,
             total_fees = total_fees + ?,
-            last_fee_update = datetime('now')
+            last_fee_update = nowiso()
         WHERE id = ?
       `).run(amount, feeAmount, userId);
       
@@ -111,7 +111,7 @@ class BalanceService {
       const txnResult = db.prepare(`
         INSERT INTO transactions
           (user_id, type, amount, fee_type, fee_amount, net_amount, description, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, nowiso())
       `).run(
         userId,
         '消费',
@@ -152,7 +152,7 @@ class BalanceService {
       const newBalance = parseFloat((user.balance + netReturn).toFixed(2));
       
       // 更新余额
-      db.prepare("UPDATE users SET balance = ?, updated_at = datetime('now') WHERE id = ?")
+      db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
         .run(newBalance, userId);
       
       // 更新统计字段（退款增加total_refund）
@@ -160,7 +160,7 @@ class BalanceService {
         UPDATE users 
         SET total_refund = total_refund + ?,
             total_fees = total_fees + ?,
-            last_fee_update = datetime('now')
+            last_fee_update = nowiso()
         WHERE id = ?
       `).run(amount, feeAmount, userId);
       
@@ -168,7 +168,7 @@ class BalanceService {
       const txnResult = db.prepare(`
         INSERT INTO transactions
           (user_id, type, amount, fee_type, fee_amount, net_amount, description, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, nowiso())
       `).run(
         userId,
         '退款',
@@ -202,21 +202,21 @@ class BalanceService {
       const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(userId);
       const newBalance = parseFloat((user.balance + netReturn).toFixed(2));
       
-      db.prepare("UPDATE users SET balance = ?, updated_at = datetime('now') WHERE id = ?")
+      db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
         .run(newBalance, userId);
       
       db.prepare(`
         UPDATE users 
         SET total_chargeback = total_chargeback + ?,
             total_fees = total_fees + ?,
-            last_fee_update = datetime('now')
+            last_fee_update = nowiso()
         WHERE id = ?
       `).run(amount, feeAmount, userId);
       
       const txnResult = db.prepare(`
         INSERT INTO transactions
         (user_id, type, amount, fee_type, fee_amount, net_amount, description, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, nowiso())
       `).run(
         userId,
         '拒付',
@@ -256,14 +256,14 @@ class BalanceService {
       if (!user) throw new Error(`用户 ${userId} 不存在`);
 
       const newBalance = parseFloat((user.balance - feeAmount).toFixed(2));
-      db.prepare("UPDATE users SET balance = ?, updated_at = datetime('now') WHERE id = ?")
+      db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
         .run(newBalance, userId);
 
       // 更新 total_fees
       db.prepare(`
         UPDATE users 
         SET total_fees = total_fees + ?,
-            last_fee_update = datetime('now')
+            last_fee_update = nowiso()
         WHERE id = ?
       `).run(feeAmount, userId);
 
@@ -271,7 +271,7 @@ class BalanceService {
       const txnResult = db.prepare(`
         INSERT INTO transactions
           (user_id, type, amount, fee_type, fee_amount, net_amount, description, ref_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, nowiso())
       `).run(
         userId,
         '手续费',
@@ -302,7 +302,7 @@ class BalanceService {
       const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(userId);
       const newBalance = parseFloat((user.balance + amount).toFixed(2));
       
-      db.prepare("UPDATE users SET balance = ?, updated_at = datetime('now') WHERE id = ?")
+      db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
         .run(newBalance, userId);
       
       // 更新充值总额
@@ -316,7 +316,7 @@ class BalanceService {
       const txnResult = db.prepare(`
         INSERT INTO transactions
           (user_id, type, amount, net_amount, description, created_at)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, nowiso())
       `).run(
         userId,
         '管理员充值',
@@ -344,7 +344,7 @@ class BalanceService {
       const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(userId);
       const adjustment = newBalance - user.balance;
       
-      db.prepare("UPDATE users SET balance = ?, updated_at = datetime('now') WHERE id = ?")
+      db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
         .run(newBalance, userId);
       
       // 根据调整方向更新对应统计字段
@@ -362,7 +362,7 @@ class BalanceService {
       db.prepare(`
         INSERT INTO audit_logs
           (user_id, action, detail, ip, ua, created_at)
-        VALUES (?, 'balance_adjust', ?, ?, ?, datetime('now'))
+        VALUES (?, 'balance_adjust', ?, ?, ?, nowiso())
       `).run(
         userId,
         JSON.stringify({
@@ -404,7 +404,7 @@ class BalanceService {
       db.prepare(`
         INSERT INTO audit_logs
           (user_id, action, detail, ip, ua, created_at)
-        VALUES (?, 'balance_fix', ?, ?, ?, datetime('now'))
+        VALUES (?, 'balance_fix', ?, ?, ?, nowiso())
       `).run(
         userId,
         JSON.stringify({

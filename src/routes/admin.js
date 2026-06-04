@@ -27,7 +27,7 @@ function getSetting(key, defaultVal = '') {
 
 function setSetting(key, value) {
   db.prepare(`
-    INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+    INSERT INTO settings (key, value, updated_at) VALUES (?, ?, nowiso())
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
   `).run(key, String(value));
 }
@@ -115,8 +115,8 @@ router.post('/sync', async (req, res, next) => {
                 UPDATE cards SET
                   status = 'deleted',
                   available_amount = 0,
-                  updated_at = datetime('now'),
-                  last_verified = datetime('now'),
+                  updated_at = nowiso(),
+                  last_verified = nowiso(),
                   verified_status = 'verified',
                   verification_error = NULL
                 WHERE card_id = ?
@@ -136,8 +136,8 @@ router.post('/sync', async (req, res, next) => {
                   single_limit = ?,
                   day_limit = ?,
                   month_limit = ?,
-                  updated_at = datetime('now'),
-                  last_verified = datetime('now'),
+                  updated_at = nowiso(),
+                  last_verified = nowiso(),
                   verified_status = 'verified',
                   verification_error = NULL
                 WHERE card_id = ?
@@ -165,7 +165,7 @@ router.post('/sync', async (req, res, next) => {
                   card_id, user_id, card_number, product_code, label, card_type,
                   status, available_amount, expiry_month, expiry_year, cvv,
                   single_limit, day_limit, month_limit, last_verified, verified_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'verified')
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, nowiso(), 'verified')
               `).run(
                 cardId,
                 defaultUserId,
@@ -194,7 +194,7 @@ router.post('/sync', async (req, res, next) => {
           if (localIdSet.has(cardId)) {
             db.prepare(`
               UPDATE cards SET
-                last_verified = datetime('now'),
+                last_verified = nowiso(),
                 verified_status = 'error',
                 verification_error = ?
               WHERE card_id = ?
@@ -229,8 +229,8 @@ async function syncSingleCard(cardId) {
         card_number = ?,
         status = 'deleted',
         available_amount = 0,
-        updated_at = datetime('now'),
-        last_verified = datetime('now'),
+        updated_at = nowiso(),
+        last_verified = nowiso(),
         verified_status = 'verified',
         verification_error = NULL
       WHERE card_id = ?
@@ -253,8 +253,8 @@ async function syncSingleCard(cardId) {
       single_limit = ?,
       day_limit = ?,
       month_limit = ?,
-      updated_at = datetime('now'),
-      last_verified = datetime('now'),
+      updated_at = nowiso(),
+      last_verified = nowiso(),
       verified_status = 'verified',
       verification_error = NULL
     WHERE card_id = ?
@@ -352,14 +352,14 @@ router.get('/stats', async (req, res, next) => {
 
         if (local) {
           db.prepare(`
-            UPDATE cards SET status = ?, available_amount = ?, last_verified = datetime('now'),
+            UPDATE cards SET status = ?, available_amount = ?, last_verified = nowiso(),
               verified_status = 'verified', verification_error = NULL
             WHERE card_id = ?
           `).run(mappedStatus, card.available_amount || 0, card.card_id);
         } else {
           db.prepare(`
             INSERT OR IGNORE INTO cards (card_id, user_id, card_number, product_code, status, available_amount, last_verified, verified_status)
-            VALUES (?, 2, ?, ?, ?, ?, datetime('now'), 'verified')
+            VALUES (?, 2, ?, ?, ?, ?, nowiso(), 'verified')
           `).run(card.card_id, card.card_number || '', card.product_code || '', mappedStatus, card.available_amount || 0);
         }
       }
@@ -630,11 +630,11 @@ router.get('/cards', async (req, res, next) => {
         if (listResult && Array.isArray(listResult.list) && listResult.list.length > 0) {
           const upsert = db.prepare(`
             INSERT INTO cards (card_id, user_id, card_number, product_code, status, available_amount, expiry_month, expiry_year, last_verified, verified_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'synced')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, nowiso(), 'synced')
             ON CONFLICT(card_id) DO UPDATE SET
               status = excluded.status,
               available_amount = excluded.available_amount,
-              last_verified = datetime('now'),
+              last_verified = nowiso(),
               verified_status = 'synced'
           `);
           for (const up of listResult.list) {
@@ -769,8 +769,8 @@ router.get('/cards/:cardId/detail', async (req, res, next) => {
           UPDATE cards SET
             status = 'deleted',
             available_amount = 0,
-            updated_at = datetime('now'),
-            last_verified = datetime('now'),
+            updated_at = nowiso(),
+            last_verified = nowiso(),
             verified_status = 'verified',
             verification_error = NULL
           WHERE card_id = ?
@@ -797,8 +797,8 @@ router.get('/cards/:cardId/detail', async (req, res, next) => {
             card_number = ?,
             status = 'deleted',
             available_amount = 0,
-            updated_at = datetime('now'),
-            last_verified = datetime('now'),
+            updated_at = nowiso(),
+            last_verified = nowiso(),
             verified_status = 'verified',
             verification_error = NULL
           WHERE card_id = ?
@@ -817,8 +817,8 @@ router.get('/cards/:cardId/detail', async (req, res, next) => {
             single_limit = ?,
             day_limit = ?,
             month_limit = ?,
-            updated_at = datetime('now'),
-            last_verified = datetime('now'),
+            updated_at = nowiso(),
+            last_verified = nowiso(),
             verified_status = 'verified',
             verification_error = NULL
           WHERE card_id = ?
@@ -843,7 +843,7 @@ router.get('/cards/:cardId/detail', async (req, res, next) => {
       // 上游出错时，记录验证失败但不改状态
       db.prepare(`
         UPDATE cards SET
-          last_verified = datetime('now'),
+          last_verified = nowiso(),
           verified_status = 'error',
           verification_error = ?
         WHERE card_id = ?
@@ -970,7 +970,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         });
         // 立即创建本地卡片记录，用户可立即看到此卡
         const localCardId = `WEB-${app.product_code || app.card_bin || app.product_code}-${Date.now()}-${i}`;
-        db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', datetime('now'), datetime('now'))`).run(
+        db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', nowiso(), nowiso())`).run(
           localCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Web Card'
         );
         createdCards.push(localCardId);
@@ -983,7 +983,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     }
 
     if (createdCards.length > 0) {
-      db.prepare(`UPDATE card_applications SET card_id = ?, status = 'approved', updated_at = datetime('now') WHERE id = ?`)
+      db.prepare(`UPDATE card_applications SET card_id = ?, status = 'approved', updated_at = nowiso() WHERE id = ?`)
         .run(createdCards.join(','), id);
       // 后台异步发现：尝试补齐上游 card_id（非阻塞）
       discoverWebCardIds(id, app, createdCards).catch(err => {
@@ -995,7 +995,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         data: { total: qty, success: createdCards.length, application_id: id }
       });
     } else {
-      db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?`)
+      db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
         .run('开卡失败: ' + (lastError?.message || '未知错误'), id);
       // 退还费用
       db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(app.fee_amount, app.user_id);
@@ -1018,7 +1018,7 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
     // 退还开卡费 + 充值冻结金额
     const refund = (app.fee_amount || 0) + (app.topup_amount || 0) * Math.max(1, Number(app.quantity) || 1);
     db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(refund, app.user_id);
-    db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?`)
+    db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
       .run(reason || '管理员拒绝了申请', id);
 
     res.json({ code: 0, msg: '已拒绝该申请，费用已退还' });
@@ -1045,11 +1045,11 @@ async function syncAllCardsFromUpstream() {
       if (listResult && Array.isArray(listResult.list) && listResult.list.length > 0) {
         const upsert = db.prepare(`
           INSERT INTO cards (card_id, user_id, card_number, product_code, status, available_amount, expiry_month, expiry_year, last_verified, verified_status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'synced')
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, nowiso(), 'synced')
           ON CONFLICT(card_id) DO UPDATE SET
             status = excluded.status,
             available_amount = excluded.available_amount,
-            last_verified = datetime('now'),
+            last_verified = nowiso(),
             verified_status = 'synced'
         `);
         for (const up of listResult.list) {
@@ -1084,7 +1084,7 @@ async function syncAllCardsFromUpstream() {
         console.error(`[CardSync] 同步卡片 ${card.card_id} 失败:`, err.message);
         db.prepare(`
           UPDATE cards SET
-            last_verified = datetime('now'),
+            last_verified = nowiso(),
             verified_status = 'error',
             verification_error = ?
           WHERE card_id = ?

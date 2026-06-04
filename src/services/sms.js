@@ -132,7 +132,7 @@ async function sendSmsCode(phone, purpose, ip = '') {
   `).run(phone, code, purpose, expiresAt, ip);
 
   // 清理过期验证码
-  db.prepare(`DELETE FROM sms_codes WHERE expires_at < datetime('now') AND used = 1`).run();
+  db.prepare(`DELETE FROM sms_codes WHERE expires_at < nowiso() AND used = 1`).run();
 
   const resp = { success: true, msg: `验证码已发送至 ${phone}，${CODE_TTL_MINUTES} 分钟内有效` };
   if (isDev) resp.devCode = code; // 开发模式返回明文（生产绝不返回）

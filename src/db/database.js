@@ -18,6 +18,10 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = DELETE');
 db.pragma('foreign_keys = ON');
 
+// 注册 nowiso() SQL 函数 → 输出 ISO 8601 UTC 时间戳
+// 统一项目中所有 SQL 侧的时间戳格式：nowiso() 替代 datetime('now')
+db.function('nowiso', { deterministic: true }, () => new Date().toISOString());
+
 // ── 建表 ─────────────────────────────────────────────────────────────────
 
 db.exec(`
@@ -33,8 +37,8 @@ db.exec(`
     locked_until    TEXT    NOT NULL DEFAULT '',       -- 锁定到期时间（ISO 字符串）
     last_login_at   TEXT    NOT NULL DEFAULT '',
     last_login_ip   TEXT    NOT NULL DEFAULT '',
-    created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at      TEXT    NOT NULL DEFAULT (nowiso())
   );
 
   -- 审计日志表
@@ -45,7 +49,7 @@ db.exec(`
     ip         TEXT    NOT NULL DEFAULT '',
     ua         TEXT    NOT NULL DEFAULT '',
     detail     TEXT    NOT NULL DEFAULT '',  -- JSON 附加信息
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT    NOT NULL DEFAULT (nowiso())
   );
   CREATE INDEX IF NOT EXISTS idx_audit_user_id   ON audit_logs(user_id);
   CREATE INDEX IF NOT EXISTS idx_audit_action    ON audit_logs(action);
@@ -69,7 +73,7 @@ db.exec(`
     expires_at  TEXT    NOT NULL,
     used        INTEGER NOT NULL DEFAULT 0,
     ip          TEXT    NOT NULL DEFAULT '',
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (nowiso())
   );
   CREATE INDEX IF NOT EXISTS idx_sms_phone ON sms_codes(phone);
   CREATE INDEX IF NOT EXISTS idx_sms_expires ON sms_codes(expires_at);
@@ -86,8 +90,8 @@ db.exec(`
     expiry_month     INTEGER NOT NULL DEFAULT 0,   -- 到期月
     expiry_year      INTEGER NOT NULL DEFAULT 0,   -- 到期年
     cvv              TEXT    NOT NULL DEFAULT '',  -- CVV（加密存储）
-    created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
-    updated_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at       TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at       TEXT    NOT NULL DEFAULT (nowiso())
   );
 
   CREATE INDEX IF NOT EXISTS idx_cards_user_id ON cards(user_id);
@@ -96,7 +100,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     key        TEXT PRIMARY KEY,
     value      TEXT NOT NULL DEFAULT '',
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT NOT NULL DEFAULT (nowiso())
   );
 
   CREATE TABLE IF NOT EXISTS topup_requests (
@@ -107,8 +111,8 @@ db.exec(`
     txhash       TEXT    NOT NULL DEFAULT '',   -- 链上哈希（选填）
     remark       TEXT    NOT NULL DEFAULT '',
     status       TEXT    NOT NULL DEFAULT 'pending',  -- pending / approved / rejected
-    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
-    updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at   TEXT    NOT NULL DEFAULT (nowiso())
   );
 
   CREATE INDEX IF NOT EXISTS idx_topup_user_id ON topup_requests(user_id);
@@ -133,8 +137,8 @@ db.exec(`
     -- 审批通过后 vmcardio 返回的 card_id
     card_id      TEXT    NOT NULL DEFAULT '',
     -- 时间
-    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
-    updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at   TEXT    NOT NULL DEFAULT (nowiso())
   );
 
   CREATE INDEX IF NOT EXISTS idx_card_app_user_id ON card_applications(user_id);
@@ -153,7 +157,7 @@ db.exec(`
     net_amount      REAL    NOT NULL DEFAULT 0,        -- 净变动额
     description     TEXT    NOT NULL DEFAULT '',
     ref_id          TEXT    NOT NULL DEFAULT '',        -- 外部引用ID（如 auth_id）
-    created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT    NOT NULL DEFAULT (nowiso())
   );
   CREATE INDEX IF NOT EXISTS idx_txn_user_id  ON transactions(user_id);
   CREATE INDEX IF NOT EXISTS idx_txn_type     ON transactions(type);
@@ -173,8 +177,8 @@ db.exec(`
     currency    TEXT    NOT NULL DEFAULT 'USD',
     is_active   INTEGER NOT NULL DEFAULT 1,
     sort_order  INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at  TEXT    NOT NULL DEFAULT (nowiso())
   );
   CREATE INDEX IF NOT EXISTS idx_fee_configs_type ON fee_configs(fee_type, is_active);
 
@@ -189,8 +193,8 @@ db.exec(`
     max_amount  REAL    DEFAULT NULL,
     is_active   INTEGER NOT NULL DEFAULT 1,
     notes       TEXT,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-    updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    created_at  TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at  TEXT    NOT NULL DEFAULT (nowiso()),
     UNIQUE(user_id, fee_type)
   );
   CREATE INDEX IF NOT EXISTS idx_user_fee_configs ON user_fee_configs(user_id, fee_type, is_active);
@@ -263,7 +267,7 @@ db.exec(`
   }
 
   // 更新已存在的 cross_border 为正确的值（1% + $0.45）
-  db.prepare(`UPDATE fee_configs SET fee_rate = 0.01, fee_fixed = 0.45, updated_at = datetime('now') WHERE fee_type = 'cross_border'`).run();
+  db.prepare(`UPDATE fee_configs SET fee_rate = 0.01, fee_fixed = 0.45, updated_at = nowiso() WHERE fee_type = 'cross_border'`).run();
 })();
 
 // ── 种子数据（首次运行插入默认账号）──────────────────────────────────────

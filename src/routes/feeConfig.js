@@ -120,7 +120,7 @@ router.put('/user/:userId/:fee_type', (req, res, next) => {
 
     db.prepare(`
       INSERT INTO user_fee_configs (user_id, fee_type, fee_rate, fee_fixed, is_active, updated_at)
-      VALUES (?, ?, ?, ?, 1, datetime('now'))
+      VALUES (?, ?, ?, ?, 1, nowiso())
       ON CONFLICT(user_id, fee_type) DO UPDATE SET
         fee_rate = excluded.fee_rate,
         fee_fixed = excluded.fee_fixed,
