@@ -6125,7 +6125,7 @@ async function trLoad() {
 async function trApprove(id, amount) {
   const usdtAmt = amount > 0 ? amount : parseFloat(prompt('请输入入账 USDT 金额（USD）：') || '0');
   if (!usdtAmt || usdtAmt <= 0) return toast('⚠️ 请输入有效金额');
-  const ok = await confirmModal('确认通过充值申请 #' + id + '，入账 <b>$' + usdtAmt.toFixed(2) + '</b>？', {
+  const ok = await confirmModal('确认通过该充值申请，入账 <b>$' + usdtAmt.toFixed(2) + '</b>？', {
     icon: '✅',
     okText: '确认通过',
     okColor: '#22c55e',
