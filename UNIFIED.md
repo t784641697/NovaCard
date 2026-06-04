@@ -105,6 +105,16 @@ SQLite 生产库偶发索引损坏（`database disk image is malformed`），修
 - `.tr-empty` / `.tr-empty-icon` / `.tr-empty-text` — 空状态
 - `.tr-remark-cell` — 备注省略
 
+### 4.4 充值审核页面布局规范
+- **容器宽度**：`.tr-container` 使用 `max-width: 1400px`，确保大屏下充分利用横向空间
+- **统计卡片**：使用 `gap-4` 间距，内边距 `p-4`，避免拥挤
+- **TxHash 交互**：
+  - 单元格用 `.tr-txhash` 类（短文本显示 + 右侧复制图标）
+  - 悬浮显示完整哈希（通过 `title` 属性或 `data-hash`）
+  - 点击复制到剪贴板（首选 `navigator.clipboard`，降级 `execCommand`）
+  - 复制成功后蓝色闪烁反馈 + toast 提示
+- **状态标签**：使用 `white-space: nowrap` 防止中文标签（如"已通过"）换行折断
+
 ---
 
 ## 5. 卡片产品 (Card Products)
