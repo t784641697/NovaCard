@@ -194,7 +194,70 @@ cd /opt/vcc-hub && pm2 stop vcc-hub && pm2 start src/app.js --name vcc-hub --upd
 
 ---
 
-## 7. 响应格式
+## 7. 时间戳规范
+
+### 7.1 唯一标准：ISO 8601 UTC
+
+所有时间戳**必须**使用 ISO 8601 UTC 格式（`YYYY-MM-DDTHH:MM:SS.mmmZ`），通过 `nowiso()` SQL 自定义函数生成。
+
+### 7.2 nowiso() 函数
+
+在 `src/db/database.js` 中注册：
+```js
+db.function('nowiso', () => new Date().toISOString());
+```
+
+❌ **禁止**使用 `datetime('now')` — 输出 `YYYY-MM-DD HH:MM:SS` 无时区格式，与 ISO 格式混排时字符串比较会出错（`T`(ASCII 84) > 空格(ASCII 32)）
+
+✅ ORM/应用层也用 `new Date().toISOString()` 生成时间戳，确保 JS ↔ SQLite 一致
+
+### 7.3 排序规范
+❌ 禁止 `ORDER BY created_at DESC`（日期格式不统一时排序不准）
+✅ **必须用 `ORDER BY id DESC`**，id 自增天然代表时间顺序，不受格式影响
+
+---
+
+## 8. 交易监控页面规范
+
+### 8.1 总体结构
+交易监控页面（`renderAdminTxMonitor` / `loadTxMonitor`）采用三层数据视图：
+
+| 层级 | 内容 | 容器 ID |
+|------|------|---------|
+| 指标卡片 | 6 个核心指标（开卡量/交易笔数/入账率/失败率/撤销率/退款率） | `#txMonStats` |
+| 按用户统计 | 每个用户的 6 指标表格 | `#txMonUserWrap` |
+| 交易明细 | 每笔交易的用户/类型/金额/状态/时间 | `#txMonListWrap` |
+
+### 8.2 页面生命周期
+1. `renderAdminTxMonitor()` — 渲染页面骨架 + 初始化 DateRangePicker + 触发 `loadTxMonitor()`
+2. `loadTxMonitor()` — 并行请求 `/admin/transaction-stats` 和 `/admin/transactions`，填充数据
+3. `txMonReset()` — 重置日期筛选为近7天并刷新
+
+### 8.3 指标定义
+
+| 指标 | 数据来源 | 说明 |
+|------|---------|------|
+| 开卡量 | `metrics.card_issued` | cards 表计数（按日期筛选） |
+| 交易笔数 | `metrics.tx_count` | transactions 表计数 |
+| 入账率/失败率/撤销率 | `metrics.settlement_rate/failure_rate/reversal_rate` | 需上游卡片 Auth 数据 |
+| 消费退款率 | `metrics.refund_rate` | 退款总额 / 消费总额 |
+
+当系统无卡片数据（`card_issued = 0`）或上游未对接时，费率显示「需上游数据」而非 `0.0%`。
+
+### 8.4 日期筛选
+- 打开页面时**默认近7天**
+- 用户可通过 DateRangePicker 自定义周期
+- 后端 `start_date`/`end_date` 参数作用于 `created_at` 字段（ISO 格式字符串比较）
+
+### 8.5 API 依赖
+| API | 参数 | 返回 |
+|-----|------|------|
+| `GET /api/admin/transaction-stats` | `start_date`, `end_date` | `{ metrics: {...}, per_user: [...] }` |
+| `GET /api/admin/transactions` | `start_date`, `end_date`, `page_size`, `page` | `{ list: [...], total: N }` |
+
+---
+
+## 9. 响应格式
 
 所有 API 响应遵循统一格式：
 ```json
