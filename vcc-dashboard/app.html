@@ -6413,7 +6413,6 @@ async function saveAdminSettings() {
 // ══════════════════════════════════════════════
 //  PAGE: 全局交易监控（管理员）
 // ══════════════════════════════════════════════
-let _txMonitorCards = [];
 let _txMonitorFilter = {};
 
 async function renderAdminTxMonitor() {
@@ -6421,78 +6420,65 @@ async function renderAdminTxMonitor() {
   const area = document.getElementById('contentArea');
   area.innerHTML = `
     <div class="page-header">
-      <div><h2>交易监控</h2><p class="text-muted mt-1">所有用户所有卡的实时交易记录</p></div>
+      <div><h2>交易监控</h2><p class="text-muted mt-1">拒卡消费数据统计 — 总体 / 分用户 / 周期筛选</p></div>
     </div>
 
-    
-    <div class="ov-stat-row" id="txMonStats">
-      <div class="ov-stat-card" style="background:#13192a;">
-        <div class="ov-stat-label">交易总笔数</div>
-        <div class="ov-stat-val" id="txMonTotal">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:#13192a;">
-        <div class="ov-stat-label">交易总金额</div>
-        <div class="ov-stat-val" id="txMonAmount">$—</div>
-      </div>
-      <div class="ov-stat-card" style="background:#13192a;">
-        <div class="ov-stat-label">消费授权</div>
-        <div class="ov-stat-val" style="font-size:1.1rem;" id="txMonAuth">— / $—</div>
-      </div>
-      <div class="ov-stat-card" style="background:#13192a;">
-        <div class="ov-stat-label">清算结算</div>
-        <div class="ov-stat-val" style="font-size:1.1rem;" id="txMonSettle">— / $—</div>
-      </div>
-    </div>
-
-    
-    <div class="panel mt-4">
-      <div class="flex flex-wrap gap-3 items-center" style="margin-bottom:12px;">
-        <select id="txMonCardSel" onchange="txMonFilterChange()" style="min-width:200px;padding:6px 10px;border-radius:8px;background:#1a2035;border:1px solid #2d344a;color:#e2e8f0;font-size:.85rem;">
-          <option value="">全部卡片</option>
-        </select>
-        <select id="txMonTypeSel" onchange="txMonFilterChange()" style="padding:6px 10px;border-radius:8px;background:#1a2035;border:1px solid #2d344a;color:#e2e8f0;font-size:.85rem;">
-          <option value="">全部类型</option>
-          <option value="Authorization">消费授权</option>
-          <option value="Settlement">清算</option>
-          <option value="Refund">退款</option>
-          <option value="Reversal">撤销</option>
-        </select>
-        <select id="txMonStatusSel" onchange="txMonFilterChange()" style="padding:6px 10px;border-radius:8px;background:#1a2035;border:1px solid #2d344a;color:#e2e8f0;font-size:.85rem;">
-          <option value="">全部状态</option>
-          <option value="COMPLETE">完成</option>
-          <option value="PENDING">清算中</option>
-          <option value="DECLINED">失败</option>
-        </select>
+    <!-- 日期筛选 -->
+    <div class="panel" style="padding:14px 20px;">
+      <div class="flex flex-wrap gap-3 items-center">
+        <span style="color:var(--text2);font-size:.85rem;font-weight:500;">统计周期</span>
         <span id="txMonDateWrap" style="display:inline-flex;align-items:center;gap:8px;"></span>
-        <button class="btn btn-primary btn-sm" onclick="loadTxMonitor()">查询</button>
-        <button class="btn btn-outline btn-sm" onclick="txMonReset()">重置</button>
+        <button class="btn btn-primary btn-sm" onclick="loadTxMonitor()" style="padding:6px 18px;">查询</button>
+        <button class="btn btn-outline btn-sm" onclick="txMonReset()" style="padding:6px 18px;">重置</button>
       </div>
     </div>
 
-    
-    <div class="panel mt-3">
-      <div id="txMonListWrap" style="padding:24px;">
-        <div class="skeleton" style="height:400px;border-radius:12px;"></div>
+    <!-- 总体指标卡片 -->
+    <div class="ov-stat-row" id="txMonStats" style="margin-top:18px;">
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">开卡量</div>
+        <div class="ov-stat-val" id="txStatCards">—</div>
+      </div>
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">交易笔数</div>
+        <div class="ov-stat-val" id="txStatTx">—</div>
+      </div>
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">入账率</div>
+        <div class="ov-stat-val" id="txStatSettle">—</div>
+      </div>
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">消费失败率</div>
+        <div class="ov-stat-val" id="txStatFail">—</div>
+      </div>
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">授权撤销率</div>
+        <div class="ov-stat-val" id="txStatReversal">—</div>
+      </div>
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">消费退款率</div>
+        <div class="ov-stat-val" id="txStatRefund">—</div>
+      </div>
+    </div>
+
+    <!-- 分用户统计表 -->
+    <div class="panel mt-4">
+      <div style="padding:18px 20px 12px;font-weight:600;color:var(--text1);">按用户统计</div>
+      <div id="txMonUserWrap" style="padding:0 20px 20px;">
+        <div class="skeleton" style="height:100px;border-radius:12px;"></div>
+      </div>
+    </div>
+
+    <!-- 交易明细 -->
+    <div class="panel mt-4">
+      <div style="padding:18px 20px 12px;font-weight:600;color:var(--text1);">交易明细</div>
+      <div id="txMonListWrap" style="padding:0 20px 20px;">
+        <div class="skeleton" style="height:200px;border-radius:12px;"></div>
       </div>
     </div>
   `;
 
-  // 加载卡片列表
-  try {
-    const r = await apiFetch('/admin/cards?page_size=100');
-    if (r.code === 0 && r.data?.list) {
-      _txMonitorCards = r.data.list;
-      const sel = document.getElementById('txMonCardSel');
-      r.data.list.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.card_id;
-        opt.textContent = (c.card_number ? c.card_number.slice(-4).padStart(8, '****') : c.card_id.slice(0, 8)) + ' — ' + (c.user_name || c.user_email || '未知用户');
-        sel.appendChild(opt);
-      });
-    }
-  } catch(_) {}
-
-  // 初始化日期选择器（每次重新创建，彻底清理防止泄漏）
+  // 初始化日期选择器
   if (window._txMonDrPicker) {
     if (window._txMonDrPicker._outsideHandler) {
       document.removeEventListener('click', window._txMonDrPicker._outsideHandler);
@@ -6510,113 +6496,142 @@ async function renderAdminTxMonitor() {
     placeholder: '开始日期 — 结束日期',
     onConfirm: function(start, end) {
       window._txMonFilter = window._txMonFilter || {};
-      window._txMonFilter.dateFrom = start;
-      window._txMonFilter.dateTo = end;
+      window._txMonFilter.start = start;
+      window._txMonFilter.end = end;
     },
     onClear: function() {
       window._txMonFilter = window._txMonFilter || {};
-      window._txMonFilter.dateFrom = '';
-      window._txMonFilter.dateTo = '';
+      window._txMonFilter.start = '';
+      window._txMonFilter.end = '';
     }
   });
   window._txMonDrPicker.init();
-  // 恢复已保存的值
-  if (window._txMonFilter?.dateFrom && window._txMonFilter?.dateTo) {
-    window._txMonDrPicker.setRange(window._txMonFilter.dateFrom, window._txMonFilter.dateTo);
+  if (window._txMonFilter?.start && window._txMonFilter?.end) {
+    window._txMonDrPicker.setRange(window._txMonFilter.start, window._txMonFilter.end);
   }
 
-  // 加载交易数据
   loadTxMonitor();
 }
 
-function txMonFilterChange() {}
-
 function txMonReset() {
-  document.getElementById('txMonCardSel').value = '';
-  document.getElementById('txMonTypeSel').value = '';
-  document.getElementById('txMonStatusSel').value = '';
   if (window._txMonDrPicker) window._txMonDrPicker.clear();
   loadTxMonitor();
 }
 
 async function loadTxMonitor() {
-  const wrap = document.getElementById('txMonListWrap');
-  if (!wrap) return;
-  wrap.innerHTML = '<div class="skeleton" style="height:400px;border-radius:12px;"></div>';
+  const area = document.getElementById('contentArea');
+  if (!area) return;
+
+  // loading state
+  document.querySelectorAll('#txMonStats .ov-stat-val').forEach(el => { el.style.opacity = '0.3'; });
 
   const params = new URLSearchParams();
-  const cardId = document.getElementById('txMonCardSel')?.value;
-  const txType = document.getElementById('txMonTypeSel')?.value;
-  const txStatus = document.getElementById('txMonStatusSel')?.value;
-  const dateFrom = window._txMonFilter?.dateFrom || '';
-  const dateTo = window._txMonFilter?.dateTo || '';
-
-  if (cardId) params.set('card_id', cardId);
-  if (txType) params.set('transaction_type', txType);
-  if (txStatus) params.set('status', txStatus);
-  if (dateFrom) params.set('start_time', dateFrom);
-  if (dateTo) params.set('end_time', dateTo + 'T23:59:59');
-  params.set('page_size', '50');
+  const start = window._txMonFilter?.start || '';
+  const end = window._txMonFilter?.end || '';
+  if (start) params.set('start_date', start);
+  if (end)   params.set('end_date', end);
+  params.set('page_size', '30');
 
   try {
-    const r = await apiFetch('/admin/transactions?' + params.toString());
-    if (r.code !== 0) {
-      wrap.innerHTML = '<div class="empty-state"><div class="empty-text">加载失败</div></div>';
-      return;
-    }
+    const [statsRes, txRes] = await Promise.all([
+      apiFetch('/admin/transaction-stats?' + params.toString()),
+      apiFetch('/admin/transactions?' + params.toString()).catch(() => null)
+    ]);
 
-    const items = r.data?.list || [];
-    const summary = r.data?.summary || {};
-
-    // 更新统计卡片
+    // ========== 总体指标 ==========
+    const m = statsRes?.code === 0 ? statsRes.data.metrics || {} : {};
     const el = (id) => document.getElementById(id);
-    if (el('txMonTotal')) el('txMonTotal').textContent = summary.total_count || 0;
-    if (el('txMonAmount')) el('txMonAmount').textContent = '$' + (summary.total_amount || 0).toFixed(2);
-    if (el('txMonAuth')) el('txMonAuth').textContent = (summary.auth_count || 0) + ' / $' + (summary.auth_amount || 0).toFixed(2);
-    if (el('txMonSettle')) el('txMonSettle').textContent = (summary.settle_count || 0) + ' / $' + (summary.settle_amount || 0).toFixed(2);
+    if (el('txStatCards'))    el('txStatCards').textContent = (m.card_issued || 0).toLocaleString();
+    if (el('txStatTx'))       el('txStatTx').textContent = (m.tx_count || 0).toLocaleString() + ' \u7b14';
+    if (el('txStatSettle'))   el('txStatSettle').textContent = (m.settlement_rate != null ? (m.settlement_rate * 100).toFixed(1) + '%' : 'N/A');
+    if (el('txStatFail'))     el('txStatFail').textContent = (m.failure_rate != null ? (m.failure_rate * 100).toFixed(1) + '%' : 'N/A');
+    if (el('txStatReversal')) el('txStatReversal').textContent = (m.reversal_rate != null ? (m.reversal_rate * 100).toFixed(1) + '%' : 'N/A');
+    if (el('txStatRefund'))   el('txStatRefund').textContent = (m.refund_rate != null ? (m.refund_rate * 100).toFixed(1) + '%' : '0.0%');
 
+    document.querySelectorAll('#txMonStats .ov-stat-val').forEach(el => { el.style.opacity = '1'; });
+
+    // ========== 分用户统计 ==========
+    const users = statsRes?.code === 0 ? statsRes.data.per_user || [] : [];
+    const uw = document.getElementById('txMonUserWrap');
+    if (uw) {
+      if (!users.length) {
+        uw.innerHTML = '<div class="empty-state"><div class="empty-text">\u6682\u65e0\u7528\u6237\u6570\u636e</div></div>';
+      } else {
+        const uhtml = users.map((u, i) => {
+          const rowBg = i === 0 ? 'background:rgba(255,255,255,0.02);border-radius:8px 8px 0 0;' : '';
+          const email = u.email || ('\u7528\u6237 #' + u.user_id);
+          const sColor = (u.settle_rate||0) > 0 ? 'var(--green)' : 'var(--text3)';
+          const fColor = (u.fail_rate||0) > 0 ? 'var(--red)' : 'var(--text3)';
+          const rColor = (u.reversal_rate||0) > 0 ? 'var(--orange)' : 'var(--text3)';
+          const rfColor = (u.refund_rate||0) > 0 ? 'var(--red)' : 'var(--text3)';
+          const sr = u.settle_rate != null ? (u.settle_rate*100).toFixed(1)+'%' : '\u2014';
+          const fr = u.fail_rate != null ? (u.fail_rate*100).toFixed(1)+'%' : '\u2014';
+          const rr = u.reversal_rate != null ? (u.reversal_rate*100).toFixed(1)+'%' : '\u2014';
+          const rfr = u.refund_rate != null ? (u.refund_rate*100).toFixed(1)+'%' : '\u2014';
+          return '<div style="display:grid;grid-template-columns:40px 1fr repeat(6,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
+            '<div style="color:var(--text3);font-weight:500;text-align:center;">' + (i+1) + '</div>' +
+            '<div style="font-weight:500;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>' + email + '</div>' +
+            '<div style="text-align:center;"><span style="font-weight:600;color:var(--cyan);">' + (u.card_count || 0) + '</span></div>' +
+            '<div style="text-align:center;"><span style="font-weight:600;color:var(--text1);">' + (u.tx_count || 0) + '</span></div>' +
+            '<div style="text-align:center;color:' + sColor + ';">' + sr + '</div>' +
+            '<div style="text-align:center;color:' + fColor + ';">' + fr + '</div>' +
+            '<div style="text-align:center;color:' + rColor + ';">' + rr + '</div>' +
+            '<div style="text-align:center;color:' + rfColor + ';">' + rfr + '</div>' +
+          '</div>';
+        }).join('');
+        const header = '<div style="display:grid;grid-template-columns:40px 1fr repeat(6,100px);gap:8px;padding:10px 12px;align-items:center;font-size:.8rem;color:var(--text3);border-bottom:1px solid var(--border2);">' +
+          '<div style="text-align:center;">#</div>' +
+          '<div>\u7528\u6237</div>' +
+          '<div style="text-align:center;">\u5f00\u5361\u91cf</div>' +
+          '<div style="text-align:center;">\u4ea4\u6613\u7b14\u6570</div>' +
+          '<div style="text-align:center;">\u5165\u8d26\u7387</div>' +
+          '<div style="text-align:center;">\u5931\u8d25\u7387</div>' +
+          '<div style="text-align:center;">\u64a4\u9500\u7387</div>' +
+          '<div style="text-align:center;">\u9000\u6b3e\u7387</div>' +
+        '</div>';
+        uw.innerHTML = header + uhtml;
+      }
+    }
+
+    // ========== 交易明细 ==========
+    const wrap = document.getElementById('txMonListWrap');
+    if (!wrap) return;
+    const items = txRes?.code === 0 ? (txRes.data?.list || []) : [];
     if (!items.length) {
-      wrap.innerHTML = '<div class="empty-state"><div class="empty-text">暂无交易记录</div></div>';
+      wrap.innerHTML = '<div class="empty-state"><div class="empty-text">\u6682\u65e0\u4ea4\u6613\u8bb0\u5f55</div></div>';
       return;
     }
 
-    const txTypeMap = { Authorization:'消费授权', Settlement:'清算', Refund:'退款', Reversal:'撤销' };
-    const txStatusMap = { PENDING:'清算中', DECLINED:'失败', COMPLETE:'完成' };
-
-    const html = items.map(item => {
-      const amt = parseFloat(item.amount) || 0;
-      const amtColor = amt < 0 ? 'var(--red)' : amt > 0 ? 'var(--green)' : 'var(--text2)';
-      const statusClass = item.status === 'COMPLETE' ? 'tag-green' : item.status === 'PENDING' ? 'tag-yellow' : 'tag-red';
-      const userLabel = item._user ? (item._user.user_name || item._user.user_email || '') : '未知';
-      const cardLabel = item._card_number ? ('****' + item._card_number.slice(-4)) : (item.card_id ? item.card_id.slice(0, 8) + '...' : '—');
-      return '<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:140px 120px 1fr 100px 120px 100px;gap:12px;align-items:center;font-size:.83rem;">' +
-        '<div>' +
-          '<div style="font-weight:600;color:var(--text1);">' + cardLabel + '</div>' +
-          '<div style="color:var(--text3);margin-top:2px;font-size:.75rem;">' + userLabel + '</div>' +
-        '</div>' +
-        '<div>' +
-          '<div style="color:var(--text2);">' + (item.merchant_name || '—') + '</div>' +
-          '<div style="color:var(--text3);margin-top:2px;">' + (txTypeMap[item.transaction_type] || item.transaction_type || '—') + '</div>' +
-        '</div>' +
-        '<div style="color:var(--text3);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (item.description || item.merchant_name || '—') + '</div>' +
-        '<div>' +
-          '<span class="tag ' + statusClass + '" style="font-size:.68rem;">' + (txStatusMap[item.status] || item.status || '—') + '</span>' +
-        '</div>' +
-        '<div style="text-align:right;font-weight:700;color:' + amtColor + ';">$' + Math.abs(amt).toFixed(2) + (item.auth_amount ? '<div style="font-weight:400;color:var(--text3);font-size:.72rem;">授权 $' + parseFloat(item.auth_amount).toFixed(2) + '</div>' : '') + '</div>' +
-        '<div style="text-align:right;color:var(--text3);font-size:.75rem;">' + (item.start_time ? new Date(item.start_time).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—') + '</div>' +
+    const txTypeColor = { \'\u5145\u503c\':'var(--green)', \'\u6d88\u8d39\':'var(--orange)', \'\u9000\u6b3e\':'var(--red)', \'\u624b\u7eed\u8d39\':'var(--text3)' };
+    const listHtml = items.map(item => {
+      const userLabel = item._user?.user_email || '\u7528\u6237#' + item.user_id || '\u2014';
+      const typeColor = txTypeColor[item.transaction_type] || 'var(--text2)';
+      const desc = item.description ? '<span style="color:var(--text3);margin-left:8px;font-size:.75rem;">'+item.description.slice(0,30)+'</span>' : '';
+      const amt = parseFloat(item.amount||0);
+      const amtColor = amt > 0 ? 'var(--green)' : amt < 0 ? 'var(--red)' : 'var(--text2)';
+      const statusTag = item.status==='COMPLETE' ? 'tag-green' : 'tag-yellow';
+      const timeStr = item.created_at ? new Date(item.created_at).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '\u2014';
+      return '<div style="display:grid;grid-template-columns:140px 1fr 100px 100px 130px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;">' +
+        '<div style="font-weight:500;color:var(--text1);'>' + userLabel + '</div>' +
+        '<div><span style="color:' + typeColor + ';">' + (item.transaction_type || '\u2014') + '</span>' + desc + '</div>' +
+        '<div style="text-align:right;font-weight:600;color:' + amtColor + ';">$' + Math.abs(amt).toFixed(2) + '</div>' +
+        '<div style="text-align:center;"><span class="tag ' + statusTag + '" style="font-size:.68rem;">' + (item.status||'\u2014') + '</span></div>' +
+        '<div style="text-align:right;color:var(--text3);font-size:.75rem;">' + timeStr + '</div>' +
       '</div>';
     }).join('');
-
-    wrap.innerHTML = '<div style="font-size:.78rem;color:var(--text3);padding:8px 16px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:140px 120px 1fr 100px 120px 100px;gap:12px;">' +
-      '<span>卡号 / 用户</span><span>商户 / 类型</span><span>描述</span><span>状态</span><span style="text-align:right;">金额</span><span style="text-align:right;">时间</span>' +
-    '</div>' + html;
+    const listHeader = '<div style="display:grid;grid-template-columns:140px 1fr 100px 100px 130px;gap:8px;padding:10px 14px;align-items:center;font-size:.78rem;color:var(--text3);border-bottom:1px solid var(--border2);">' +
+      '<span>\u7528\u6237</span><span>\u7c7b\u578b / \u63cf\u8ff0</span><span style="text-align:right;">\u91d1\u989d</span><span style="text-align:center;">\u72b6\u6001</span><span style="text-align:right;">\u65f6\u95f4</span>' +
+    '</div>';
+    wrap.innerHTML = listHeader + listHtml;
 
   } catch(e) {
     if (e.message !== 'Unauthorized') {
-      wrap.innerHTML = '<div class="empty-state"><div class="empty-text">加载失败：' + e.message + '</div></div>';
+      const wrap = document.getElementById('txMonListWrap');
+      if (wrap) wrap.innerHTML = '<div class="empty-state"><div class="empty-text">\u52a0\u8f7d\u5931\u8d25\uff1a' + e.message + '</div></div>';
     }
   }
 }
+
 
 // ══════════════════════════════════════════════
 //  PAGE: 财务中心（管理员）
