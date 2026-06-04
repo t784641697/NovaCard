@@ -587,6 +587,130 @@ router.get('/transactions', async (req, res, next) => {
   }
 });
 /**
+ * GET /api/admin/transaction-stats?start_date=&end_date=&user_id=
+ * 交易监控统计：总体指标 + 分用户指标
+ */
+router.get('/transaction-stats', async (req, res, next) => {
+  try {
+    const { start_date, end_date, user_id } = req.query;
+    const params = [];
+    const conds = [];
+
+    if (start_date) { conds.push(`t.created_at >= ?`); params.push(start_date); }
+    if (end_date) { conds.push(`t.created_at <= ?`); params.push(end_date); }
+    if (user_id) { conds.push(`t.user_id = ?`); params.push(user_id); }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    // 1. 开卡量
+    const cardConds = [];
+    const cardParams = [];
+    if (start_date) { cardConds.push(`created_at >= ?`); cardParams.push(start_date); }
+    if (end_date) { cardConds.push(`created_at <= ?`); cardParams.push(end_date); }
+    if (user_id) { cardConds.push(`user_id = ?`); cardParams.push(user_id); }
+    const cardWhere = cardConds.length ? `WHERE ${cardConds.join(' AND ')}` : '';
+    const cardCount = db.prepare(`SELECT COUNT(*) as cnt FROM cards ${cardWhere}`).get(...cardParams);
+    const appCount = db.prepare(`SELECT COUNT(*) as cnt FROM card_applications ${cardWhere.replace('cards','card_applications')}`).get(...cardParams);
+
+    // 2. 交易统计（按类型分组）
+    const txRows = db.prepare(`SELECT t.type, COUNT(*) as cnt, COALESCE(SUM(t.amount),0) as total
+      FROM transactions t ${where} GROUP BY t.type`).all(...params);
+
+    const typeMap = {};
+    txRows.forEach(r => { typeMap[r.type] = { count: r.cnt, amount: parseFloat(r.total) }; });
+
+    // 3. 开卡申请统计
+    const appStats = db.prepare(`SELECT status, COUNT(*) as cnt FROM card_applications ${cardWhere.replace('cards','card_applications')} GROUP BY status`).all(...cardParams);
+    const appMap = {};
+    appStats.forEach(r => { appMap[r.status] = r.cnt; });
+
+    // 4. 分用户统计
+    const userRows = db.prepare(`
+      SELECT u.id, u.email,
+        COUNT(DISTINCT c.id) as card_count,
+        COUNT(t.id) as tx_count,
+        COALESCE(SUM(CASE WHEN t.type='充值' THEN t.amount ELSE 0 END),0) as topup_total,
+        COALESCE(SUM(CASE WHEN t.type='消费' THEN t.amount ELSE 0 END),0) as spend_total,
+        COALESCE(SUM(CASE WHEN t.type='退款' THEN t.amount ELSE 0 END),0) as refund_total,
+        COALESCE(SUM(CASE WHEN t.type='手续费' THEN t.amount ELSE 0 END),0) as fee_total
+      FROM users u
+      LEFT JOIN cards c ON c.user_id = u.id ${cardWhere ? 'AND ' + cardWhere.replace('t.','c.') : ''}
+      LEFT JOIN transactions t ON t.user_id = u.id ${where ? 'AND ' + where.replace(/t\./g,'t.') : ''}
+      GROUP BY u.id
+    `).all(...(user_id ? [...cardParams.filter((_,i)=>i<cardConds.length), ...params] : []));
+
+    // Re-query with simpler approach for per-user
+    const allUsers = db.prepare(`SELECT id, email FROM users ORDER BY id`).all();
+    const perUser = [];
+
+    for (const u of allUsers) {
+      const up = [];
+      const uc = [];
+      if (start_date) { uc.push(`created_at >= ?`); up.push(start_date); }
+      if (end_date) { uc.push(`created_at <= ?`); up.push(end_date); }
+      const uWhere = uc.length ? `AND ${uc.join(' AND ')}` : '';
+
+      const cardRow = db.prepare(`SELECT COUNT(*) as cnt FROM cards WHERE user_id=? ${uWhere}`).get(u.id, ...up);
+      const txRow = db.prepare(`SELECT type, COUNT(*) as cnt, COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=? ${uWhere.replace('created_at','t.created_at')} GROUP BY type`).all(u.id, ...up);
+
+      const txMap = {};
+      txRow.forEach(r => { txMap[r.type] = { count: r.cnt, amount: parseFloat(r.total) }; });
+
+      perUser.push({
+        user_id: u.id,
+        email: u.email,
+        card_count: cardRow.cnt,
+        tx_count: (txMap['充值']?.count||0) + (txMap['消费']?.count||0) + (txMap['退款']?.count||0) + (txMap['手续费']?.count||0),
+        topup_total: txMap['充值']?.amount || 0,
+        spend_total: txMap['消费']?.amount || 0,
+        refund_total: txMap['退款']?.amount || 0,
+        fee_total: txMap['手续费']?.amount || 0,
+      });
+    }
+
+    // 5. 总体指标
+    const txCount = txRows.reduce((s, r) => s + r.cnt, 0);
+    const totalAmount = parseFloat(txRows.reduce((s, r) => s + r.total, 0));
+    const topupAmt = typeMap['充值']?.amount || 0;
+    const spendAmt = typeMap['消费']?.amount || 0;
+    const refundAmt = typeMap['退款']?.amount || 0;
+    const feeAmt = typeMap['手续费']?.amount || 0;
+
+    // 入账率 / 失败率 / 撤销率 / 退款率 (awaiting upstream card auth data, show 0 for now)
+    const metrics = {
+      card_issued: cardCount.cnt,
+      card_applications: appCount.cnt,
+      app_pending: appMap['pending'] || 0,
+      app_approved: appMap['approved'] || 0,
+      app_rejected: appMap['rejected'] || 0,
+      tx_count: txCount,
+      tx_total_amount: totalAmount,
+      topup_count: typeMap['充值']?.count || 0,
+      topup_amount: topupAmt,
+      spend_count: typeMap['消费']?.count || 0,
+      spend_amount: spendAmt,
+      refund_count: typeMap['退款']?.count || 0,
+      refund_amount: refundAmt,
+      fee_amount: feeAmt,
+      // 以下指标依赖上游卡片交易明细数据
+      auth_count: 0,
+      auth_amount: 0,
+      settle_count: 0,
+      settle_amount: 0,
+      decline_count: 0,
+      reversal_count: 0,
+      settlement_rate: 0,
+      failure_rate: 0,
+      reversal_rate: 0,
+      refund_rate: 0,
+    };
+
+    res.json({ code: 0, msg: 'ok', data: { metrics, per_user: perUser } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/admin/cards?page=1&pageSize=10&status=active&search=xxx
  *   &force=true — 先触发上游同步再返回数据（同步过程会更新本地 DB）
  *   &sync=true  — 对当前页卡片逐一从上游拉取最新状态（含 DELETED 标记）
