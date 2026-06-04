@@ -5917,7 +5917,7 @@ async function renderTopupReviewPage() {
   const area = document.getElementById('contentArea');
   area.innerHTML = `
     <style>
-      .tr-container { padding: 0px 4px 28px; max-width: 1400px; margin: 0 auto; }
+      .tr-container { padding: 0px 4px 28px; max-width: 100%; margin: 0 auto; }
       .tr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
       .tr-header-left h2 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.5px; }
       .tr-header-left p { margin: 6px 0 0; font-size: .85rem; color: var(--text3); }
@@ -5936,27 +5936,30 @@ async function renderTopupReviewPage() {
       .tr-tab.active[data-tab="approved"] { background: rgba(0,199,88,0.12); color: #00c758; }
       .tr-tab.active[data-tab="rejected"] { background: rgba(255,95,95,0.12); color: #ff5f5f; }
       .tr-table-wrap { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
-      .tr-table { width: 100%; border-collapse: collapse; }
+      .tr-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
       .tr-table thead th { text-align: left; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text3); font-size: .78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
       .tr-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
       .tr-table tbody tr:hover { background: rgba(255,255,255,0.02); }
       .tr-table tbody td { padding: 14px 16px; vertical-align: middle; }
-      .tr-table .col-id { width: 54px; color: var(--text3); font-size: .8rem; }
-      .tr-table .col-user { min-width: 140px; }
-      .tr-table .col-network { width: 80px; }
-      .tr-table .col-amount { width: 110px; }
-      .tr-table .col-txhash { min-width: 120px; }
-      .tr-table .col-remark { min-width: 100px; max-width: 160px; }
-      .tr-table .col-status { width: 88px; }
-      .tr-table .col-time { width: 140px; }
+      .tr-table .col-id { width: 60px; color: var(--text3); font-size: .8rem; text-align: center; }
+      .tr-table .col-user { width: 18%; }
+      .tr-table .col-network { width: 9%; }
+      .tr-table .col-amount { width: 12%; }
+      .tr-table .col-txhash { width: 20%; }
+      .tr-table .col-remark { width: 16%; }
+      .tr-table .col-status { width: 8%; }
+      .tr-table .col-time { width: 14%; }
       .tr-table .col-action { width: 120px; }
-      .tr-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: .8rem; font-weight: 500; }
+      .tr-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: .8rem; font-weight: 500; white-space: nowrap; }
       .tr-tag-pending { background: rgba(255,170,0,0.1); color: #ffaa00; }
       .tr-tag-approved { background: rgba(0,199,88,0.1); color: #00c758; }
       .tr-tag-rejected { background: rgba(255,95,95,0.1); color: #ff5f5f; }
       .tr-amount { color: #00f2fe; font-weight: 600; font-size: .95rem; }
       .tr-network { display: inline-block; background: rgba(0,242,254,0.08); color: #00f2fe; padding: 2px 8px; border-radius: 4px; font-size: .75rem; letter-spacing: 0.3px; }
-      .tr-txhash { font-size: .78rem; color: var(--text2); font-family: monospace; }
+      .tr-txhash { font-size: .78rem; color: var(--text2); font-family: monospace; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; transition: background 0.15s; max-width: 100%; }
+      .tr-txhash:hover { background: rgba(255,255,255,0.06); color: #00f2fe; }
+      .tr-txhash .copy-icon { font-size: .65rem; opacity: 0; transition: opacity 0.15s; }
+      .tr-txhash:hover .copy-icon { opacity: 0.6; }
       .tr-time { font-size: .82rem; color: var(--text3); }
       .tr-user-name { font-size: .9rem; font-weight: 500; }
       .tr-user-email { font-size: .78rem; color: var(--text3); margin-top: 2px; }
@@ -5969,7 +5972,7 @@ async function renderTopupReviewPage() {
       .tr-empty { text-align: center; padding: 80px 40px; }
       .tr-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
       .tr-empty-text { color: var(--text3); font-size: .95rem; }
-      .tr-remark-cell { font-size: .82rem; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+      .tr-remark-cell { font-size: .82rem; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 
     <div class="tr-container">
@@ -6079,7 +6082,7 @@ async function trLoad() {
         '</td>' +
         '<td class="col-network"><span class="tr-network">' + (a.network||'-') + '</span></td>' +
         '<td class="col-amount"><span class="tr-amount">' + (a.amount_usdt ? '$' + Number(a.amount_usdt).toFixed(2) : '—') + '</span></td>' +
-        '<td class="col-txhash"><span class="tr-txhash" title="' + (a.txhash||'') + '">' + shortHash(a.txhash) + '</span></td>' +
+        '<td class="col-txhash"><span class="tr-txhash" title="' + (a.txhash||'') + '" onclick="copyTxHash(this)" data-hash="' + (String(a.txhash||'').replace(/"/g,'&quot;')) + '">' + shortHash(a.txhash) + '<span class="copy-icon">📋</span></span></td>' +
         '<td class="col-remark"><span class="tr-remark-cell" title="' + (a.remark||'') + '">' + (a.remark||'—') + '</span></td>' +
         '<td class="col-status"><span class="tr-tag ' + sc + '">' + st + '</span></td>' +
         '<td class="col-time"><span class="tr-time">' + dtFormat(a.created_at) + '</span></td>' +
@@ -6120,6 +6123,27 @@ async function trReject(id) {
     if (r.code === 0) { toast('已拒绝充值申请'); trLoad(); }
     else toast('❌ ' + (r.msg || '操作失败'));
   } catch(e) { toast('❌ 请求失败：' + e.message); }
+}
+
+function copyTxHash(el) {
+  const hash = el.dataset.hash;
+  if (!hash) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(hash).then(() => {
+      toast('📋 TxHash 已复制');
+      el.style.background = 'rgba(0,242,254,0.12)';
+      setTimeout(() => el.style.background = '', 1000);
+    }).catch(() => fallbackCopy(hash));
+  } else {
+    fallbackCopy(hash);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('📋 TxHash 已复制'); } catch(e) { toast('⚠️ 复制失败，请手动复制'); }
+  document.body.removeChild(ta);
 }
 
 // ══════════════════════════════════════════════════════════════
