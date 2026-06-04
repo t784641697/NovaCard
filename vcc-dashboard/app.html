@@ -420,19 +420,22 @@ select.form-control option{background:var(--bg3);}
 .fin-section-title{font-size:.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:14px;}
 .fin-table-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;}
 
-/* 用户余额分布 - 紧凑卡片网格 */
-.fin-u-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 0;}
-.fin-u-brick{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px 16px;transition:all .2s;}
-.fin-u-brick:hover{background:rgba(0,242,254,.04);border-color:rgba(0,242,254,.15);transform:translateY(-1px);}
-.fin-u-brick-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.fin-u-brick-email{font-size:.75rem;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.fin-u-brick-badge{font-size:.68rem;font-weight:700;color:#00f2fe;background:rgba(0,242,254,.08);padding:2px 10px;border-radius:12px;white-space:nowrap;}
-.fin-u-brick-stats{display:flex;gap:2px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 8px;}
-.fin-u-brick-s{flex:1;text-align:center;}
-.fin-u-brick-sv{font-size:.7rem;font-weight:700;line-height:1.2;}
-.fin-u-brick-sl{font-size:.55rem;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;}
-@media(max-width:900px){.fin-u-grid{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:500px){.fin-u-grid{grid-template-columns:1fr;}}
+/* 用户余额分布 - 简洁表格 */
+.fin-u-table{width:100%;border-collapse:collapse;margin:4px 0;}
+.fin-u-table th{text-align:left;padding:8px 14px;font-size:.65rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid rgba(255,255,255,.06);}
+.fin-u-table td{padding:10px 14px;font-size:.78rem;border-bottom:1px solid rgba(255,255,255,.03);}
+.fin-u-table tr:hover td{background:rgba(0,242,254,.04);}
+.fin-u-table .fin-u-td-bal{color:#00f2fe;font-weight:700;}
+.fin-u-table .fin-u-td-top{color:#00c758;font-weight:600;}
+.fin-u-table .fin-u-td-spd{color:#ff5f5f;font-weight:600;}
+.fin-u-table .fin-u-td-fee{color:#ffb347;font-weight:600;}
+.fin-u-table .fin-u-td-idx{color:var(--text3);font-size:.65rem;width:32px;text-align:center;}
+@media(max-width:600px){
+  .fin-u-table,.fin-u-table thead,.fin-u-table tbody,.fin-u-table tr,.fin-u-table td,.fin-u-table th{display:block}
+  .fin-u-table tr{margin-bottom:6px;padding:10px;background:rgba(255,255,255,.02);border-radius:8px}
+  .fin-u-table td{border:none;padding:3px 0}
+  .fin-u-table thead{display:none}
+}
 
 /* 最近交易记录表格 */
 .ov-tx-head{
@@ -6736,25 +6739,22 @@ async function renderAdminFinance() {
     if (d.users_balance.length === 0) {
       html += '<div class="empty-state"><div class="empty-text">暂无用户数据</div></div>';
     } else {
-      html += '<div class="fin-u-grid">';
+      html += '<table class="fin-u-table"><thead><tr><th style="width:32px">#</th><th>用户</th><th style="width:80px">余额</th><th style="width:80px">充值</th><th style="width:80px">消费</th><th style="width:80px">费用</th></tr></thead><tbody>';
       d.users_balance.forEach((u, i) => {
         const bal = (u.balance || 0).toFixed(2);
         const top = (u.topup_total || 0).toFixed(2);
         const spd = (u.total_spend || 0).toFixed(2);
         const fee = (u.total_fees || 0).toFixed(2);
-        html += '  <div class="fin-u-brick">';
-        html += '    <div class="fin-u-brick-top">';
-        html += '      <div class="fin-u-brick-email">' + u.email + '</div>';
-        html += '      <div class="fin-u-brick-badge">$' + bal + '</div>';
-        html += '    </div>';
-        html += '    <div class="fin-u-brick-stats">';
-        html += '      <div class="fin-u-brick-s"><div class="fin-u-brick-sv" style="color:#00c758;">$' + top + '</div><div class="fin-u-brick-sl">充值</div></div>';
-        html += '      <div class="fin-u-brick-s"><div class="fin-u-brick-sv" style="color:#ff5f5f;">$' + spd + '</div><div class="fin-u-brick-sl">消费</div></div>';
-        html += '      <div class="fin-u-brick-s"><div class="fin-u-brick-sv" style="color:#ffb347;">$' + fee + '</div><div class="fin-u-brick-sl">费用</div></div>';
-        html += '    </div>';
-        html += '  </div>';
+        html += '<tr>';
+        html += '<td class="fin-u-td-idx">' + (i + 1) + '</td>';
+        html += '<td>' + u.email + '</td>';
+        html += '<td class="fin-u-td-bal">$' + bal + '</td>';
+        html += '<td class="fin-u-td-top">$' + top + '</td>';
+        html += '<td class="fin-u-td-spd">$' + spd + '</td>';
+        html += '<td class="fin-u-td-fee">$' + fee + '</td>';
+        html += '</tr>';
       });
-      html += '</div>';
+      html += '</tbody></table>';
     }
     html += '</div>';
 
