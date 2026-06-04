@@ -5916,16 +5916,83 @@ async function renderTopupReviewPage() {
   if (_me?.role !== 'admin') return gotoPage('cards');
   const area = document.getElementById('contentArea');
   area.innerHTML = `
-    <div style="padding:24px;">
-      <div style="display:flex;gap:12px;margin-bottom:20px;" id="trStats"></div>
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-        <div style="display:flex;gap:6px;">
-          <button id="trTabAll"      onclick="trSetTab('all')"      style="background:#1a2340;border:1px solid #00f2fe33;color:#00f2fe;padding:6px 14px;border-radius:6px;cursor:pointer;">全部</button>
-          <button id="trTabPending"  onclick="trSetTab('pending')"  style="background:#1a2340;border:1px solid #ffaa0033;color:#ffaa00;padding:6px 14px;border-radius:6px;cursor:pointer;">待审核</button>
-          <button id="trTabApproved" onclick="trSetTab('approved')" style="background:#1a2340;border:1px solid #00c75833;color:#00c758;padding:6px 14px;border-radius:6px;cursor:pointer;">已通过</button>
-          <button id="trTabRejected" onclick="trSetTab('rejected')" style="background:#1a2340;border:1px solid #ff5f5f33;color:#ff5f5f;padding:6px 14px;border-radius:6px;cursor:pointer;">已拒绝</button>
+    <style>
+      .tr-container { padding: 0px 4px 28px; max-width: 1400px; margin: 0 auto; }
+      .tr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+      .tr-header-left h2 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.5px; }
+      .tr-header-left p { margin: 6px 0 0; font-size: .85rem; color: var(--text3); }
+      .tr-stats { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+      .tr-stat-card { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px 24px; min-width: 130px; flex: 1; text-align: center; transition: all 0.2s; }
+      .tr-stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
+      .tr-stat-num { font-size: 1.8rem; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+      .tr-stat-label { font-size: .8rem; color: var(--text3); letter-spacing: 0.5px; }
+      .tr-toolbar { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+      .tr-toolbar-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .tr-tabs { display: flex; gap: 6px; align-items: center; background: #0a0f1c; padding: 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+      .tr-tab { padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 500; border: none; background: transparent; color: var(--text3); transition: all 0.2s; white-space: nowrap; }
+      .tr-tab:hover { color: var(--text2); }
+      .tr-tab.active[data-tab="all"] { background: rgba(0,242,254,0.12); color: #00f2fe; }
+      .tr-tab.active[data-tab="pending"] { background: rgba(255,170,0,0.12); color: #ffaa00; }
+      .tr-tab.active[data-tab="approved"] { background: rgba(0,199,88,0.12); color: #00c758; }
+      .tr-tab.active[data-tab="rejected"] { background: rgba(255,95,95,0.12); color: #ff5f5f; }
+      .tr-table-wrap { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
+      .tr-table { width: 100%; border-collapse: collapse; }
+      .tr-table thead th { text-align: left; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text3); font-size: .78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+      .tr-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+      .tr-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+      .tr-table tbody td { padding: 14px 16px; vertical-align: middle; }
+      .tr-table .col-id { width: 54px; color: var(--text3); font-size: .8rem; }
+      .tr-table .col-user { min-width: 140px; }
+      .tr-table .col-network { width: 80px; }
+      .tr-table .col-amount { width: 110px; }
+      .tr-table .col-txhash { min-width: 120px; }
+      .tr-table .col-remark { min-width: 100px; max-width: 160px; }
+      .tr-table .col-status { width: 88px; }
+      .tr-table .col-time { width: 140px; }
+      .tr-table .col-action { width: 120px; }
+      .tr-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: .8rem; font-weight: 500; }
+      .tr-tag-pending { background: rgba(255,170,0,0.1); color: #ffaa00; }
+      .tr-tag-approved { background: rgba(0,199,88,0.1); color: #00c758; }
+      .tr-tag-rejected { background: rgba(255,95,95,0.1); color: #ff5f5f; }
+      .tr-amount { color: #00f2fe; font-weight: 600; font-size: .95rem; }
+      .tr-network { display: inline-block; background: rgba(0,242,254,0.08); color: #00f2fe; padding: 2px 8px; border-radius: 4px; font-size: .75rem; letter-spacing: 0.3px; }
+      .tr-txhash { font-size: .78rem; color: var(--text2); font-family: monospace; }
+      .tr-time { font-size: .82rem; color: var(--text3); }
+      .tr-user-name { font-size: .9rem; font-weight: 500; }
+      .tr-user-email { font-size: .78rem; color: var(--text3); margin-top: 2px; }
+      .tr-btn { padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .8rem; font-weight: 500; border: none; transition: all 0.2s; }
+      .tr-btn-pass { background: rgba(0,199,88,0.1); color: #00c758; }
+      .tr-btn-pass:hover { background: rgba(0,199,88,0.2); }
+      .tr-btn-reject { background: rgba(255,95,95,0.1); color: #ff5f5f; }
+      .tr-btn-reject:hover { background: rgba(255,95,95,0.2); }
+      .tr-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .tr-empty { text-align: center; padding: 80px 40px; }
+      .tr-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
+      .tr-empty-text { color: var(--text3); font-size: .95rem; }
+      .tr-remark-cell { font-size: .82rem; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+    </style>
+
+    <div class="tr-container">
+      <div class="tr-header">
+        <div class="tr-header-left">
+          <h2>💵 充值审核</h2>
+          <p>审核用户提交的充值申请，通过后自动入账用户余额</p>
         </div>
       </div>
+
+      <div class="tr-stats" id="trStats"></div>
+
+      <div class="tr-toolbar">
+        <div class="tr-toolbar-row">
+          <div class="tr-tabs">
+            <button class="tr-tab" data-tab="all" onclick="trSetTab('all')">全部</button>
+            <button class="tr-tab active" data-tab="pending" onclick="trSetTab('pending')">待审核</button>
+            <button class="tr-tab" data-tab="approved" onclick="trSetTab('approved')">已通过</button>
+            <button class="tr-tab" data-tab="rejected" onclick="trSetTab('rejected')">已拒绝</button>
+          </div>
+        </div>
+      </div>
+
       <div id="trList"><div class="loading-spinner" style="margin:40px auto;"></div></div>
     </div>
   `;
@@ -5933,16 +6000,17 @@ async function renderTopupReviewPage() {
   await trLoad();
 }
 
+// Tab 切换
 window._trTab = 'pending';
 function trSetTab(tab) {
   window._trTab = tab;
-  ['all','pending','approved','rejected'].forEach(t => {
-    const el = document.getElementById('trTab' + t.charAt(0).toUpperCase() + t.slice(1));
-    if (el) el.style.opacity = t === tab ? '1' : '0.5';
+  document.querySelectorAll('.tr-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
   });
   trLoad();
 }
 
+// 加载列表
 async function trLoad() {
   const tab = window._trTab || 'pending';
   const statusParam = tab === 'all' ? '' : '?status=' + tab;
@@ -5950,7 +6018,7 @@ async function trLoad() {
   if (!r || r.code !== 0) return;
   const list = r.data?.list || [];
 
-  // 统计条
+  // 统计卡片
   const statsEl = document.getElementById('trStats');
   if (statsEl) {
     const all = await apiFetch('/topup/admin', {}, true);
@@ -5961,58 +6029,64 @@ async function trLoad() {
       if (cnt[a.status] !== undefined) cnt[a.status]++;
       if (a.status === 'approved') totalUsdt += Number(a.amount_usdt || 0);
     });
-    statsEl.innerHTML = [
-      { label:'待审核', val: cnt.pending, color:'#ffaa00', prefix:'' },
-      { label:'已通过', val: cnt.approved, color:'#00c758', prefix:'' },
-      { label:'已拒绝', val: cnt.rejected, color:'#ff5f5f', prefix:'' },
-      { label:'累计入账 USDT', val: totalUsdt.toFixed(2), color:'#00f2fe', prefix:'$' },
-    ].map(s => '<div style="background:#0d1322;border:1px solid #ffffff0f;border-radius:10px;padding:14px 20px;min-width:110px;">' +
-      '<div style="font-size:1.3rem;font-weight:700;color:' + s.color + ';">' + s.prefix + s.val + '</div>' +
-      '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + s.label + '</div></div>'
-    ).join('');
+    const colorMap = { pending: '#ffaa00', approved: '#00c758', rejected: '#ff5f5f' };
+    const labelMap = { pending: '待审核', approved: '已通过', rejected: '已拒绝' };
+    statsEl.innerHTML = ['pending','approved','rejected'].map(k =>
+      '<div class="tr-stat-card">' +
+        '<div class="tr-stat-num" style="color:' + colorMap[k] + ';">' + cnt[k] + '</div>' +
+        '<div class="tr-stat-label">' + labelMap[k] + '</div>' +
+      '</div>'
+    ).join('') +
+    '<div class="tr-stat-card">' +
+      '<div class="tr-stat-num" style="color:#00f2fe;">$' + totalUsdt.toFixed(2) + '</div>' +
+      '<div class="tr-stat-label">累计入账 USDT</div>' +
+    '</div>';
   }
 
-  ['all','pending','approved','rejected'].forEach(t => {
-    const el = document.getElementById('trTab' + t.charAt(0).toUpperCase() + t.slice(1));
-    if (el) el.style.opacity = t === tab ? '1' : '0.5';
-  });
-
+  // 表格
   const wrap = document.getElementById('trList');
   if (!wrap) return;
   if (!list.length) {
-    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无充值申请</div></div>';
+    wrap.innerHTML = '<div class="tr-empty"><div class="tr-empty-icon">📭</div><div class="tr-empty-text">暂无充值申请</div></div>';
     return;
   }
 
   const statusMap = { pending:'待审核', approved:'已通过', rejected:'已拒绝' };
-  const statusColor = { pending:'#ffaa00', approved:'#00c758', rejected:'#ff5f5f' };
-  const networkBadge = n => '<span style="background:#00f2fe22;color:#00f2fe;padding:2px 7px;border-radius:4px;font-size:.75rem;">' + (n||'-') + '</span>';
+  const statusClass = { pending:'tr-tag-pending', approved:'tr-tag-approved', rejected:'tr-tag-rejected' };
+  const dtFormat = s => (s||'').replace('T',' ').slice(0,16);
+  const shortHash = h => h ? (h.length > 18 ? h.slice(0,10)+'…'+h.slice(-6) : h) : '—';
 
-  wrap.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-    '<th>ID</th><th>用户</th><th>网络</th><th>USDT 金额</th><th>TxHash</th><th>备注</th><th>状态</th><th>申请时间</th><th>操作</th>' +
+  wrap.innerHTML = '<div class="tr-table-wrap"><table class="tr-table"><thead><tr>' +
+    '<th class="col-id">ID</th>' +
+    '<th class="col-user">用户</th>' +
+    '<th class="col-network">网络</th>' +
+    '<th class="col-amount">USDT 金额</th>' +
+    '<th class="col-txhash">TxHash</th>' +
+    '<th class="col-remark">备注</th>' +
+    '<th class="col-status">状态</th>' +
+    '<th class="col-time">申请时间</th>' +
+    '<th class="col-action">操作</th>' +
     '</tr></thead><tbody>' +
     list.map(a => {
       const isPending = a.status === 'pending';
       const st = statusMap[a.status] || a.status;
-      const sc = statusColor[a.status] || '#aaa';
-      const dt = (a.created_at||'').replace('T',' ').slice(0,16);
-      const txShort = a.txhash ? (a.txhash.length > 16 ? a.txhash.slice(0,8)+'…'+a.txhash.slice(-6) : a.txhash) : '—';
+      const sc = statusClass[a.status] || '';
       return '<tr>' +
-        '<td style="color:var(--text3);font-size:.8rem;">#' + a.id + '</td>' +
-        '<td>' +
-          '<div style="font-size:.85rem;">' + (a.user_name||'-') + '</div>' +
-          '<div style="font-size:.75rem;color:var(--text3);">' + (a.user_email||'') + '</div>' +
+        '<td class="col-id">#' + a.id + '</td>' +
+        '<td class="col-user">' +
+          '<div class="tr-user-name">' + (a.user_name||'-') + '</div>' +
+          (a.user_email ? '<div class="tr-user-email">' + a.user_email + '</div>' : '') +
         '</td>' +
-        '<td>' + networkBadge(a.network) + '</td>' +
-        '<td style="color:#00f2fe;font-weight:600;">' + (a.amount_usdt ? '$' + Number(a.amount_usdt).toFixed(2) : '—') + '</td>' +
-        '<td><span style="font-size:.78rem;color:var(--text2);font-family:monospace;" title="' + (a.txhash||'') + '">' + txShort + '</span></td>' +
-        '<td style="font-size:.8rem;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (a.remark||'') + '">' + (a.remark||'—') + '</td>' +
-        '<td><span style="background:' + sc + '22;color:' + sc + ';padding:3px 10px;border-radius:12px;font-size:.78rem;">' + st + '</span></td>' +
-        '<td style="font-size:.8rem;color:var(--text3);">' + dt + '</td>' +
-        '<td>' +
+        '<td class="col-network"><span class="tr-network">' + (a.network||'-') + '</span></td>' +
+        '<td class="col-amount"><span class="tr-amount">' + (a.amount_usdt ? '$' + Number(a.amount_usdt).toFixed(2) : '—') + '</span></td>' +
+        '<td class="col-txhash"><span class="tr-txhash" title="' + (a.txhash||'') + '">' + shortHash(a.txhash) + '</span></td>' +
+        '<td class="col-remark"><span class="tr-remark-cell" title="' + (a.remark||'') + '">' + (a.remark||'—') + '</span></td>' +
+        '<td class="col-status"><span class="tr-tag ' + sc + '">' + st + '</span></td>' +
+        '<td class="col-time"><span class="tr-time">' + dtFormat(a.created_at) + '</span></td>' +
+        '<td class="col-action">' +
           (isPending
-            ? '<button onclick="trApprove(' + a.id + ',' + Number(a.amount_usdt||0) + ')" style="background:#00c75822;color:#00c758;border:1px solid #00c75844;padding:4px 10px;border-radius:5px;cursor:pointer;margin-right:4px;font-size:.8rem;">✅ 通过</button>' +
-              '<button onclick="trReject(' + a.id + ')" style="background:#ff5f5f22;color:#ff5f5f;border:1px solid #ff5f5f44;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:.8rem;">❌ 拒绝</button>'
+            ? '<button class="tr-btn tr-btn-pass" onclick="trApprove(' + a.id + ',' + Number(a.amount_usdt||0) + ')">✅ 通过</button>' +
+              '<button class="tr-btn tr-btn-reject" onclick="trReject(' + a.id + ')" style="margin-left:6px;">❌ 拒绝</button>'
             : '<span style="color:var(--text3);font-size:.8rem;">—</span>'
           ) +
         '</td>' +
