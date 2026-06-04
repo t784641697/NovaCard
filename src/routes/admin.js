@@ -430,7 +430,13 @@ router.get('/finance-summary', async (req, res, next) => {
     const lastSyncVal       = db.prepare("SELECT value FROM settings WHERE key='merchant_balance_last_sync'").get()?.value || null;
 
     // 2. 用户总余额 & 分布
-    const allUsers = db.prepare('SELECT id, email, balance FROM users ORDER BY balance DESC').all();
+    const allUsers = db.prepare(`
+      SELECT id, email, balance,
+        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='充值') as topup_total,
+        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='消费') as total_spend,
+        (SELECT COALESCE(SUM(fee_amount),0) FROM transactions WHERE user_id=u.id AND fee_amount>0) as total_fees
+      FROM users u ORDER BY balance DESC
+    `).all();
     const totalUserBalance = allUsers.reduce((s, u) => s + (parseFloat(u.balance) || 0), 0);
 
     // 3. Topup 统计
@@ -468,7 +474,14 @@ router.get('/finance-summary', async (req, res, next) => {
         merchant_last_sync: lastSyncVal,
         total_user_balance: usersTotalBal,
         system_balance: sysReserved,
-        users_balance: allUsers.map(u => ({ id: u.id, email: u.email, balance: parseFloat(u.balance || 0) })),
+        users_balance: allUsers.map(u => ({
+          id: u.id,
+          email: u.email,
+          balance: parseFloat(u.balance || 0),
+          topup_total: parseFloat(u.topup_total || 0),
+          total_spend: parseFloat(u.total_spend || 0),
+          total_fees: parseFloat(u.total_fees || 0),
+        })),
         total_topup: parseFloat(topupApproved.total || 0),
         topup: {
           total_count: topupApproved.cnt || 0,
