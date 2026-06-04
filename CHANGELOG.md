@@ -3,11 +3,14 @@
 ## v1.0.14 (2026-06-04)
 ### 修复
 - **充值审核页面样式重写**：完全移除内联 style，使用 `tr-*` CSS 类名，与开卡审核页面保持一致的卡片式布局风格（统计卡片 + 操作栏 + 悬停表格）
-- **数据库损坏修复（第2次）**：PM2 重启导致 WAL 损坏，通过删除 WAL 文件 + REINDEX + VACUUM 修复
-- **数据补录**：WAL 损坏导致数据回退后，重新补录用户余额 $30、充值申请 1 条、交易流水 1 条（含 net_amount 字段）
+- **数据库完全重建（第3次）**：删库后让 `database.js` 的 `CREATE TABLE` + 迁移 + 种子自动重建，彻底解决 schema 不匹配导致的 SQLITE_CORRUPT
+- **数据补录**：重建后补录用户余额 $30、充值申请 1 条、交易流水 1 条（含 net_amount 字段）
+- **`scripts/rebuild_final.js`**：全量建表脚本，补充所有列（`card_id`/`locked_until`/`login_fail_cnt` 等）
+- **`scripts/fix_data_prod.js`**：生产数据补录脚本
 
 ### 规范
 - **UNIFIED.md 新增页面样式规范**：管理后台页面必须使用 CSS 类名 + 卡片式布局，禁止内联 style
+- **UNIFIED.md 新增数据库维护规范**：损坏修复流程、WAL checkpoint、数据补录规范
 
 ## v1.0.13 (2026-06-04)
 ### 修复
