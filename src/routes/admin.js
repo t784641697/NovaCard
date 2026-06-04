@@ -540,18 +540,18 @@ router.get('/transactions', async (req, res, next) => {
     `;
     let rows;
     try {
-      rows = db.all(sql, ...params, limit, offset);
+      rows = db.prepare(sql).all(...params, limit, offset);
     } catch (e) {
-      console.error('[TX] SQL:', sql, 'params:', ...params, limit, offset, 'error:', e.message);
+      console.error('[TX] SQL error:', e.message);
       return res.status(500).json({ code: 500, msg: e.message });
     }
 
     // 总数
-    const countRow = db.get(`
+    const countRow = db.prepare(`
       SELECT COUNT(*) as total, COALESCE(SUM(amount),0) as total_amount
       FROM transactions t
       ${whereClause}
-    `, ...params);
+    `).get(...params);
 
     // 格式化输出
     const items = rows.map(r => ({
