@@ -6506,6 +6506,21 @@ async function renderAdminTxMonitor() {
     }
   });
   window._txMonDrPicker.init();
+  // 默认近7天（首次打开无筛选时）
+  if (!window._txMonFilter?.start) {
+    var _end = new Date();
+    var _start = new Date();
+    _start.setDate(_start.getDate() - 7);
+    var _fmt = function(d) {
+      var y = d.getFullYear();
+      var m = ('0' + (d.getMonth() + 1)).slice(-2);
+      var day = ('0' + d.getDate()).slice(-2);
+      return y + '-' + m + '-' + day;
+    };
+    window._txMonFilter = window._txMonFilter || {};
+    window._txMonFilter.start = _fmt(_start);
+    window._txMonFilter.end = _fmt(_end);
+  }
   if (window._txMonFilter?.start && window._txMonFilter?.end) {
     window._txMonDrPicker.setRange(window._txMonFilter.start, window._txMonFilter.end);
   }
@@ -6515,6 +6530,19 @@ async function renderAdminTxMonitor() {
 
 function txMonReset() {
   if (window._txMonDrPicker) window._txMonDrPicker.clear();
+  var _end = new Date();
+  var _start = new Date();
+  _start.setDate(_start.getDate() - 7);
+  var _fmt = function(d) {
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
+  };
+  window._txMonFilter = window._txMonFilter || {};
+  window._txMonFilter.start = _fmt(_start);
+  window._txMonFilter.end = _fmt(_end);
+  if (window._txMonDrPicker) window._txMonDrPicker.setRange(window._txMonFilter.start, window._txMonFilter.end);
   loadTxMonitor();
 }
 
@@ -6542,10 +6570,17 @@ async function loadTxMonitor() {
     var el = function(id) { return document.getElementById(id); };
     if (el('txStatCards'))    el('txStatCards').textContent = (m.card_issued || 0).toLocaleString();
     if (el('txStatTx'))       el('txStatTx').textContent = (m.tx_count || 0).toLocaleString() + ' 笔';
-    if (el('txStatSettle'))   el('txStatSettle').textContent = m.settlement_rate != null ? (m.settlement_rate * 100).toFixed(1) + '%' : 'N/A';
-    if (el('txStatFail'))     el('txStatFail').textContent = m.failure_rate != null ? (m.failure_rate * 100).toFixed(1) + '%' : 'N/A';
-    if (el('txStatReversal')) el('txStatReversal').textContent = m.reversal_rate != null ? (m.reversal_rate * 100).toFixed(1) + '%' : 'N/A';
-    if (el('txStatRefund'))   el('txStatRefund').textContent = m.refund_rate != null ? (m.refund_rate * 100).toFixed(1) + '%' : '0.0%';
+    // 上游拒卡消费数据未接入时，费率指标显示提示
+    var hasCardData = m.card_issued > 0 && m.tx_count > 0;
+    function fmtRate(v) {
+      if (!hasCardData) return '需上游数据';
+      if (v == null) return 'N/A';
+      return (v * 100).toFixed(1) + '%';
+    }
+    if (el('txStatSettle'))   el('txStatSettle').textContent = fmtRate(m.settlement_rate);
+    if (el('txStatFail'))     el('txStatFail').textContent = fmtRate(m.failure_rate);
+    if (el('txStatReversal')) el('txStatReversal').textContent = fmtRate(m.reversal_rate);
+    if (el('txStatRefund'))   el('txStatRefund').textContent = fmtRate(m.refund_rate);
 
     document.querySelectorAll('#txMonStats .ov-stat-val').forEach(function(el) { el.style.opacity = '1'; });
 
@@ -6565,6 +6600,10 @@ async function loadTxMonitor() {
           var fr = u.fail_rate != null ? (u.fail_rate * 100).toFixed(1) + '%' : '—';
           var rr = u.reversal_rate != null ? (u.reversal_rate * 100).toFixed(1) + '%' : '—';
           var rfr = u.refund_rate != null ? (u.refund_rate * 100).toFixed(1) + '%' : '—';
+          // 无卡片则费率标为 —（无上游数据）
+          if (u.card_count === 0 && u.tx_count === 0) {
+            sr = '—'; fr = '—'; rr = '—'; rfr = '—';
+          }
           uhtml += '<div style="display:grid;grid-template-columns:40px 1fr repeat(6,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
             '<div style="color:var(--text3);font-weight:500;text-align:center;">' + (i + 1) + '</div>' +
             '<div style="font-weight:500;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + email + '</div>' +
