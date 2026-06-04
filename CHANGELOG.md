@@ -1,5 +1,14 @@
 # CHANGELOG.md
 
+## v1.0.16 (2026-06-04)
+### 修复
+- **🧨 根除数据库 WAL 损坏**：`journal_mode` 从 `WAL` 改为 `DELETE`，PM2 重启不再有 WAL 文件落盘不及时的问题
+- **✨ REINDEX 兜底**：`database.js` 末尾添加 `REINDEX`，每次启动时自动重建所有索引，彻底杜绝索引不一致
+- **操作列按钮改版**：emoji 按钮 `✅ 通过` `❌ 拒绝` → 纯图标小圆按钮（绿色 ✓ / 红色 ✕），`inline-flex` 水平居中，列宽 120px→200px
+- **清除所有历史备份文件**：生产环境 `data/vcc.db.bak*` 全部删除，排除干扰
+- **`database.js` 新增 REINDEX 兜底**：启动时重建所有索引
+- **`scripts/fix_card_type.js`** `fix_data_prod.js` 同步改为 DELETE 模式
+
 ## v1.0.15 (2026-06-04)
 ### 优化
 - **充值审核页面容器加宽**：全局容器 `max-width` 从 1100px → 1400px，统计卡片间距 `gap-3`→`gap-4`、内边距 `p-3`→`p-4`，表格列宽同步调大

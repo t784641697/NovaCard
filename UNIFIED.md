@@ -205,18 +205,15 @@ cd /opt/vcc-hub && pm2 stop vcc-hub && pm2 start src/app.js --name vcc-hub --upd
 ## 9. 数据库维护
 
 ### 9.1 技术栈
-- **数据库**：SQLite（better-sqlite3），WAL 模式
+- **数据库**：SQLite（better-sqlite3），**DELETE 模式**
 - **数据文件**：`data/vcc.db`
 - **建表与种子**：`src/db/database.js`（启动时自动执行）
+- **索引兜底**：启动时末尾自动 `REINDEX`，重建所有索引
 
-### 9.2 SQLite WAL 模式注意事项
-- WAL 模式允许多进程并发读，但**写操作必须用 `pragma('wal_checkpoint(TRUNCATE)')` 强制落盘**
-- PM2 重启前如果 WAL 未 checkpoint，新进程可能读到损坏的 WAL 文件
-- **数据写入后必须**：
-  ```javascript
-  db.pragma('wal_checkpoint(TRUNCATE)');
-  ```
-- 手动脚本写入数据后，关闭 DB 前必须执行 checkpoint
+### 9.2 历史说明：WAL → DELETE 切换
+- **v1.0.16 之前**：使用 `journal_mode = WAL`，PM2 重启时 WAL 文件未落盘导致 `SQLITE_CORRUPT`
+- **v1.0.16 起**：改为 `journal_mode = DELETE`，不存在 WAL 文件，重启零问题
+- **WAL 的 checkpoint 规范已废弃**，DELETE 模式下每次写入直写主文件
 
 ### 9.3 数据库损坏修复流程
 当出现 `SQLITE_CORRUPT` / "database disk image is malformed" 时：

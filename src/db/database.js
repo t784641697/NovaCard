@@ -275,4 +275,7 @@ if (!seedUser) {
   console.log('[DB] 已插入默认用户账号 user@vcc.hub / User@20261');
 }
 
+// ── 重建所有索引，防止跨版本 schema 不一致导致 SQLITE_CORRUPT ──
+try { db.exec('REINDEX'); } catch(e) { console.error('[DB] REINDEX failed:', e.message); }
+
 module.exports = db;
