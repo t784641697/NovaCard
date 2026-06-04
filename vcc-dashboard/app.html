@@ -1343,17 +1343,17 @@ function promptModal(msg, defaultValue) {
     const overlay = document.getElementById("promptModalOverlay");
     const input = document.getElementById("promptModalInput");
     input.value = defaultValue || '';
-    overlay.style.display = 'flex';
+    overlay.classList.add('show');
     setTimeout(() => { input.focus(); input.select(); }, 100);
   });
 }
 function promptModalOk() {
+  document.getElementById("promptModalOverlay").classList.remove('show');
   const val = document.getElementById("promptModalInput").value.trim();
-  document.getElementById("promptModalOverlay").style.display = 'none';
   if (_promptResolve) { _promptResolve(val); _promptResolve = null; }
 }
 function promptModalCancel() {
-  document.getElementById("promptModalOverlay").style.display = 'none';
+  document.getElementById("promptModalOverlay").classList.remove('show');
   if (_promptResolve) { _promptResolve(null); _promptResolve = null; }
 }
 // ════════════════════════════════════════════════════
@@ -5986,6 +5986,7 @@ async function renderTopupReviewPage() {
       .tr-user-name { font-size: .9rem; font-weight: 500; }
       .tr-user-email { font-size: .78rem; color: var(--text3); margin-top: 2px; }
       .tr-btn { width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1rem; line-height: 1; border: none; transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center; }
+      .tr-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; font-size: .9rem; font-weight: 600; transition: all .2s; }
       .tr-btn-pass { background: rgba(0,199,88,0.1); color: #00c758; }
       .tr-btn-pass:hover { background: rgba(0,199,88,0.25); transform: scale(1.1); }
       .tr-btn-reject { background: rgba(255,95,95,0.1); color: #ff5f5f; }
@@ -6777,7 +6778,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <!-- 全局 Confirm 模态框 -->
-<div class="modal-overlay" id="promptModalOverlay" onclick="if(event.target===this)promptModalCancel()" style="display:none;">
+<div class="modal-overlay" id="promptModalOverlay" onclick="if(event.target===this)promptModalCancel()">
 	  <div class="modal modal-sm" style="padding:28px;">
 	    <div style="font-size:1.5rem;font-weight:700;margin-bottom:4px;color:var(--text1);">⚠️ 拒绝充值申请</div>
 	    <div style="font-size:.85rem;color:var(--text3);margin-bottom:16px;">请输入拒绝原因，用户将看到此原因。</div>
