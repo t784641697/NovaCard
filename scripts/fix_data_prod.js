@@ -34,9 +34,14 @@ console.log('Topup request created');
 DB.prepare("INSERT INTO transactions (user_id, type, amount, net_amount, description, ref_id, created_at) VALUES (2, '充值', 30, 30, '账户充值 30（历史记录补录）', 'topup_hist_001', ?)").run(now);
 console.log('Transaction created');
 
-// Audit log
-DB.prepare("INSERT INTO audit_logs (user_id, action, target_type, target_id, details, created_at) VALUES (1, '余额修正', 'user', 2, '删库重建后恢复：余额设回30，补录充值申请+交易流水', ?)").run(now);
-console.log('Audit log created');
+// Audit log - 只插入存在的列
+const auditCols = DB.prepare("PRAGMA table_info(audit_logs)").all().map(c => c.name);
+if (auditCols.includes('target_type')) {
+  DB.prepare("INSERT INTO audit_logs (user_id, action, target_type, target_id, details, created_at) VALUES (1, '余额修正', 'user', 2, '删库重建后恢复：余额设回30，补录充值申请+交易流水', ?)").run(now);
+} else if (auditCols.includes('detail')) {
+  DB.prepare("INSERT INTO audit_logs (user_id, action, detail, created_at) VALUES (1, '余额修正', '删库重建后恢复：余额设回30，补录充值申请+交易流水', ?)").run(now);
+}
+console.log('Audit log created (if cols exist)');
 
 DB.pragma('wal_checkpoint(TRUNCATE)');
 DB.close();
