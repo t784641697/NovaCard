@@ -56,7 +56,7 @@ router.get('/', (req, res, next) => {
       SELECT id, network, amount_usdt, txhash, remark, status, created_at, updated_at
       FROM topup_requests
       WHERE user_id = ?
-      ORDER BY created_at DESC
+      ORDER BY id DESC
       LIMIT ? OFFSET ?
     `).all(req.user.id, page_size, offset);
 
@@ -124,7 +124,7 @@ router.get('/admin', requireAdmin, (req, res, next) => {
       FROM topup_requests t
       LEFT JOIN users u ON u.id = t.user_id
       ${where}
-      ORDER BY t.created_at DESC
+      ORDER BY t.id DESC
       LIMIT ? OFFSET ?
     `).all(...args);
 
