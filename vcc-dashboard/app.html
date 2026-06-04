@@ -4259,15 +4259,15 @@ async function renderAdminDashboard() {
 async function loadMerchantBalanceForce() {
   try {
     const btn = document.getElementById("adminLastSync");
-    if (btn) btn.textContent = "Syncing...";
+    if (btn) btn.textContent = "同步中...";
     const res = await apiFetch("/admin/merchant-balance?force=true&_t=" + Date.now());
     if (res.code !== 0) throw new Error(res.msg);
     const data = res.data;
     if (!document.getElementById("adminMerchantBalance")) return;
     document.getElementById("adminMerchantBalance").textContent = "$" + data.balance.toFixed(2);
-    document.getElementById("adminWalletBalance").textContent = "Wallet: $" + (data.wallet_balance || 0).toFixed(2);
-    const syncTime = data.last_sync ? new Date(data.last_sync).toLocaleString("zh-CN") : "Just now";
-    document.getElementById("adminLastSync").textContent = "Last sync: " + syncTime;
+    document.getElementById("adminWalletBalance").textContent = "额度钱包：$" + (data.wallet_balance || 0).toFixed(2);
+    const syncTime = data.last_sync ? new Date(data.last_sync).toLocaleString("zh-CN") : "刚刚";
+    document.getElementById("adminLastSync").textContent = "最后同步：" + syncTime;
     var syncTsEl = document.getElementById("syncTimestamp");
     if (syncTsEl) syncTsEl.textContent = syncTime;
   } catch(e) {
