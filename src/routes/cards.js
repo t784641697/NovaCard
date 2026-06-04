@@ -605,14 +605,17 @@ router.get('/meta/products', async (req, res, next) => {
     const result = await sdk.getProductCode();
     // 合并 API 返回的产品列表 + 硬编码默认产品（去重）
     const apiList = (result && result.list) || [];
+    // 按 BIN 去重：API 产品在上层，硬编码补充缺失信息
     const merged = [...apiList];
     for (const hp of HARDCODED_PRODUCTS) {
-      const existing = merged.find(m => m.product_code === hp.product_code);
+      const existing = merged.find(m => m.bin === hp.bin);
       if (existing) {
-        // API 已有该产品，补充 metadata 字段
+        // API 已有该 BIN，用硬编码补充字段
         existing.metadata = hp.metadata;
         if (!existing.description) existing.description = hp.description;
+        existing.available = true;
       } else {
+        // API 没有该 BIN，添加硬编码产品（标记可用/不可用由自身决定）
         merged.push(hp);
       }
     }
