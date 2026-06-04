@@ -624,21 +624,6 @@ router.get('/transaction-stats', async (req, res, next) => {
     appStats.forEach(r => { appMap[r.status] = r.cnt; });
 
     // 4. 分用户统计
-    const userRows = db.prepare(`
-      SELECT u.id, u.email,
-        COUNT(DISTINCT c.id) as card_count,
-        COUNT(t.id) as tx_count,
-        COALESCE(SUM(CASE WHEN t.type='充值' THEN t.amount ELSE 0 END),0) as topup_total,
-        COALESCE(SUM(CASE WHEN t.type='消费' THEN t.amount ELSE 0 END),0) as spend_total,
-        COALESCE(SUM(CASE WHEN t.type='退款' THEN t.amount ELSE 0 END),0) as refund_total,
-        COALESCE(SUM(CASE WHEN t.type='手续费' THEN t.amount ELSE 0 END),0) as fee_total
-      FROM users u
-      LEFT JOIN cards c ON c.user_id = u.id ${cardWhere ? 'AND ' + cardWhere.replace('t.','c.') : ''}
-      LEFT JOIN transactions t ON t.user_id = u.id ${where ? 'AND ' + where.replace(/t\./g,'t.') : ''}
-      GROUP BY u.id
-    `).all(...(user_id ? [...cardParams.filter((_,i)=>i<cardConds.length), ...params] : []));
-
-    // Re-query with simpler approach for per-user
     const allUsers = db.prepare(`SELECT id, email FROM users ORDER BY id`).all();
     const perUser = [];
 
@@ -650,7 +635,7 @@ router.get('/transaction-stats', async (req, res, next) => {
       const uWhere = uc.length ? `AND ${uc.join(' AND ')}` : '';
 
       const cardRow = db.prepare(`SELECT COUNT(*) as cnt FROM cards WHERE user_id=? ${uWhere}`).get(u.id, ...up);
-      const txRow = db.prepare(`SELECT type, COUNT(*) as cnt, COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=? ${uWhere.replace('created_at','t.created_at')} GROUP BY type`).all(u.id, ...up);
+      const txRow = db.prepare(`SELECT type, COUNT(*) as cnt, COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=? ${uWhere} GROUP BY type`).all(u.id, ...up);
 
       const txMap = {};
       txRow.forEach(r => { txMap[r.type] = { count: r.cnt, amount: parseFloat(r.total) }; });
