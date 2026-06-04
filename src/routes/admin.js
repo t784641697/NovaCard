@@ -516,7 +516,7 @@ router.get('/transactions', async (req, res, next) => {
     const { page = 1, page_size = 50, type, user_id, start_date, end_date } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(page_size);
     const limit = parseInt(page_size);
-    const db = getDb();
+    // use db directly
 
     let where = [];
     let params = [];
@@ -529,7 +529,7 @@ router.get('/transactions', async (req, res, next) => {
     const whereClause = where.length ? ' WHERE ' + where.join(' AND ') : '';
 
     // 分页查询
-    const rows = db.all(`
+    let sql = `
       SELECT t.id, t.user_id, t.type, t.amount, t.description, t.created_at,
              u.email as user_email
       FROM transactions t
@@ -537,7 +537,14 @@ router.get('/transactions', async (req, res, next) => {
       ${whereClause}
       ORDER BY t.id DESC
       LIMIT ? OFFSET ?
-    `, ...params, limit, offset);
+    `;
+    let rows;
+    try {
+      rows = db.all(sql, ...params, limit, offset);
+    } catch (e) {
+      console.error('[TX] SQL:', sql, 'params:', ...params, limit, offset, 'error:', e.message);
+      return res.status(500).json({ code: 500, msg: e.message });
+    }
 
     // 总数
     const countRow = db.get(`
