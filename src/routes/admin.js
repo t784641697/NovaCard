@@ -424,14 +424,10 @@ router.get('/stats', async (req, res, next) => {
  */
 router.get('/finance-summary', async (req, res, next) => {
   try {
-    // 1. 商户余额
-    let merchantBalance = { balance: 0, wallet_balance: 0, last_sync: null };
-    try {
-      const mb = db.prepare('SELECT balance, wallet_balance, last_sync FROM merchant_balance ORDER BY id DESC LIMIT 1').get();
-      if (mb) {
-        merchantBalance = mb;
-      }
-    } catch (_) { /* 可能无此表 */ }
+    // 1. 商户余额（从 settings 表读取）
+    const merchantBalanceVal = parseFloat(db.prepare("SELECT value FROM settings WHERE key='merchant_balance'").get()?.value || 0);
+    const walletBalanceVal  = parseFloat(db.prepare("SELECT value FROM settings WHERE key='wallet_balance'").get()?.value || 0);
+    const lastSyncVal       = db.prepare("SELECT value FROM settings WHERE key='merchant_balance_last_sync'").get()?.value || null;
 
     // 2. 用户总余额 & 分布
     const allUsers = db.prepare('SELECT id, email, balance FROM users ORDER BY balance DESC').all();
@@ -459,7 +455,7 @@ router.get('/finance-summary', async (req, res, next) => {
     const systemBalance = totalFees.total || 0;
 
     // 7. 余额验证
-    const vmcardioBalance = parseFloat(merchantBalance.balance || 0);
+    const vmcardioBalance = merchantBalanceVal;
     const usersTotalBal = parseFloat(totalUserBalance.toFixed(2));
     const sysReserved   = parseFloat(systemBalance.toFixed(2));
 
@@ -468,8 +464,8 @@ router.get('/finance-summary', async (req, res, next) => {
       msg: 'ok',
       data: {
         merchant_balance: vmcardioBalance,
-        wallet_balance: parseFloat(merchantBalance.wallet_balance || 0),
-        merchant_last_sync: merchantBalance.last_sync,
+        wallet_balance: walletBalanceVal,
+        merchant_last_sync: lastSyncVal,
         total_user_balance: usersTotalBal,
         system_balance: sysReserved,
         users_balance: allUsers.map(u => ({ id: u.id, email: u.email, balance: parseFloat(u.balance || 0) })),
