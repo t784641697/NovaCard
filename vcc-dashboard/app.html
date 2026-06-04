@@ -2556,6 +2556,13 @@ function renderBins(list, filter) {
     }
     return result.join('');
   }
+  const COUNTRY_MAP = {
+    'Hong Kong SAR':'香港','United States':'美国','United Kingdom':'英国','Singapore':'新加坡',
+    'Hong Kong':'香港','USA':'美国','UK':'英国','SG':'新加坡','US':'美国',
+  };
+  function countryName(p) {
+    return p.metadata?.country || COUNTRY_MAP[p.issuing_area] || p.issuing_area || '';
+  }
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
     const isAvailable = p.available === true;
@@ -2563,7 +2570,7 @@ function renderBins(list, filter) {
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
           <span class="bin-code" style="font-size:.8rem">${p.bin}</span>
-          <span style="font-size:.8rem;color:var(--text2)">${p.metadata?.country||p.issuing_area||''}</span>
+          <span style="font-size:.8rem;color:var(--text2)">${countryName(p)}</span>
           <span style="font-size:.8rem;font-weight:700;font-family:monospace;color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
         </div>
       </div>
