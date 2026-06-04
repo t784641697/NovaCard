@@ -451,8 +451,8 @@ router.get('/finance-summary', async (req, res, next) => {
       FROM card_applications
     `).get();
 
-    // 6. 系统预留（platform fees from transactions）
-    const systemBalance = totalFees.total || 0;
+    // 6. 系统预留 = 商户余额 - 用户余额总和（平台持有但未分配给用户的资金）
+    const systemBalance = Math.max(0, parseFloat((merchantBalanceVal - totalUserBalance).toFixed(2)));
 
     // 7. 余额验证
     const vmcardioBalance = merchantBalanceVal;
