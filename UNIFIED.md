@@ -115,6 +115,13 @@ SQLite 生产库偶发索引损坏（`database disk image is malformed`），修
   - 复制成功后蓝色闪烁反馈 + toast 提示
 - **状态标签**：使用 `white-space: nowrap` 防止中文标签（如"已通过"）换行折断
 
+### 4.5 Modal 弹窗规范（重要）
+- **CSS 控制机制**：`.modal-overlay` 使用 `visibility: hidden; opacity: 0` 隐藏，`classList.add('show')`（`.modal-overlay.show` 设为 `visibility: visible; opacity: 1`）显示
+- **所有弹窗必须用 `classList.add/remove('show')`**，禁止用 `style.display = 'flex/none'` 直接操作
+- 当前全局 Modal：
+  - `confirmModal(id="confirmModalOverlay")` — 确认弹窗（通过操作）
+  - `promptModal(id="promptModalOverlay")` — 输入弹窗（驳回原因）
+
 ---
 
 ## 5. 卡片产品 (Card Products)
