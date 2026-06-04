@@ -10,3 +10,7 @@ assets/
 test_createCard.js
 tmp_restore.js
 nova-backup.skill
+
+# Database files
+*.db
+data/
