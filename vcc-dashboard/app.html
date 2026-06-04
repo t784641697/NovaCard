@@ -1303,7 +1303,7 @@ function confirmModal(msg, opts) {
     const okBtn = document.getElementById("confirmModalOk");
     const cancelBtn = document.getElementById("confirmModalCancel");
     
-    text.textContent = msg;
+    text.innerHTML = msg;
     icon.textContent = opts.icon || "⚠️";
     
     // 按钮配色
