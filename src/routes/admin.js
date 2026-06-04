@@ -507,7 +507,78 @@ router.get('/finance-summary', async (req, res, next) => {
   }
 });
 
-// ── 卡片列表（含上游同步） ──────────────────────────────────────────────────
+// ── 交易监控 ─────────────────────────────────────────────────────────────────
+/**
+ * GET /api/admin/transactions?page=1&page_size=50&type=&user_id=&start_date=&end_date=
+ */
+router.get('/transactions', async (req, res, next) => {
+  try {
+    const { page = 1, page_size = 50, type, user_id, start_date, end_date } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(page_size);
+    const limit = parseInt(page_size);
+    const db = getDb();
+
+    let where = [];
+    let params = [];
+
+    if (type) { where.push('t.type = ?'); params.push(type); }
+    if (user_id) { where.push('t.user_id = ?'); params.push(parseInt(user_id)); }
+    if (start_date) { where.push('t.created_at >= ?'); params.push(start_date); }
+    if (end_date) { where.push('t.created_at <= ?'); params.push(end_date); }
+
+    const whereClause = where.length ? ' WHERE ' + where.join(' AND ') : '';
+
+    // 分页查询
+    const rows = db.all(`
+      SELECT t.id, t.user_id, t.type, t.amount, t.description, t.created_at,
+             u.email as user_email
+      FROM transactions t
+      LEFT JOIN users u ON u.id = t.user_id
+      ${whereClause}
+      ORDER BY t.id DESC
+      LIMIT ? OFFSET ?
+    `, ...params, limit, offset);
+
+    // 总数
+    const countRow = db.get(`
+      SELECT COUNT(*) as total, COALESCE(SUM(amount),0) as total_amount
+      FROM transactions t
+      ${whereClause}
+    `, ...params);
+
+    // 格式化输出
+    const items = rows.map(r => ({
+      id: r.id,
+      card_id: 'txn_' + r.id,
+      _card_number: '',
+      transaction_type: r.type,
+      status: 'COMPLETE',
+      amount: parseFloat(r.amount),
+      auth_amount: null,
+      merchant_name: r.description || '—',
+      description: r.description || '',
+      start_time: r.created_at,
+      _user: { user_name: '', user_email: r.user_email || '' },
+    }));
+
+    res.json({
+      code: 0, msg: 'ok',
+      data: {
+        list: items,
+        summary: {
+          total_count: countRow.total || 0,
+          total_amount: parseFloat(countRow.total_amount || 0),
+          auth_count: 0,
+          auth_amount: 0,
+          settle_count: 0,
+          settle_amount: 0,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 /**
  * GET /api/admin/cards?page=1&pageSize=10&status=active&search=xxx
  *   &force=true — 先触发上游同步再返回数据（同步过程会更新本地 DB）
