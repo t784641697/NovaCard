@@ -417,6 +417,87 @@ router.get('/stats', async (req, res, next) => {
   }
 });
 
+// ── 财务中心概览 ──────────────────────────────────────────────────────────
+/**
+ * GET /api/admin/finance-summary
+ * 聚合财务中心页面所需全部数据
+ */
+router.get('/finance-summary', async (req, res, next) => {
+  try {
+    // 1. 商户余额
+    let merchantBalance = { balance: 0, wallet_balance: 0, last_sync: null };
+    try {
+      const mb = db.prepare('SELECT balance, wallet_balance, last_sync FROM merchant_balance ORDER BY id DESC LIMIT 1').get();
+      if (mb) {
+        merchantBalance = mb;
+      }
+    } catch (_) { /* 可能无此表 */ }
+
+    // 2. 用户总余额 & 分布
+    const allUsers = db.prepare('SELECT id, email, balance FROM users ORDER BY balance DESC').all();
+    const totalUserBalance = allUsers.reduce((s, u) => s + (parseFloat(u.balance) || 0), 0);
+
+    // 3. Topup 统计
+    const topupApproved = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(amount_usdt),0) as total FROM topup_requests WHERE status='approved'").get();
+    const topupToday   = db.prepare("SELECT COALESCE(SUM(amount_usdt),0) as total FROM topup_requests WHERE status='approved' AND date(created_at)=date('now')").get();
+    const topupPending = db.prepare("SELECT COUNT(*) as cnt FROM topup_requests WHERE status='pending'").get();
+
+    // 4. 费用统计
+    const totalFees = db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE type=?').get('手续费');
+
+    // 5. 开卡申请统计
+    const cardApps = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(CASE WHEN status='approved' THEN 1 END) as approved,
+        COUNT(CASE WHEN status='pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status='rejected' THEN 1 END) as rejected
+      FROM card_applications
+    `).get();
+
+    // 6. 系统预留（platform fees from transactions）
+    const systemBalance = totalFees.total || 0;
+
+    // 7. 余额验证
+    const vmcardioBalance = parseFloat(merchantBalance.balance || 0);
+    const usersTotalBal = parseFloat(totalUserBalance.toFixed(2));
+    const sysReserved   = parseFloat(systemBalance.toFixed(2));
+
+    res.json({
+      code: 0,
+      msg: 'ok',
+      data: {
+        merchant_balance: vmcardioBalance,
+        wallet_balance: parseFloat(merchantBalance.wallet_balance || 0),
+        merchant_last_sync: merchantBalance.last_sync,
+        total_user_balance: usersTotalBal,
+        system_balance: sysReserved,
+        users_balance: allUsers.map(u => ({ id: u.id, email: u.email, balance: parseFloat(u.balance || 0) })),
+        total_topup: parseFloat(topupApproved.total || 0),
+        topup: {
+          total_count: topupApproved.cnt || 0,
+          today_approved: parseFloat(topupToday.total || 0),
+          pending_count: topupPending.cnt || 0,
+        },
+        total_fees: parseFloat(totalFees.total || 0),
+        card_apps: {
+          total_count: cardApps.total || 0,
+          approved_count: cardApps.approved || 0,
+          pending_count: cardApps.pending || 0,
+          rejected_count: cardApps.rejected || 0,
+        },
+        balance_check: {
+          vmcardio_balance: vmcardioBalance,
+          users_total_balance: usersTotalBal,
+          system_reserved: sysReserved,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── 卡片列表（含上游同步） ──────────────────────────────────────────────────
 /**
  * GET /api/admin/cards?page=1&pageSize=10&status=active&search=xxx
