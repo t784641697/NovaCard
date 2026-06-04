@@ -220,6 +220,7 @@ db.exec(`
   add('total_dispute',  "REAL    DEFAULT 0");
   add('total_fees',     "REAL    DEFAULT 0");
   add('last_fee_update',"TEXT");
+  add('total_chargeback',"REAL   DEFAULT 0");
 
   // fee_configs 种子数据（INSERT OR IGNORE 保证幂等）
   // 迁移：将旧的 dispute 记录删除（已被 chargeback 替代）
