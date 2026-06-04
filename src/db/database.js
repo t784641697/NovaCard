@@ -222,6 +222,22 @@ db.exec(`
   add('last_fee_update',"TEXT");
   add('total_chargeback',"REAL   DEFAULT 0");
 
+  // cards 表迁移
+  const cardCols = db.prepare("PRAGMA table_info(cards)").all().map(c => c.name);
+  const addCard = (col, def) => {
+    if (!cardCols.includes(col)) {
+      db.exec(`ALTER TABLE cards ADD COLUMN ${col} ${def}`);
+      console.log(`[DB Migration] cards 表已添加列: ${col}`);
+    }
+  };
+  addCard('card_type',        "TEXT    DEFAULT ''");
+  addCard('single_limit',     "REAL    DEFAULT 0");
+  addCard('day_limit',        "REAL    DEFAULT 0");
+  addCard('month_limit',      "REAL    DEFAULT 0");
+  addCard('last_verified',    "TEXT    DEFAULT ''");
+  addCard('verified_status',  "TEXT    DEFAULT ''");
+  addCard('verification_error',"TEXT   DEFAULT ''");
+
   // fee_configs 种子数据（INSERT OR IGNORE 保证幂等）
   // 迁移：将旧的 dispute 记录删除（已被 chargeback 替代）
   db.prepare(`DELETE FROM fee_configs WHERE fee_type = 'dispute'`).run();
