@@ -190,9 +190,51 @@ cd /opt/vcc-hub && pm2 stop vcc-hub && pm2 start src/app.js --name vcc-hub --upd
 
 ---
 
-## 8. 默认账户
+---
 
-| 角色 | 邮箱 | 密码 |
-|------|------|------|
-| 管理员 | `admin@vcc.hub` | `Admin@2026` |
-| 用户 | `user@vcc.hub` | `User@20261` |
+## 9. 数据库维护
+
+### 9.1 技术栈
+- **数据库**：SQLite（better-sqlite3），WAL 模式
+- **数据文件**：`data/vcc.db`
+- **建表与种子**：`src/db/database.js`（启动时自动执行）
+
+### 9.2 SQLite WAL 模式注意事项
+- WAL 模式允许多进程并发读，但**写操作必须用 `pragma('wal_checkpoint(TRUNCATE)')` 强制落盘**
+- PM2 重启前如果 WAL 未 checkpoint，新进程可能读到损坏的 WAL 文件
+- **数据写入后必须**：
+  ```javascript
+  db.pragma('wal_checkpoint(TRUNCATE)');
+  ```
+- 手动脚本写入数据后，关闭 DB 前必须执行 checkpoint
+
+### 9.3 数据库损坏修复流程
+当出现 `SQLITE_CORRUPT` / "database disk image is malformed" 时：
+
+**方案 A — 删除 WAL 文件（最优先，90% 情况可解决）**
+```bash
+pm2 stop vcc-hub
+rm -f data/vcc.db-wal data/vcc.db-shm
+pm2 start vcc-hub
+```
+
+**方案 B — 删库重建（当方案 A 失败时）**
+```bash
+pm2 stop vcc-hub
+rm -f data/vcc.db data/vcc.db-wal data/vcc.db-shm
+pm2 start vcc-hub   # database.js 自动建表+迁移+种子
+```
+
+> **关键原则**：删库重建后，`database.js` 的 `CREATE TABLE` + 迁移 + 种子数据会自动执行，无需手动处理 schema。重建后丢失的历史数据（交易流水、充值申请等）需要用 `scripts/fix_data_prod.js` 补录。
+
+### 9.4 数据补录规范
+- 用户余额调整：**必须使用 `db.prepare('UPDATE users SET balance = ?, topup_total = ? WHERE id = ?').run(...)`**
+- 交易流水：`type` 字段用中文值（`'充值'`/`'消费'`/`'手续费'`/`'退款'`）
+- 交易流水必须同时设 `amount` 和 `net_amount`（前端取 `net_amount`）
+- 充值申请：`topup_requests` 表，`status='approved'` 时表示已审核通过
+- 每次数据写入后执行 `db.pragma('wal_checkpoint(TRUNCATE)')`
+
+### 9.5 建表备份脚本
+- `scripts/rebuild_final.js` — 全量建表脚本（含所有列，与生产代码 schema 对齐）
+- `scripts/fix_data_prod.js` — 生产数据补录脚本（余额 + 充值申请 + 交易流水）
+- `scripts/rebuild_db_prod.js` — 旧版重建脚本（仅供历史参考）
