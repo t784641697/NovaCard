@@ -14,8 +14,8 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);
 
-// 开启 WAL 模式提升并发性能
-db.pragma('journal_mode = WAL');
+// 使用 DELETE 模式避免 PM2 重启时 WAL 损坏
+db.pragma('journal_mode = DELETE');
 db.pragma('foreign_keys = ON');
 
 // ── 建表 ─────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 const DB = require('better-sqlite3')('./data/vcc.db');
-DB.pragma('journal_mode = WAL');
+DB.pragma('journal_mode = DELETE');
 
 // 检查 cards 表是否存在 card_type 列
 const cols = DB.prepare("PRAGMA table_info(cards)").all();

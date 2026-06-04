@@ -1,5 +1,5 @@
 const DB = require('better-sqlite3')('./data/vcc.db');
-DB.pragma('journal_mode = WAL');
+DB.pragma('journal_mode = DELETE');
 
 // 检查数据库完整性
 const check = DB.pragma('integrity_check');
