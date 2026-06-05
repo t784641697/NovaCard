@@ -1,5 +1,23 @@
 # CHANGELOG.md
 
+## v1.0.21 (2026-06-05)
+
+### 新增
+- **上游 /cardTransaction API 对接**：SDK 新增 cardTransactionPlain() 方法，form-urlencoded 直传，解决原 RSA 加密 400 错误
+- **交易流水同步服务**：transactionSyncService.js，按日期范围拉取上游流水，去重存入本地 card_transactions 表
+- **5 项指标自动测算**：
+  - settlement_rate = settle_count / (settle_count + auth_count)
+  - failure_rate = decline_count / (auth_count + decline_count)
+  - reversal_rate = reversal_count / auth_count
+  - refund_rate = refund_count / settle_count
+- **按卡维度聚合**：每条上游记录含 card_id，关联到所属用户
+- **本地 card_transactions 表**：auth_id 唯一索引、sync_time 追踪
+
+### 修复
+- SDK RSA 加密致 /cardTransaction 400 错误 → form-urlencoded
+- card_transactions 建表位置修复（主模板内）
+- status 列歧义问题（cards 表和 card_transactions 表均含 status，用 ct. 前缀限定）
+
 ## v1.0.20 (2026-06-04)
 ### 新增
 - **📊 交易监控页面改造 — 拒卡消费数据统计仪表盘**：三层数据视图（总体6指标卡片 / 按用户统计表 / 交易明细）+ 日期范围筛选 + 默认近7天 + 费率未接入时显示「需上游数据」
