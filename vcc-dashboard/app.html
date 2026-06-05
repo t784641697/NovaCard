@@ -6436,27 +6436,27 @@ async function renderAdminTxMonitor() {
     <!-- 总体指标卡片 -->
     <div class="ov-stat-row" id="txMonStats" style="margin-top:18px;">
       <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">充值笔数</div>
+        <div class="ov-stat-label">开卡量</div>
         <div class="ov-stat-val" id="txStatCards">—</div>
       </div>
       <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">充值金额</div>
+        <div class="ov-stat-label">交易笔数</div>
         <div class="ov-stat-val" id="txStatTx">—</div>
       </div>
       <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">消费笔数</div>
+        <div class="ov-stat-label">入账率</div>
         <div class="ov-stat-val" id="txStatSettle">—</div>
       </div>
       <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">消费金额</div>
+        <div class="ov-stat-label">消费失败率</div>
         <div class="ov-stat-val" id="txStatFail">—</div>
       </div>
       <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">入账率</div>
+        <div class="ov-stat-label">授权撤销率</div>
         <div class="ov-stat-val" id="txStatReversal">—</div>
       </div>
       <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">钱包余额</div>
+        <div class="ov-stat-label">消费退款率</div>
         <div class="ov-stat-val" id="txStatRefund">—</div>
       </div>
     </div>
@@ -6568,16 +6568,24 @@ async function loadTxMonitor() {
     // metrics
     var m = statsRes && statsRes.code === 0 ? (statsRes.data.metrics || {}) : {};
     var el = function(id) { return document.getElementById(id); };
-    if (el('txStatCards'))    el('txStatCards').textContent = (m.topup_count || 0).toLocaleString();
-    if (el('txStatTx'))       el('txStatTx').textContent = '$' + (m.topup_amount || 0).toFixed(2);
-    if (el('txStatSettle'))   el('txStatSettle').textContent = (m.spend_count || 0).toLocaleString();
-    if (el('txStatFail'))     el('txStatFail').textContent = '$' + (m.spend_amount || 0).toFixed(2);
-    // 入账率 = (充值 - 消费) / 充值，反映资金留存
-    var remainPct = (m.topup_amount || 0) > 0
-      ? (((m.topup_amount || 0) - (m.spend_amount || 0)) / m.topup_amount * 100).toFixed(1) + '%'
-      : '—';
-    if (el('txStatReversal')) el('txStatReversal').textContent = remainPct;
-    if (el('txStatRefund'))   el('txStatRefund').textContent = '$' + (m.account_balance || 0).toFixed(2);
+    if (el('txStatCards'))    el('txStatCards').textContent = (m.card_issued || 0).toLocaleString();
+    if (el('txStatTx'))       el('txStatTx').textContent = (m.tx_count || 0).toLocaleString() + ' 笔';
+    // 上游拒卡消费数据未接入时，费率指标显示提示
+    var hasCardData = m.card_issued > 0 && m.tx_count > 0;
+    function fmtRate(v) {
+      if (!hasCardData) return '—';
+      if (v == null) return 'N/A';
+      return (v * 100).toFixed(1) + '%';
+    }
+    if (el('txStatSettle')) {
+      var srLocal = (m.topup_amount || 0) > 0
+        ? (((m.topup_amount || 0) - (m.spend_amount || 0)) / m.topup_amount * 100).toFixed(1) + '%'
+        : '—';
+      el('txStatSettle').textContent = srLocal;
+    }
+    if (el('txStatFail'))     el('txStatFail').textContent = fmtRate(m.failure_rate);
+    if (el('txStatReversal')) el('txStatReversal').textContent = fmtRate(m.reversal_rate);
+    if (el('txStatRefund'))   el('txStatRefund').textContent = fmtRate(m.refund_rate);
 
     document.querySelectorAll('#txMonStats .ov-stat-val').forEach(function(el) { el.style.opacity = '1'; });
 
@@ -6593,32 +6601,36 @@ async function loadTxMonitor() {
           var u = users[i];
           var rowBg = i === 0 ? 'background:rgba(255,255,255,0.02);border-radius:8px 8px 0 0;' : '';
           var email = u.email || ('用户 #' + u.user_id);
-          var tpCnt = u.topup_count || 0;
-          var tpAmt = '$' + (u.topup_total || 0).toFixed(2);
-          var spCnt = u.spend_count || 0;
-          var spAmt = '$' + (u.spend_total || 0).toFixed(2);
-          var rt = (u.topup_total || 0) > 0 ? (((u.topup_total || 0) - (u.spend_total || 0)) / (u.topup_total || 0) * 100).toFixed(1) + '%' : '—';
-          var perBal = '$' + (((u.topup_total || 0) - (u.spend_total || 0)) > 0 ? ((u.topup_total || 0) - (u.spend_total || 0)).toFixed(2) : '0.00');
+          var sr = (u.topup_total || 0) > 0
+            ? (((u.topup_total || 0) - (u.spend_total || 0)) / u.topup_total * 100).toFixed(1) + '%'
+            : '—';
+          var fr = u.fail_rate != null ? (u.fail_rate * 100).toFixed(1) + '%' : '—';
+          var rr = u.reversal_rate != null ? (u.reversal_rate * 100).toFixed(1) + '%' : '—';
+          var rfr = u.refund_rate != null ? (u.refund_rate * 100).toFixed(1) + '%' : '—';
+          // 无卡片则上游费率标为 —（无上游数据）
+          if (u.card_count === 0 && u.tx_count === 0) {
+            fr = '—'; rr = '—'; rfr = '—';
+          }
           uhtml += '<div style="display:grid;grid-template-columns:40px 1fr repeat(6,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
             '<div style="color:var(--text3);font-weight:500;text-align:center;">' + (i + 1) + '</div>' +
             '<div style="font-weight:500;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + email + '</div>' +
-            '<div style="text-align:center;"><span style="font-weight:600;color:var(--cyan);">' + tpCnt + '</span></div>' +
-            '<div style="text-align:center;"><span style="font-weight:600;color:var(--green);">' + tpAmt + '</span></div>' +
-            '<div style="text-align:center;color:var(--text1);">' + spCnt + '</div>' +
-            '<div style="text-align:center;color:var(--orange);">' + spAmt + '</div>' +
-            '<div style="text-align:center;color:var(--text3);">' + rt + '</div>' +
-            '<div style="text-align:center;color:var(--text3);">' + perBal + '</div>' +
+            '<div style="text-align:center;"><span style="font-weight:600;color:var(--cyan);">' + (u.card_count || 0) + '</span></div>' +
+            '<div style="text-align:center;"><span style="font-weight:600;color:var(--text1);">' + (u.tx_count || 0) + '</span></div>' +
+            '<div style="text-align:center;color:var(--text3);">' + sr + '</div>' +
+            '<div style="text-align:center;color:var(--text3);">' + fr + '</div>' +
+            '<div style="text-align:center;color:var(--text3);">' + rr + '</div>' +
+            '<div style="text-align:center;color:var(--text3);">' + rfr + '</div>' +
           '</div>';
         }
         var header = '<div style="display:grid;grid-template-columns:40px 1fr repeat(6,100px);gap:8px;padding:10px 12px;align-items:center;font-size:.8rem;color:var(--text3);border-bottom:1px solid var(--border2);">' +
           '<div style="text-align:center;">#</div>' +
           '<div>用户</div>' +
-          '<div style="text-align:center;">充值笔数</div>' +
-          '<div style="text-align:center;">充值金额</div>' +
-          '<div style="text-align:center;">消费笔数</div>' +
-          '<div style="text-align:center;">消费金额</div>' +
+          '<div style="text-align:center;">开卡量</div>' +
+          '<div style="text-align:center;">交易笔数</div>' +
           '<div style="text-align:center;">入账率</div>' +
-          '<div style="text-align:center;">可用余额</div>' +
+          '<div style="text-align:center;">失败率</div>' +
+          '<div style="text-align:center;">撤销率</div>' +
+          '<div style="text-align:center;">退款率</div>' +
         '</div>';
         uw.innerHTML = header + uhtml;
       }
