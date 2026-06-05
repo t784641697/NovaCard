@@ -1,6 +1,14 @@
 # CHANGELOG.md
 
-## v1.0.22 (2026-06-05)
+## v1.0.23 (2026-06-06)
+
+### 变更
+- **交易笔数重定义**：`tx_count` 改为仅统计`消费`类型交易，充值/退款/手续费不再计入；`total_amount` 同步仅统计消费金额（前后端 + 分用户统计表同步修改）
+- **新增「充值笔数」「充值金额」指标卡片**：全局指标区从 6 卡扩展为 8 卡（grid 2列 × 4行），后端 `topup_count`/`topup_amount` 已在前端正确渲染
+- **按用户统计表移除「入账率」列**，字段重排为新顺序：充值金额 → 充值笔数 → 开卡量 → 交易笔数 → 失败率 → 撤销率 → 退款率
+
+### 修复
+- **按用户统计表排除管理员账号**：后端查询条件加 `WHERE role != 'admin'`，admin@vcc.hub 不再出现在分用户统计中
 
 ### 修复
 - **🔴 严重：Authorization 格式错误导致所有 Merchant API 失效**：误将 `Authorization: token` 改为 `Authorization: Bearer ${token}`，但 vmcardio Merchant API 要求裸 token（无 Bearer 前缀），导致 getAccountBalance/cardTransaction 全部返回 Invalid Token → 回退为裸 token

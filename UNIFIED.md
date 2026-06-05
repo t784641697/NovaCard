@@ -224,32 +224,48 @@ db.function('nowiso', () => new Date().toISOString());
 
 | 层级 | 内容 | 容器 ID |
 |------|------|---------|
-| 指标卡片 | 6 个核心指标（开卡量/交易笔数/入账率/失败率/撤销率/退款率） | `#txMonStats` |
-| 按用户统计 | 每个用户的 6 指标表格 | `#txMonUserWrap` |
+| 指标卡片 | 8 个核心指标（开卡量/交易笔数/充值笔数/充值金额/失败率/撤销率/退款率） | `#txMonStats` |
+| 按用户统计 | 每用户的 7 指标表格（充值金额→充值笔数→开卡量→交易笔数→失败率→撤销率→退款率） | `#txMonUserWrap` |
 | 交易明细 | 每笔交易的用户/类型/金额/状态/时间 | `#txMonListWrap` |
 
 ### 8.2 页面生命周期
 1. `renderAdminTxMonitor()` — 渲染页面骨架 + 初始化 DateRangePicker + 触发 `loadTxMonitor()`
 2. `loadTxMonitor()` — 并行请求 `/admin/transaction-stats` 和 `/admin/transactions`，填充数据
-3. `txMonReset()` — 重置日期筛选为近7天并刷新
+3. `txMonReset()` — 重置日期筛选为当月1日至当日并刷新
 
 ### 8.3 指标定义
 
 | 指标 | 数据来源 | 说明 |
 |------|---------|------|
 | 开卡量 | `metrics.card_issued` | cards 表计数（按日期筛选） |
-| 交易笔数 | `metrics.tx_count` | transactions 表计数 |
-| 入账率/失败率/撤销率 | `metrics.settlement_rate/failure_rate/reversal_rate` | 需上游卡片 Auth 数据 |
-| 消费退款率 | `metrics.refund_rate` | 退款总额 / 消费总额 |
+| 交易笔数 | `metrics.tx_count` | **仅统计`消费`类型**，充值不计 |
+| 充值笔数 | `metrics.topup_count` | transactions 表 `type='充值'` 计数 |
+| 充值金额 | `metrics.topup_amount` | transactions 表 `type='充值'` 金额合计 |
+| 入账率 | 本地公式 | `(充值金额 - 消费金额) / 充值金额`（充值资金留存率） |
+| 失败率/撤销率/退款率 | 上游 `card_transactions` 表 | 需上游 Auth/清算数据 |
 
-当系统无卡片数据（`card_issued = 0`）或上游未对接时，费率显示「需上游数据」而非 `0.0%`。
+> **入账率计算**：`(topup_amount - spend_amount) / topup_amount`，反映用户充值资金中还有多少未被消费消耗。当上游无卡片清算数据时，失败率/撤销率/退款率显示 `—`。
 
-### 8.4 日期筛选
-- 打开页面时**默认近7天**
+### 8.4 按用户统计表字段顺序
+
+| 序号 | 列名 | 数据字段 | 颜色 |
+|------|------|---------|------|
+| 1 | 充值金额 | `u.topup_total` | 绿色 |
+| 2 | 充值笔数 | `u.topup_count` | 绿色 |
+| 3 | 开卡量 | `u.card_count` | 青色 |
+| 4 | 交易笔数 | `u.tx_count`（仅消费） | 白色 |
+| 5 | 失败率 | `u.fail_rate`（上游） | 灰色 |
+| 6 | 撤销率 | `u.reversal_rate`（上游） | 灰色 |
+| 7 | 退款率 | `u.refund_rate`（上游） | 灰色 |
+
+> 排除管理员账号（`role != 'admin'`），admin@vcc.hub 不会出现在统计表中。
+
+### 8.5 日期筛选
+- 打开页面时**默认当月1日至当日**（如6月5日展示6月1日~6月5日）
 - 用户可通过 DateRangePicker 自定义周期
 - 后端 `start_date`/`end_date` 参数作用于 `created_at` 字段（ISO 格式字符串比较）
 
-### 8.5 API 依赖
+### 8.6 API 依赖
 | API | 参数 | 返回 |
 |-----|------|------|
 | `GET /api/admin/transaction-stats` | `start_date`, `end_date` | `{ metrics: {...}, per_user: [...] }` |
