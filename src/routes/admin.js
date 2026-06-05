@@ -645,6 +645,8 @@ router.get('/transaction-stats', async (req, res, next) => {
         email: u.email,
         card_count: cardRow.cnt,
         tx_count: (txMap['充值']?.count||0) + (txMap['消费']?.count||0) + (txMap['退款']?.count||0) + (txMap['手续费']?.count||0),
+        topup_count: txMap['充值']?.count || 0,
+        spend_count: txMap['消费']?.count || 0,
         topup_total: txMap['充值']?.amount || 0,
         spend_total: txMap['消费']?.amount || 0,
         refund_total: txMap['退款']?.amount || 0,
@@ -757,6 +759,10 @@ router.get('/transaction-stats', async (req, res, next) => {
       reversal_rate: reversalRate,
       refund_rate: refundRate,
     };
+
+    // 补充钱包数据
+    metrics.account_balance = Number(getSetting('account_balance', '0'));
+    metrics.total_topup = Number(getSetting('total_topup', '0'));
 
     res.json({ code: 0, msg: 'ok', data: { metrics, per_user: perUser } });
   } catch (err) {
