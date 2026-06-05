@@ -29,7 +29,7 @@ async function syncTransactions(opts = {}) {
       if (startTime) params.start_time = startTime;
       if (endTime)   params.end_time = endTime;
 
-      const result = await sdk.cardTransactionPlain(params);
+      const result = await sdk.cardTransaction(params);
       const list = result.list || [];
       total = result.total || 0;
 
