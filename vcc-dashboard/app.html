@@ -6611,9 +6611,6 @@ async function loadTxMonitor() {
           var u = users[i];
           var rowBg = i === 0 ? 'background:rgba(255,255,255,0.02);border-radius:8px 8px 0 0;' : '';
           var email = u.email || ('用户 #' + u.user_id);
-          var sr = (u.topup_total || 0) > 0
-            ? (((u.topup_total || 0) - (u.spend_total || 0)) / u.topup_total * 100).toFixed(1) + '%'
-            : '—';
           var fr = u.fail_rate != null ? (u.fail_rate * 100).toFixed(1) + '%' : '—';
           var rr = u.reversal_rate != null ? (u.reversal_rate * 100).toFixed(1) + '%' : '—';
           var rfr = u.refund_rate != null ? (u.refund_rate * 100).toFixed(1) + '%' : '—';
@@ -6621,27 +6618,25 @@ async function loadTxMonitor() {
           if (u.card_count === 0 && u.tx_count === 0) {
             fr = '—'; rr = '—'; rfr = '—';
           }
-          uhtml += '<div style="display:grid;grid-template-columns:40px 1fr repeat(8,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
+          uhtml += '<div style="display:grid;grid-template-columns:40px 1fr repeat(7,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
             '<div style="color:var(--text3);font-weight:500;text-align:center;">' + (i + 1) + '</div>' +
             '<div style="font-weight:500;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + email + '</div>' +
+            '<div style="text-align:center;color:var(--green);font-weight:600;">$' + (u.topup_total || 0).toFixed(2) + '</div>' +
+            '<div style="text-align:center;"><span style="font-weight:600;color:var(--green);">' + (u.topup_count || 0) + '</span></div>' +
             '<div style="text-align:center;"><span style="font-weight:600;color:var(--cyan);">' + (u.card_count || 0) + '</span></div>' +
             '<div style="text-align:center;"><span style="font-weight:600;color:var(--text1);">' + (u.tx_count || 0) + '</span></div>' +
-            '<div style="text-align:center;"><span style="font-weight:600;color:var(--green);">' + (u.topup_count || 0) + '</span></div>' +
-            '<div style="text-align:center;color:var(--green);font-weight:600;">$' + (u.topup_total || 0).toFixed(2) + '</div>' +
-            '<div style="text-align:center;color:var(--text3);">' + sr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + fr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + rr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + rfr + '</div>' +
           '</div>';
         }
-        var header = '<div style="display:grid;grid-template-columns:40px 1fr repeat(8,100px);gap:8px;padding:10px 12px;align-items:center;font-size:.8rem;color:var(--text3);border-bottom:1px solid var(--border2);">' +
+        var header = '<div style="display:grid;grid-template-columns:40px 1fr repeat(7,100px);gap:8px;padding:10px 12px;align-items:center;font-size:.8rem;color:var(--text3);border-bottom:1px solid var(--border2);">' +
           '<div style="text-align:center;">#</div>' +
           '<div>用户</div>' +
+          '<div style="text-align:center;">充值金额</div>' +
+          '<div style="text-align:center;">充值笔数</div>' +
           '<div style="text-align:center;">开卡量</div>' +
           '<div style="text-align:center;">交易笔数</div>' +
-          '<div style="text-align:center;">充值笔数</div>' +
-          '<div style="text-align:center;">充值金额</div>' +
-          '<div style="text-align:center;">入账率</div>' +
           '<div style="text-align:center;">失败率</div>' +
           '<div style="text-align:center;">撤销率</div>' +
           '<div style="text-align:center;">退款率</div>' +
