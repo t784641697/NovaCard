@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## v1.0.22 (2026-06-05)
+
+### 修复
+- **🔴 严重：Authorization 格式错误导致所有 Merchant API 失效**：误将 `Authorization: token` 改为 `Authorization: Bearer ${token}`，但 vmcardio Merchant API 要求裸 token（无 Bearer 前缀），导致 getAccountBalance/cardTransaction 全部返回 Invalid Token → 回退为裸 token
+- **🔴 严重：cardTransaction 同步接口格式错误**：`cardTransactionPlain()` 使用 form-urlencoded 格式请求 vmapi.vmcardio.com，但该端点只接受 RSA 加密 JSON（与 getAccountBalance 等接口一致），导致返回非 JSON 响应 → 删除该方法，改用 `sdk.cardTransaction()`（标准 RSA request 封装）
+
 ## v1.0.21 (2026-06-05)
 
 ### 新增
