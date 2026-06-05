@@ -48,7 +48,7 @@ class VmcardioSDK {
       `${this._baseURL}${apiPath}`,
       { content },
       {
-        headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         httpsAgent: _agent,
         timeout: 45_000,
       }
