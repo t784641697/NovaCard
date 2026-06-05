@@ -208,6 +208,7 @@ class VmcardioSDK {
         'Authorization': token,
         'Content-Type': 'application/x-www-form-urlencoded'
       },
+      httpsAgent: new https.Agent({ family: 4 }),
       timeout: 30000,
     });
 
