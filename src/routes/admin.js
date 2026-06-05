@@ -662,7 +662,7 @@ router.get('/transaction-stats', async (req, res, next) => {
 
     // ===== 上游交易流水同步 =====
     try {
-      await require('../services/transactionSyncService').syncTxRecords(start_date, end_date);
+      await require('../services/transactionSyncService').syncTransactions({startTime: start_date, endTime: end_date});
     } catch (syncErr) {
       logger.warn('[tx-stats] sync failed (upstream may be unreachable):', syncErr.message);
     }
