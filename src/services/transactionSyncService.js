@@ -14,7 +14,7 @@ const logger = require('../utils/logger');
  * @returns {Promise<{synced:number, total:number}>}
  */
 async function syncTransactions(opts = {}) {
-  const sdk = new (require('./vmcardioSDK'))();
+  const sdk = require('./vmcardioSDK');
   const startTime = opts.startTime;
   const endTime   = opts.endTime;
   const pageSize  = opts.pageSize || 200;
