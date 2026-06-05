@@ -6510,7 +6510,7 @@ async function renderAdminTxMonitor() {
   if (!window._txMonFilter?.start) {
     var _end = new Date();
     var _start = new Date();
-    _start.setDate(_start.getDate() - 7);
+    _start.setDate(1);
     var _fmt = function(d) {
       var y = d.getFullYear();
       var m = ('0' + (d.getMonth() + 1)).slice(-2);
@@ -6532,7 +6532,7 @@ function txMonReset() {
   if (window._txMonDrPicker) window._txMonDrPicker.clear();
   var _end = new Date();
   var _start = new Date();
-  _start.setDate(_start.getDate() - 7);
+  _start.setDate(1);
   var _fmt = function(d) {
     var y = d.getFullYear();
     var m = ('0' + (d.getMonth() + 1)).slice(-2);
