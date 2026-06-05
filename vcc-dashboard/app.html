@@ -6573,7 +6573,7 @@ async function loadTxMonitor() {
     // 上游拒卡消费数据未接入时，费率指标显示提示
     var hasCardData = m.card_issued > 0 && m.tx_count > 0;
     function fmtRate(v) {
-      if (!hasCardData) return '需上游数据';
+      if (!hasCardData) return '—';
       if (v == null) return 'N/A';
       return (v * 100).toFixed(1) + '%';
     }
