@@ -205,7 +205,7 @@ class VmcardioSDK {
 
     const resp = await axios.post(`${baseURL}/cardTransaction`, formBody.toString(), {
       headers: {
-        'Authorization': token,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/x-www-form-urlencoded'
       },
       httpsAgent: new https.Agent({ family: 4 }),
