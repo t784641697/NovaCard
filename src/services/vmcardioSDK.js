@@ -186,6 +186,41 @@ class VmcardioSDK {
     return this.request('/cardTransaction', params);
   }
 
+  /**
+   * /cardTransaction 接口使用 form-urlencoded 明文传输（非 RSA 加密）
+   * 适用：交易流水查询
+   */
+  async cardTransactionPlain(params = {}) {
+    const token = await this._getToken();
+    const baseURL = process.env.VMCARDIO_BASE_URL || 'https://sandbox-api.vmcardio.com';
+
+    if (params.page !== undefined) params.page = Number(params.page);
+    if (params.page_size !== undefined) params.page_size = Number(params.page_size);
+
+    // 构建 form-urlencoded 请求体
+    const formBody = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== '') formBody.append(k, v);
+    }
+
+    const resp = await axios.post(`${baseURL}/cardTransaction`, formBody.toString(), {
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      timeout: 30000,
+    });
+
+    if (resp.data && resp.data.code === 0) {
+      return resp.data.data; // { total, list }
+    }
+
+    const err = new Error(`cardTransaction plain failed: ${resp.data?.msg || 'unknown'}`);
+    err.vmCode = resp.data?.code;
+    err.vmMsg = resp.data?.msg;
+    throw err;
+  }
+
   async getAccountBalance() {
     return this.request('/getAccountBalance');
   }

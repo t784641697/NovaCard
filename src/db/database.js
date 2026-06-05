@@ -118,6 +118,27 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_topup_user_id ON topup_requests(user_id);
   CREATE INDEX IF NOT EXISTS idx_topup_status  ON topup_requests(status);
 
+  -- 上游交易流水表（同步 vmcardio /cardTransaction）
+  CREATE TABLE IF NOT EXISTS card_transactions (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    auth_id       TEXT,
+    card_id       TEXT    NOT NULL,
+    type          TEXT    NOT NULL,             -- Authorization / Settlement / Refund / Reversal
+    status        TEXT,                          -- COMPLETE / DECLINED / PENDING
+    auth_amount   REAL    DEFAULT 0,
+    settle_amount REAL    DEFAULT 0,
+    auth_currency TEXT    DEFAULT 'USD',
+    settle_currency TEXT   DEFAULT 'USD',
+    merchant_name TEXT,
+    create_time   TEXT,
+    auth_time     TEXT,
+    sync_time     TEXT    DEFAULT (nowiso())
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_ct_auth_id ON card_transactions(auth_id);
+  CREATE INDEX IF NOT EXISTS idx_ct_card_id ON card_transactions(card_id);
+  CREATE INDEX IF NOT EXISTS idx_ct_type ON card_transactions(type);
+  CREATE INDEX IF NOT EXISTS idx_ct_create_time ON card_transactions(create_time);
+
   CREATE TABLE IF NOT EXISTS card_applications (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

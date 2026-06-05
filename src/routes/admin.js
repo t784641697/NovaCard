@@ -660,7 +660,75 @@ router.get('/transaction-stats', async (req, res, next) => {
     const refundAmt = typeMap['退款']?.amount || 0;
     const feeAmt = typeMap['手续费']?.amount || 0;
 
-    // 入账率 / 失败率 / 撤销率 / 退款率 (awaiting upstream card auth data, show 0 for now)
+    // ===== 上游交易流水同步 =====
+    try {
+      await require('../services/transactionSyncService').syncTxRecords(start_date, end_date);
+    } catch (syncErr) {
+      logger.warn('[tx-stats] sync failed (upstream may be unreachable):', syncErr.message);
+    }
+
+    // 5. 从 card_transactions 表计算上游指标
+    const ctConds = [];
+    const ctParams = [];
+    if (start_date) { ctConds.push(`ct.create_time >= ?`); ctParams.push(start_date); }
+    if (end_date)   { ctConds.push(`ct.create_time <= ?`); ctParams.push(end_date); }
+    const ctWhere = ctConds.length ? `WHERE ${ctConds.join(' AND ')}` : '';
+    const ctAnd   = ctConds.length ? `AND ${ctConds.join(' AND ')}` : '';
+
+    const ctRows = db.prepare(`SELECT type, status,
+      COUNT(*) as cnt,
+      COALESCE(SUM(auth_amount),0) as auth_amt,
+      COALESCE(SUM(settle_amount),0) as settle_amt
+      FROM card_transactions ct ${ctWhere} GROUP BY type, ct.status`).all(...ctParams);
+
+    let authComplete = 0, authDeclined = 0, authPending = 0;
+    let settleCount = 0, settleAmt = 0;
+    let reversalCount = 0;
+    let refundCount = 0;
+    ctRows.forEach(r => {
+      const cnt = r.cnt;
+      if (r.type === 'Authorization' && r.status === 'COMPLETE') authComplete = cnt;
+      else if (r.type === 'Authorization' && r.status === 'DECLINED') authDeclined = cnt;
+      else if (r.type === 'Authorization' && r.status === 'PENDING') authPending = cnt;
+      else if (r.type === 'Settlement') { settleCount = cnt; settleAmt = parseFloat(r.settle_amt); }
+      else if (r.type === 'Reversal') reversalCount = cnt;
+      else if (r.type === 'Refund') refundCount = cnt;
+    });
+
+    const totalAuth = authComplete + authDeclined;
+    const authAmt = parseFloat(ctRows.filter(r => r.type==='Authorization').reduce((s,r) => s + parseFloat(r.auth_amt), 0));
+    const settlementRate  = totalAuth > 0 ? parseFloat((settleCount / totalAuth).toFixed(4)) : 0;
+    const failureRate     = totalAuth > 0 ? parseFloat((authDeclined / totalAuth).toFixed(4)) : 0;
+    const reversalRate    = authComplete > 0 ? parseFloat((reversalCount / authComplete).toFixed(4)) : 0;
+    const refundRate      = settleCount > 0 ? parseFloat((refundCount / settleCount).toFixed(4)) : 0;
+
+    // 更新 per_user 加入上游指标
+    for (const u of perUser) {
+      const u_ctRows = db.prepare(`SELECT type, ct.status, COUNT(*) as cnt
+        FROM card_transactions ct
+        JOIN cards c ON c.card_id = ct.card_id
+        WHERE c.user_id = ? ${ctAnd} GROUP BY type, ct.status`).all(u.user_id, ...ctParams);
+
+      let uAuthOk = 0, uAuthDecl = 0, uSettle = 0, uRev = 0, uRef = 0;
+      u_ctRows.forEach(r => {
+        if (r.type === 'Authorization' && r.status === 'COMPLETE') uAuthOk = r.cnt;
+        else if (r.type === 'Authorization' && r.status === 'DECLINED') uAuthDecl = r.cnt;
+        else if (r.type === 'Settlement') uSettle = r.cnt;
+        else if (r.type === 'Reversal') uRev = r.cnt;
+        else if (r.type === 'Refund') uRef = r.cnt;
+      });
+      const uTotal = uAuthOk + uAuthDecl;
+      u.auth_count = uAuthOk + uAuthDecl;
+      u.settle_count = uSettle;
+      u.decline_count = uAuthDecl;
+      u.reversal_count = uRev;
+      u.refund_count = uRef;
+      u.settle_rate = uTotal > 0 ? parseFloat((uSettle / uTotal).toFixed(4)) : 0;
+      u.fail_rate = uTotal > 0 ? parseFloat((uAuthDecl / uTotal).toFixed(4)) : 0;
+      u.reversal_rate = uAuthOk > 0 ? parseFloat((uRev / uAuthOk).toFixed(4)) : 0;
+      u.refund_rate = uSettle > 0 ? parseFloat((uRef / uSettle).toFixed(4)) : 0;
+    }
+
     const metrics = {
       card_issued: cardCount.cnt,
       card_applications: appCount.cnt,
@@ -676,17 +744,18 @@ router.get('/transaction-stats', async (req, res, next) => {
       refund_count: typeMap['退款']?.count || 0,
       refund_amount: refundAmt,
       fee_amount: feeAmt,
-      // 以下指标依赖上游卡片交易明细数据
-      auth_count: 0,
-      auth_amount: 0,
-      settle_count: 0,
-      settle_amount: 0,
-      decline_count: 0,
-      reversal_count: 0,
-      settlement_rate: 0,
-      failure_rate: 0,
-      reversal_rate: 0,
-      refund_rate: 0,
+      // 上游卡片交易明细指标（从 card_transactions 实时计算）
+      auth_count: authComplete + authDeclined + authPending,
+      auth_amount: authAmt,
+      settle_count: settleCount,
+      settle_amount: settleAmt,
+      decline_count: authDeclined,
+      reversal_count: reversalCount,
+      refund_count: refundCount,
+      settlement_rate: settlementRate,
+      failure_rate: failureRate,
+      reversal_rate: reversalRate,
+      refund_rate: refundRate,
     };
 
     res.json({ code: 0, msg: 'ok', data: { metrics, per_user: perUser } });
