@@ -100,7 +100,11 @@ node src/app.js # 生产模式
 - 响应格式: `{ code: 0, msg: 'ok', data: {...} }` (成功) / `{ code: xxx, msg: '...' }` (失败)
 - 日志使用 winston，通过 logger.info/error/warn 输出
 
-### 注意事项
+#6. **上游交易流水**：`card_transactions` 表存储 `/cardTransaction` 同步结果，含 auth_id 唯一索引、type(Authorization/Settlement/Refund/Reversal)、status(COMPLETE/DECLINED/PENDING)、auth_amount/settle_amount、merchant_name、create_time
+7. **指标自动测算**：入账率 = settle/(settle+auth)，失败率 = decline/(auth+decline)，撤销率 = reversal/auth，退款率 = refund/settle
+8. **同步时机**：管理员访问交易监控页时自动触发（带日期范围），同步前先根据 cards 表获取 card_id 列表
+
+## 注意事项
 1. **数据库**: SQLite 使用 WAL 模式，数据存储在 `data/vcc.db`。服务启动时自动建表和种子数据。
 2. **外部依赖**: vmcardio API (虚拟卡发行商) 为外部服务，需要配置 `.env` 中的 VMCARDIO_* 变量才能使用卡片申请等功能。
 3. **腾讯云短信**: 需要配置 TENCENT_SMS_* 环境变量，否则短信功能不可用。
