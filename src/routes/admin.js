@@ -644,7 +644,7 @@ router.get('/transaction-stats', async (req, res, next) => {
         user_id: u.id,
         email: u.email,
         card_count: cardRow.cnt,
-        tx_count: (txMap['充值']?.count||0) + (txMap['消费']?.count||0) + (txMap['退款']?.count||0) + (txMap['手续费']?.count||0),
+        tx_count: txMap['消费']?.count || 0,
         topup_count: txMap['充值']?.count || 0,
         spend_count: txMap['消费']?.count || 0,
         topup_total: txMap['充值']?.amount || 0,
@@ -655,8 +655,8 @@ router.get('/transaction-stats', async (req, res, next) => {
     }
 
     // 5. 总体指标
-    const txCount = txRows.reduce((s, r) => s + r.cnt, 0);
-    const totalAmount = parseFloat(txRows.reduce((s, r) => s + r.total, 0));
+    const txCount = typeMap['消费']?.count || 0;
+    const totalAmount = parseFloat(typeMap['消费']?.amount || 0);
     const topupAmt = typeMap['充值']?.amount || 0;
     const spendAmt = typeMap['消费']?.amount || 0;
     const refundAmt = typeMap['退款']?.amount || 0;

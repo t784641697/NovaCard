@@ -6444,6 +6444,14 @@ async function renderAdminTxMonitor() {
         <div class="ov-stat-val" id="txStatTx">—</div>
       </div>
       <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">充值笔数</div>
+        <div class="ov-stat-val" id="txStatTopupCount">—</div>
+      </div>
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
+        <div class="ov-stat-label">充值金额</div>
+        <div class="ov-stat-val" id="txStatTopupAmount">—</div>
+      </div>
+      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
         <div class="ov-stat-label">入账率</div>
         <div class="ov-stat-val" id="txStatSettle">—</div>
       </div>
@@ -6570,6 +6578,8 @@ async function loadTxMonitor() {
     var el = function(id) { return document.getElementById(id); };
     if (el('txStatCards'))    el('txStatCards').textContent = (m.card_issued || 0).toLocaleString();
     if (el('txStatTx'))       el('txStatTx').textContent = (m.tx_count || 0).toLocaleString() + ' 笔';
+    if (el('txStatTopupCount'))  el('txStatTopupCount').textContent = (m.topup_count || 0).toLocaleString() + ' 笔';
+    if (el('txStatTopupAmount')) el('txStatTopupAmount').textContent = '$' + (m.topup_amount || 0).toFixed(2);
     // 上游拒卡消费数据未接入时，费率指标显示提示
     var hasCardData = m.card_issued > 0 && m.tx_count > 0;
     function fmtRate(v) {
@@ -6611,22 +6621,26 @@ async function loadTxMonitor() {
           if (u.card_count === 0 && u.tx_count === 0) {
             fr = '—'; rr = '—'; rfr = '—';
           }
-          uhtml += '<div style="display:grid;grid-template-columns:40px 1fr repeat(6,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
+          uhtml += '<div style="display:grid;grid-template-columns:40px 1fr repeat(8,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
             '<div style="color:var(--text3);font-weight:500;text-align:center;">' + (i + 1) + '</div>' +
             '<div style="font-weight:500;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + email + '</div>' +
             '<div style="text-align:center;"><span style="font-weight:600;color:var(--cyan);">' + (u.card_count || 0) + '</span></div>' +
             '<div style="text-align:center;"><span style="font-weight:600;color:var(--text1);">' + (u.tx_count || 0) + '</span></div>' +
+            '<div style="text-align:center;"><span style="font-weight:600;color:var(--green);">' + (u.topup_count || 0) + '</span></div>' +
+            '<div style="text-align:center;color:var(--green);font-weight:600;">$' + (u.topup_total || 0).toFixed(2) + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + sr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + fr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + rr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + rfr + '</div>' +
           '</div>';
         }
-        var header = '<div style="display:grid;grid-template-columns:40px 1fr repeat(6,100px);gap:8px;padding:10px 12px;align-items:center;font-size:.8rem;color:var(--text3);border-bottom:1px solid var(--border2);">' +
+        var header = '<div style="display:grid;grid-template-columns:40px 1fr repeat(8,100px);gap:8px;padding:10px 12px;align-items:center;font-size:.8rem;color:var(--text3);border-bottom:1px solid var(--border2);">' +
           '<div style="text-align:center;">#</div>' +
           '<div>用户</div>' +
           '<div style="text-align:center;">开卡量</div>' +
           '<div style="text-align:center;">交易笔数</div>' +
+          '<div style="text-align:center;">充值笔数</div>' +
+          '<div style="text-align:center;">充值金额</div>' +
           '<div style="text-align:center;">入账率</div>' +
           '<div style="text-align:center;">失败率</div>' +
           '<div style="text-align:center;">撤销率</div>' +
