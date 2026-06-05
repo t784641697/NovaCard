@@ -624,7 +624,7 @@ router.get('/transaction-stats', async (req, res, next) => {
     appStats.forEach(r => { appMap[r.status] = r.cnt; });
 
     // 4. 分用户统计
-    const allUsers = db.prepare(`SELECT id, email FROM users ORDER BY id`).all();
+    const allUsers = db.prepare(`SELECT id, email FROM users WHERE role != 'admin' ORDER BY id`).all();
     const perUser = [];
 
     for (const u of allUsers) {
