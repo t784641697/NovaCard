@@ -14,3 +14,6 @@ nova-backup.skill
 # Database files
 *.db
 data/
+
+# Preview files
+.preview
