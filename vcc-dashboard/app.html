@@ -1037,6 +1037,9 @@ select.form-control option{background:var(--bg3);}
 }
 .modal-user-info{display:flex;align-items:center;font-size:13px;color:var(--text2);}
 .modal-user-email{font-family:monospace;color:var(--cyan);}
+.mini-stat{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;}
+.mini-label{font-size:.68rem;color:var(--text3);margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mini-val{font-size:.95rem;font-weight:600;color:var(--text1);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js?v=1776961835" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js?v=1776961835" defer></script>
@@ -6433,40 +6436,16 @@ async function renderAdminTxMonitor() {
       </div>
     </div>
 
-    <!-- 总体指标卡片 -->
-    <div class="ov-stat-row" id="txMonStats" style="margin-top:18px;">
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">开卡量</div>
-        <div class="ov-stat-val" id="txStatCards">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">交易笔数</div>
-        <div class="ov-stat-val" id="txStatTx">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">充值笔数</div>
-        <div class="ov-stat-val" id="txStatTopupCount">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">充值金额</div>
-        <div class="ov-stat-val" id="txStatTopupAmount">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">入账率</div>
-        <div class="ov-stat-val" id="txStatSettle">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">消费失败率</div>
-        <div class="ov-stat-val" id="txStatFail">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">授权撤销率</div>
-        <div class="ov-stat-val" id="txStatReversal">—</div>
-      </div>
-      <div class="ov-stat-card" style="background:linear-gradient(135deg,#0f1923,#162233);">
-        <div class="ov-stat-label">消费退款率</div>
-        <div class="ov-stat-val" id="txStatRefund">—</div>
-      </div>
+    <!-- 总体指标 (紧凑) -->
+    <div id="txMonStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">
+      <div class="mini-stat"><div class="mini-label">开卡量</div><div class="mini-val" id="txStatCards">—</div></div>
+      <div class="mini-stat"><div class="mini-label">交易笔数</div><div class="mini-val" id="txStatTx">—</div></div>
+      <div class="mini-stat"><div class="mini-label">充值笔数</div><div class="mini-val" id="txStatTopupCount">—</div></div>
+      <div class="mini-stat"><div class="mini-label">充值金额</div><div class="mini-val" id="txStatTopupAmount">—</div></div>
+      <div class="mini-stat"><div class="mini-label">入账率</div><div class="mini-val" id="txStatSettle">—</div></div>
+      <div class="mini-stat"><div class="mini-label">消费失败率</div><div class="mini-val" id="txStatFail">—</div></div>
+      <div class="mini-stat"><div class="mini-label">授权撤销率</div><div class="mini-val" id="txStatReversal">—</div></div>
+      <div class="mini-stat"><div class="mini-label">消费退款率</div><div class="mini-val" id="txStatRefund">—</div></div>
     </div>
 
     <!-- 分用户统计表 -->
@@ -6474,6 +6453,29 @@ async function renderAdminTxMonitor() {
       <div style="padding:18px 20px 12px;font-weight:600;color:var(--text1);">按用户统计</div>
       <div id="txMonUserWrap" style="padding:0 20px 20px;">
         <div class="skeleton" style="height:100px;border-radius:12px;"></div>
+      </div>
+    </div>
+
+    <!-- 交易走势图 -->
+    <div class="panel mt-4" id="txMonChartPanel">
+      <div style="padding:18px 20px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="font-weight:600;color:var(--text1);font-size:.9rem;">交易走势图</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="text" id="txMonChartUser" placeholder="筛选用户（输入邮箱）..." onkeydown="if(event.key==='Enter')loadTxTrends()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:#eee;font-size:.8rem;width:200px;outline:none;">
+          <button class="btn btn-outline btn-sm" onclick="loadTxTrends()" style="padding:4px 12px;font-size:.78rem;">刷新</button>
+        </div>
+      </div>
+      <div style="padding:0 20px 20px;">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+          <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text3);cursor:pointer;">
+            <input type="radio" name="chartView" value="count" checked onchange="switchChartView()"> 数量走势
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text3);cursor:pointer;">
+            <input type="radio" name="chartView" value="amount" onchange="switchChartView()"> 金额走势
+          </label>
+        </div>
+        <canvas id="txMonChart" style="width:100%;height:280px;"></canvas>
+        <div id="txMonChartEmpty" class="empty-state" style="display:none;"><div class="empty-text">暂无走势数据</div></div>
       </div>
     </div>
 
@@ -6554,11 +6556,128 @@ function txMonReset() {
   loadTxMonitor();
 }
 
+// ══════════════════════════════════════════════
+//  走势图（Chart.js）
+// ══════════════════════════════════════════════
+var _txChartInstance = null;
+
+async function loadTxTrends() {
+  var canvas = document.getElementById('txMonChart');
+  if (!canvas) return;
+  var panel = document.getElementById('txMonChartPanel');
+  if (panel) panel.style.display = '';
+
+  var params = new URLSearchParams();
+  var start = window._txMonFilter?.start || '';
+  var end = window._txMonFilter?.end || '';
+  if (start) params.set('start_date', start);
+  if (end) params.set('end_date', end);
+
+  // 用户筛选
+  var userInput = document.getElementById('txMonChartUser');
+  var userEmail = (userInput ? userInput.value.trim() : '');
+  var userList = window._lastTxUsers || [];
+  var matchedUser = null;
+  if (userEmail) {
+    for (var i = 0; i < userList.length; i++) {
+      if (userList[i].email && userList[i].email.indexOf(userEmail) !== -1) {
+        matchedUser = userList[i];
+        break;
+      }
+    }
+    if (matchedUser) params.set('user_id', matchedUser.user_id);
+  }
+
+  try {
+    var r = await apiFetch('/admin/transaction-trends?' + params.toString());
+    if (r.code !== 0) { showChartError(); return; }
+    var trends = (r.data && r.data.trends) || [];
+    if (!trends.length) { showChartError('暂无走势数据'); return; }
+    renderChart(trends);
+  } catch(e) {
+    showChartError('加载失败');
+  }
+}
+
+function showChartError(msg) {
+  msg = msg || '暂无走势数据';
+  var canvas = document.getElementById('txMonChart');
+  var empty = document.getElementById('txMonChartEmpty');
+  if (canvas) canvas.style.display = 'none';
+  if (empty) { empty.style.display = ''; empty.querySelector('.empty-text').textContent = msg; }
+}
+
+function renderChart(trends) {
+  var canvas = document.getElementById('txMonChart');
+  var empty = document.getElementById('txMonChartEmpty');
+  if (canvas) canvas.style.display = '';
+  if (empty) empty.style.display = 'none';
+
+  var dates = trends.map(function(t) { return t.date; });
+  var view = document.querySelector('input[name="chartView"]:checked');
+  var isCount = view && view.value === 'count';
+
+  var datasets, options;
+
+  if (isCount) {
+    // 数量走势
+    datasets = [
+      { label: '开卡量', data: trends.map(function(t){return t.card_issued;}), backgroundColor: 'rgba(126,184,247,0.6)', borderColor: '#7eb8f7', borderWidth: 1, borderRadius: 3, tension:0.3 },
+      { label: '交易笔数', data: trends.map(function(t){return t.tx_count;}), backgroundColor: 'rgba(167,139,250,0.6)', borderColor: '#a78bfa', borderWidth: 1, borderRadius: 3, tension:0.3 },
+      { label: '撤销笔数', data: trends.map(function(t){return t.reversal_count;}), backgroundColor: 'rgba(251,146,60,0.5)', borderColor: '#fb923c', borderWidth: 1, borderRadius: 3, tension:0.3 },
+      { label: '退款笔数', data: trends.map(function(t){return t.refund_count;}), backgroundColor: 'rgba(248,113,113,0.5)', borderColor: '#f87171', borderWidth: 1, borderRadius: 3, tension:0.3 },
+    ];
+  } else {
+    // 金额走势
+    datasets = [
+      { label: '充值金额', data: trends.map(function(t){return t.topup_amount;}), borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.15)', borderWidth: 2, fill: true, tension:0.3, pointRadius:3 },
+      { label: '消费金额', data: trends.map(function(t){return t.tx_amount;}), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.15)', borderWidth: 2, fill: true, tension:0.3, pointRadius:3 },
+      { label: '已清算金额', data: trends.map(function(t){return t.settle_amount;}), borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.15)', borderWidth: 2, fill: true, tension:0.3, pointRadius:3, borderDash:[5,3] },
+    ];
+  }
+
+  var config = {
+    type: isCount ? 'bar' : 'line',
+    data: { labels: dates, datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 11 }, padding: 12, usePointStyle: isCount ? true : false } }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 45, maxTicksLimit: 20 },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: '#64748b', font: { size: 10 } },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  };
+
+  if (_txChartInstance) { _txChartInstance.destroy(); _txChartInstance = null; }
+  _txChartInstance = new Chart(canvas.getContext('2d'), config);
+  window._lastTrends = trends;
+}
+
+function switchChartView() {
+  var userList = window._lastTxUsers || [];
+  if (userList.length > 0) {
+    renderChart(window._lastTrends || []);
+  } else {
+    loadTxTrends();
+  }
+}
+
 async function loadTxMonitor() {
   const area = document.getElementById('contentArea');
   if (!area) return;
 
-  document.querySelectorAll('#txMonStats .ov-stat-val').forEach(function(el) { el.style.opacity = '0.3'; });
+  document.querySelectorAll('#txMonStats .mini-val').forEach(function(el) { el.style.opacity = '0.3'; });
 
   const params = new URLSearchParams();
   const start = window._txMonFilter?.start || '';
@@ -6597,7 +6716,7 @@ async function loadTxMonitor() {
     if (el('txStatReversal')) el('txStatReversal').textContent = fmtRate(m.reversal_rate);
     if (el('txStatRefund'))   el('txStatRefund').textContent = fmtRate(m.refund_rate);
 
-    document.querySelectorAll('#txMonStats .ov-stat-val').forEach(function(el) { el.style.opacity = '1'; });
+    document.querySelectorAll('#txMonStats .mini-val').forEach(function(el) { el.style.opacity = '1'; });
 
     // per-user
     var users = statsRes && statsRes.code === 0 ? (statsRes.data.per_user || []) : [];
@@ -6642,6 +6761,7 @@ async function loadTxMonitor() {
           '<div style="text-align:center;">退款率</div>' +
         '</div>';
         uw.innerHTML = header + uhtml;
+        window._lastTxUsers = users;
       }
     }
 
@@ -6675,12 +6795,14 @@ async function loadTxMonitor() {
       '<span>用户</span><span>类型 / 描述</span><span style="text-align:right;">金额</span><span style="text-align:center;">状态</span><span style="text-align:right;">时间</span>' +
     '</div>';
     wrap.innerHTML = listHeader + listHtml;
+    loadTxTrends();
 
   } catch(e) {
     if (e.message !== 'Unauthorized') {
       var wrap2 = document.getElementById('txMonListWrap');
       if (wrap2) wrap2.innerHTML = '<div class="empty-state"><div class="empty-text">加载失败：' + e.message + '</div></div>';
     }
+    loadTxTrends();
   }
 }
 // ══════════════════════════════════════════════

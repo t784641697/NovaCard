@@ -771,6 +771,85 @@ router.get('/transaction-stats', async (req, res, next) => {
 });
 
 /**
+ * GET /api/admin/transaction-trends?start_date=&end_date=&user_id=
+ * 交易走势数据（按天分组）
+ */
+router.get('/transaction-trends', async (req, res, next) => {
+  try {
+    const { start_date, end_date, user_id } = req.query;
+    const cardP = [], txP = [], ctP = [];
+    const cardC = [], txC = [], ctC = [];
+
+    if (start_date) { cardC.push('created_at >= ?'); cardP.push(start_date); }
+    if (end_date)   { cardC.push('created_at <= ?'); cardP.push(end_date + ' 23:59:59'); }
+    if (user_id)    { cardC.push('user_id = ?'); cardP.push(user_id); }
+    const cardWhere = cardC.length ? 'WHERE ' + cardC.join(' AND ') : '';
+
+    if (start_date) { txC.push('t.created_at >= ?'); txP.push(start_date); }
+    if (end_date)   { txC.push('t.created_at <= ?'); txP.push(end_date + ' 23:59:59'); }
+    if (user_id)    { txC.push('t.user_id = ?'); txP.push(user_id); }
+    const txWhere = txC.length ? 'WHERE ' + txC.join(' AND ') : '';
+
+    // card_transactions 条件
+    if (start_date) { ctC.push('ct.create_time >= ?'); ctP.push(start_date); }
+    if (end_date)   { ctC.push('ct.create_time <= ?'); ctP.push(end_date + ' 23:59:59'); }
+
+    // 按天汇总：开卡量
+    const cardRows = db.prepare(`SELECT DATE(created_at) as dt, COUNT(*) as cnt FROM cards ${cardWhere} GROUP BY dt ORDER BY dt`).all(...cardP);
+    // 按天+类型汇总：本地交易
+    const txRows = db.prepare(`SELECT DATE(t.created_at) as dt, t.type, COUNT(*) as cnt, SUM(t.amount) as amt FROM transactions t ${txWhere} GROUP BY dt, t.type ORDER BY dt`).all(...txP);
+
+    // 上游清算数据：按天+类型
+    let ctRows = [];
+    if (user_id) {
+      const uctP = [user_id, ...ctP];
+      const uctC = ['c.user_id = ?', ...ctC];
+      const uctWhere = 'WHERE ' + uctC.join(' AND ');
+      ctRows = db.prepare(`SELECT DATE(ct.create_time) as dt, ct.type, COUNT(*) as cnt, SUM(ct.settle_amount) as settle_amt
+        FROM card_transactions ct JOIN cards c ON ct.card_id = c.card_id ${uctWhere} GROUP BY dt, ct.type ORDER BY dt`).all(...uctP);
+    } else {
+      const ctWhere = ctC.length ? 'WHERE ' + ctC.join(' AND ') : '';
+      ctRows = db.prepare(`SELECT DATE(ct.create_time) as dt, ct.type, COUNT(*) as cnt, SUM(ct.settle_amount) as settle_amt
+        FROM card_transactions ct ${ctWhere} GROUP BY dt, ct.type ORDER BY dt`).all(...ctP);
+    }
+
+    // 合并到按天 map
+    const dayMap = {};
+    const addDay = (dt) => { if (!dayMap[dt]) dayMap[dt] = { date: dt, card_issued: 0, tx_count: 0, tx_amount: 0, topup_amount: 0, settle_amount: 0, reversal_count: 0, refund_count: 0 }; };
+
+    cardRows.forEach(r => { addDay(r.dt); dayMap[r.dt].card_issued = r.cnt; });
+    txRows.forEach(r => {
+      addDay(r.dt);
+      if (r.type === '消费') { dayMap[r.dt].tx_count = r.cnt; dayMap[r.dt].tx_amount = +r.amt; }
+      else if (r.type === '充值') dayMap[r.dt].topup_amount = +r.amt;
+    });
+    ctRows.forEach(r => {
+      addDay(r.dt);
+      if (r.type === 'Settlement') dayMap[r.dt].settle_amount = +r.settle_amt;
+      else if (r.type === 'Reversal') dayMap[r.dt].reversal_count = r.cnt;
+      else if (r.type === 'Refund') dayMap[r.dt].refund_count = r.cnt;
+    });
+
+    // 填充日期空档
+    const trends = [];
+    if (start_date) {
+      let d = new Date(start_date);
+      const end = end_date ? new Date(end_date) : new Date();
+      while (d <= end) {
+        const key = d.toISOString().slice(0, 10);
+        addDay(key);
+        d.setDate(d.getDate() + 1);
+      }
+    }
+    trends.push(...Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date)));
+
+    res.json({ code: 0, msg: 'ok', data: { trends } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/admin/cards?page=1&pageSize=10&status=active&search=xxx
  *   &force=true — 先触发上游同步再返回数据（同步过程会更新本地 DB）
  *   &sync=true  — 对当前页卡片逐一从上游拉取最新状态（含 DELETED 标记）
