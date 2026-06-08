@@ -6428,29 +6428,19 @@ async function renderAdminTxMonitor() {
       <div><h2>交易监控</h2><p class="text-muted mt-1">拒卡消费数据统计 — 总体 / 分用户 / 周期筛选</p></div>
     </div>
 
-    <!-- 总体指标 (紧凑) -->
-    <div id="txMonStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">
-      <div class="mini-stat"><div class="mini-label">开卡量</div><div class="mini-val" id="txStatCards">—</div></div>
-      <div class="mini-stat"><div class="mini-label">交易笔数</div><div class="mini-val" id="txStatTx">—</div></div>
-      <div class="mini-stat"><div class="mini-label">充值笔数</div><div class="mini-val" id="txStatTopupCount">—</div></div>
-      <div class="mini-stat"><div class="mini-label">充值金额</div><div class="mini-val" id="txStatTopupAmount">—</div></div>
-      <div class="mini-stat"><div class="mini-label">入账率</div><div class="mini-val" id="txStatSettle">—</div></div>
-      <div class="mini-stat"><div class="mini-label">消费失败率</div><div class="mini-val" id="txStatFail">—</div></div>
-      <div class="mini-stat"><div class="mini-label">授权撤销率</div><div class="mini-val" id="txStatReversal">—</div></div>
-      <div class="mini-stat"><div class="mini-label">消费退款率</div><div class="mini-val" id="txStatRefund">—</div></div>
-    </div>
-
-    <!-- Panel: 统计周期 + 按用户统计 -->
-    <div class="panel mt-4">
-      <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div class="flex flex-wrap gap-3 items-center">
-          <span style="color:var(--text2);font-size:.85rem;font-weight:500;">统计周期</span>
-          <span id="txMonDateWrap" style="display:inline-flex;align-items:center;gap:8px;"></span>
-          <button class="btn btn-primary btn-sm" onclick="loadTxMonitor()" style="padding:6px 18px;">查询</button>
-          <button class="btn btn-outline btn-sm" onclick="txMonReset()" style="padding:6px 18px;">重置</button>
-        </div>
+      <!-- 总体指标 (紧凑) -->
+      <div id="txMonStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 20px;">
+        <div class="mini-stat"><div class="mini-label">开卡量</div><div class="mini-val" id="txStatCards">—</div></div>
+        <div class="mini-stat"><div class="mini-label">交易笔数</div><div class="mini-val" id="txStatTx">—</div></div>
+        <div class="mini-stat"><div class="mini-label">充值笔数</div><div class="mini-val" id="txStatTopupCount">—</div></div>
+        <div class="mini-stat"><div class="mini-label">充值金额</div><div class="mini-val" id="txStatTopupAmount">—</div></div>
+        <div class="mini-stat"><div class="mini-label">入账率</div><div class="mini-val" id="txStatSettle">—</div></div>
+        <div class="mini-stat"><div class="mini-label">消费失败率</div><div class="mini-val" id="txStatFail">—</div></div>
+        <div class="mini-stat"><div class="mini-label">授权撤销率</div><div class="mini-val" id="txStatReversal">—</div></div>
+        <div class="mini-stat"><div class="mini-label">消费退款率</div><div class="mini-val" id="txStatRefund">—</div></div>
       </div>
       <div style="padding:18px 20px 12px;font-weight:600;color:var(--text1);">按用户统计</div>
+
       <div id="txMonUserWrap" style="padding:0 20px 20px;">
         <div class="skeleton" style="height:100px;border-radius:12px;"></div>
       </div>
