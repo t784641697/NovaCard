@@ -6428,16 +6428,6 @@ async function renderAdminTxMonitor() {
       <div><h2>交易监控</h2><p class="text-muted mt-1">拒卡消费数据统计 — 总体 / 分用户 / 周期筛选</p></div>
     </div>
 
-    <!-- 日期筛选 -->
-    <div class="panel" style="padding:14px 20px;">
-      <div class="flex flex-wrap gap-3 items-center">
-        <span style="color:var(--text2);font-size:.85rem;font-weight:500;">统计周期</span>
-        <span id="txMonDateWrap" style="display:inline-flex;align-items:center;gap:8px;"></span>
-        <button class="btn btn-primary btn-sm" onclick="loadTxMonitor()" style="padding:6px 18px;">查询</button>
-        <button class="btn btn-outline btn-sm" onclick="txMonReset()" style="padding:6px 18px;">重置</button>
-      </div>
-    </div>
-
     <!-- 总体指标 (紧凑) -->
     <div id="txMonStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">
       <div class="mini-stat"><div class="mini-label">开卡量</div><div class="mini-val" id="txStatCards">—</div></div>
@@ -6450,24 +6440,32 @@ async function renderAdminTxMonitor() {
       <div class="mini-stat"><div class="mini-label">消费退款率</div><div class="mini-val" id="txStatRefund">—</div></div>
     </div>
 
-    <!-- 分用户统计表 -->
+    <!-- Panel: 统计周期 + 按用户统计 -->
     <div class="panel mt-4">
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div class="flex flex-wrap gap-3 items-center">
+          <span style="color:var(--text2);font-size:.85rem;font-weight:500;">统计周期</span>
+          <span id="txMonDateWrap" style="display:inline-flex;align-items:center;gap:8px;"></span>
+          <button class="btn btn-primary btn-sm" onclick="loadTxMonitor()" style="padding:6px 18px;">查询</button>
+          <button class="btn btn-outline btn-sm" onclick="txMonReset()" style="padding:6px 18px;">重置</button>
+        </div>
+      </div>
       <div style="padding:18px 20px 12px;font-weight:600;color:var(--text1);">按用户统计</div>
       <div id="txMonUserWrap" style="padding:0 20px 20px;">
         <div class="skeleton" style="height:100px;border-radius:12px;"></div>
       </div>
     </div>
 
-    <!-- 交易走势图 -->
+    <!-- Panel: 交易走势图（独立周期+用户筛选） -->
     <div class="panel mt-4" id="txMonChartPanel">
-      <div style="padding:18px 20px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div style="font-weight:600;color:var(--text1);font-size:.9rem;">交易走势图</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="text" id="txMonChartUser" placeholder="筛选用户（输入邮箱）..." onkeydown="if(event.key==='Enter')loadTxTrends()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:#eee;font-size:.8rem;width:200px;outline:none;">
-          <button class="btn btn-outline btn-sm" onclick="loadTxTrends()" style="padding:4px 12px;font-size:.78rem;">刷新</button>
-        </div>
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+        <span style="color:var(--text2);font-size:.85rem;font-weight:500;">走势周期</span>
+        <span id="txMonChartDateWrap" style="display:inline-flex;align-items:center;gap:6px;"></span>
+        <input type="text" id="txMonChartUser" placeholder="筛选用户..." onkeydown="if(event.key==='Enter')loadTxTrends()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:#eee;font-size:.8rem;width:180px;outline:none;">
+        <button class="btn btn-primary btn-sm" onclick="loadTxTrends()" style="padding:4px 14px;font-size:.8rem;">查询</button>
+        <button class="btn btn-outline btn-sm" onclick="txMonChartReset()" style="padding:4px 14px;font-size:.8rem;">重置</button>
       </div>
-      <div style="padding:0 20px 20px;">
+      <div style="padding:12px 20px 20px;">
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
           <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text3);cursor:pointer;">
             <input type="radio" name="chartView" value="count" checked onchange="switchChartView()"> 数量走势
@@ -6539,6 +6537,24 @@ async function renderAdminTxMonitor() {
     window._txMonDrPicker.setRange(window._txMonFilter.start, window._txMonFilter.end);
   }
 
+  // 走势图独立日期选择器
+  var _cfmt = function(d) { return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); };
+  window._txChartFilter = window._txChartFilter || {};
+  var _cnow = new Date();
+  var _cstart = new Date(); _cstart.setDate(1);
+  if (!window._txChartFilter.start) { window._txChartFilter.start = _cfmt(_cstart); window._txChartFilter.end = _cfmt(_cnow); }
+  if (document.getElementById('txMonChartDateWrap')) {
+    window._txMonChartDrPicker = new DateRangePicker({
+      id: 'txMonChartDr',
+      container: '#txMonChartDateWrap',
+      placeholder: '开始 — 结束',
+      onConfirm: function(s, e) { window._txChartFilter.start = s; window._txChartFilter.end = e; },
+      onClear: function() { window._txChartFilter.start = ''; window._txChartFilter.end = ''; }
+    });
+    window._txMonChartDrPicker.init();
+    window._txMonChartDrPicker.setRange(window._txChartFilter.start, window._txChartFilter.end);
+  }
+
   loadTxMonitor();
 }
 
@@ -6560,6 +6576,19 @@ function txMonReset() {
   loadTxMonitor();
 }
 
+function txMonChartReset() {
+  window._txChartFilter = {};
+  var _n = new Date(), _s = new Date(); _s.setDate(1);
+  var _f = function(d) { return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); };
+  window._txChartFilter.start = _f(_s);
+  window._txChartFilter.end = _f(_n);
+  var picker = window._txMonChartDrPicker;
+  if (picker) picker.setRange(window._txChartFilter.start, window._txChartFilter.end);
+  var userInput = document.getElementById('txMonChartUser');
+  if (userInput) userInput.value = '';
+  loadTxTrends();
+}
+
 // ══════════════════════════════════════════════
 //  走势图（Chart.js）
 // ══════════════════════════════════════════════
@@ -6572,8 +6601,8 @@ async function loadTxTrends() {
   if (panel) panel.style.display = '';
 
   var params = new URLSearchParams();
-  var start = window._txMonFilter?.start || '';
-  var end = window._txMonFilter?.end || '';
+  var start = window._txChartFilter?.start || '';
+  var end = window._txChartFilter?.end || '';
   if (start) params.set('start_date', start);
   if (end) params.set('end_date', end);
 
