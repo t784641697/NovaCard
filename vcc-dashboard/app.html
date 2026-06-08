@@ -6456,10 +6456,11 @@ async function renderAdminTxMonitor() {
     <div class="panel mt-4" id="txMonChartPanel">
       <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
         <span style="color:var(--text2);font-size:.85rem;font-weight:500;">走势周期</span>
-        <span id="txMonChartDateWrap" style="display:inline-flex;align-items:center;gap:6px;"></span>
-        <div style="position:relative;display:inline-flex;align-items:center;">
-          <svg style="position:absolute;left:10px;width:14px;height:14px;color:var(--text3);pointer-events:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="txMonChartUser" placeholder="筛选用户..." onkeydown="if(event.key==='Enter')loadTxTrends()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px 8px 32px;color:var(--text1);font-size:.82rem;width:170px;outline:none;">
+
+
+        <div style="position:relative;width:200px;">
+          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="txMonChartUser" placeholder="筛选用户..." onkeydown="if(event.key==='Enter')loadTxTrends()" style="width:100%;padding:10px 14px 10px 36px;border-radius:9px;border:1px solid rgba(0,242,254,.2);background:rgba(0,0,0,.25);color:var(--text1);font-size:.88rem;outline:none;box-sizing:border-box;">
         </div>
         <button class="btn btn-primary" onclick="loadTxTrends()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;font-weight:600;">查询</button>
         <button class="btn btn-outline" onclick="txMonChartReset()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;font-weight:600;">重置</button>
