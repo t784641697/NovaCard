@@ -6433,8 +6433,8 @@ async function renderAdminTxMonitor() {
       <div style="padding:14px 20px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
         <span style="color:var(--text2);font-size:.85rem;font-weight:500;">统计周期</span>
         <span id="txMonDateWrap" style="display:inline-flex;align-items:center;gap:6px;"></span>
-        <button class="btn btn-primary" onclick="loadTxMonitor()" style="padding:7px 18px;font-size:.82rem;border-radius:8px;">查询</button>
-        <button class="btn btn-outline" onclick="txMonReset()" style="padding:7px 18px;font-size:.82rem;border-radius:8px;">重置</button>
+        <button class="btn btn-primary" onclick="loadTxMonitor()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;font-weight:600;">查询</button>
+        <button class="btn btn-outline" onclick="txMonReset()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;font-weight:600;">重置</button>
       </div>
       <!-- 指标卡片 -->
       <div id="txMonStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 20px;">
@@ -6461,8 +6461,8 @@ async function renderAdminTxMonitor() {
           <svg style="position:absolute;left:10px;width:14px;height:14px;color:var(--text3);pointer-events:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="txMonChartUser" placeholder="筛选用户..." onkeydown="if(event.key==='Enter')loadTxTrends()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px 8px 32px;color:var(--text1);font-size:.82rem;width:170px;outline:none;">
         </div>
-        <button class="btn btn-primary" onclick="loadTxTrends()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;">查询</button>
-        <button class="btn btn-outline" onclick="txMonChartReset()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;">重置</button>
+        <button class="btn btn-primary" onclick="loadTxTrends()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;font-weight:600;">查询</button>
+        <button class="btn btn-outline" onclick="txMonChartReset()" style="padding:8px 20px;font-size:.82rem;border-radius:8px;font-weight:600;">重置</button>
       </div>
       <div style="padding:12px 20px 20px;">
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
