@@ -6273,7 +6273,7 @@ async function loadKycForm() {
   const wrap = document.getElementById('kycFormWrap');
   if (!wrap) return;
   try {
-    const res = await apiFetch('/api/auth/kyc/status');
+    const res = await apiFetch('/auth/kyc/status');
     if (!res || res.code !== 0) throw new Error(res?.msg || '获取认证状态失败');
     const kyc = res.data; // { status, application: {...} }
 
@@ -6352,7 +6352,7 @@ async function submitKyc() {
   if (!phone) return alert('请输入联系电话');
 
   try {
-    const res = await apiFetch('/api/auth/kyc/submit', {
+    const res = await apiFetch('/auth/kyc/submit', {
       method: 'POST',
       body: { company_name: company, contact_name: contact, contact_phone: phone, business_license: license, remark }
     });
@@ -6367,7 +6367,7 @@ async function submitKyc() {
 
 async function checkKycStatus() {
   try {
-    const res = await apiFetch('/api/auth/kyc/status');
+    const res = await apiFetch('/auth/kyc/status');
     if (!res || res.code !== 0) return;
     const banner = document.getElementById('kycBanner');
     if (!banner) return;
@@ -6419,7 +6419,7 @@ async function loadKycReviewList() {
   const list = document.getElementById('kycReviewList');
   if (!list) return;
   try {
-    const res = await apiFetch('/api/admin/kyc/list?status=' + window._kycTab);
+    const res = await apiFetch('/admin/kyc/list?status=' + window._kycTab);
     if (!res || res.code !== 0) throw new Error(res?.msg || '加载失败');
     const apps = res.data || [];
     if (apps.length === 0) {
@@ -6455,7 +6455,7 @@ async function loadKycReviewList() {
 async function approveKyc(id) {
   if (!confirm('确认通过该企业认证申请？')) return;
   try {
-    const res = await apiFetch('/api/admin/kyc/' + id + '/approve', { method: 'POST' });
+    const res = await apiFetch('/admin/kyc/' + id + '/approve', { method: 'POST' });
     if (res.code !== 0) throw new Error(res.msg);
     await loadKycReviewList();
   } catch(e) {
@@ -6467,7 +6467,7 @@ async function rejectKyc(id) {
   const reason = prompt('请输入拒绝原因：');
   if (reason === null) return;
   try {
-    const res = await apiFetch('/api/admin/kyc/' + id + '/reject', { method: 'POST', body: { reason } });
+    const res = await apiFetch('/admin/kyc/' + id + '/reject', { method: 'POST', body: { reason } });
     if (res.code !== 0) throw new Error(res.msg);
     await loadKycReviewList();
   } catch(e) {
