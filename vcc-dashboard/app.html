@@ -6278,38 +6278,38 @@ async function loadKycForm() {
     const kyc = res.data; // { status, application: {...} }
 
     if (kyc.status === 'approved') {
-      wrap.innerHTML = \`
+      wrap.innerHTML = `
         <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:12px;padding:30px;text-align:center;">
           <div style="font-size:3rem;margin-bottom:12px;">✅</div>
           <h3 style="margin:0 0 6px;color:#22c55e;">认证已通过</h3>
           <p style="color:var(--text3);margin:0;">您的企业认证已审核通过，可正常使用全部功能</p>
         </div>
-      \`;
+      `;
       return;
     }
     if (kyc.status === 'rejected') {
-      wrap.innerHTML = \`
+      wrap.innerHTML = `
         <div style="background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.3);border-radius:12px;padding:30px;text-align:center;margin-bottom:20px;">
           <div style="font-size:3rem;margin-bottom:12px;">❌</div>
           <h3 style="margin:0 0 6px;color:#ff6b6b;">认证未通过</h3>
           <p style="color:var(--text3);margin:0 0 10px;">拒绝原因：${esc(kyc.application?.reject_reason || '无')}</p>
           <p style="color:var(--text3);font-size:.85rem;">请修改资料后重新提交</p>
         </div>
-      \`;
+      `;
     }
     if (kyc.status === 'pending') {
-      wrap.innerHTML = \`
+      wrap.innerHTML = `
         <div style="background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.3);border-radius:12px;padding:30px;text-align:center;">
           <div style="font-size:3rem;margin-bottom:12px;">⏳</div>
           <h3 style="margin:0 0 6px;color:#ffc107;">审核中</h3>
           <p style="color:var(--text3);margin:0;">您的企业认证资料已提交，请耐心等待管理员审核</p>
         </div>
-      \`;
+      `;
       return;
     }
 
     // status === 'none' → 显示表单
-    wrap.innerHTML = \`
+    wrap.innerHTML = `
       <div class="panel" style="padding:28px;">
         <div style="font-size:1rem;font-weight:600;margin-bottom:20px;">📋 填写企业信息</div>
         <div class="form-group">
@@ -6334,9 +6334,9 @@ async function loadKycForm() {
         </div>
         <button class="btn btn-primary" onclick="submitKyc()" style="width:100%;padding:12px;font-size:.95rem;margin-top:8px;">提交认证</button>
       </div>
-    \`;
+    `;
   } catch(e) {
-    wrap.innerHTML = \`<div style="color:#ff5f5f;">加载失败: \${e.message}</div>\`;
+    wrap.innerHTML = `<div style="color:#ff5f5f;">加载失败: ${e.message}</div>`;
   }
 }
 
@@ -6388,7 +6388,7 @@ async function checkKycStatus() {
 async function renderKycReviewPage() {
   if (_me?.role !== 'admin') return gotoPage('cards');
   const area = document.getElementById('contentArea');
-  area.innerHTML = \`
+  area.innerHTML = `
     <div class="cr-container">
       <div class="cr-header">
         <div class="cr-header-left">
@@ -6403,7 +6403,7 @@ async function renderKycReviewPage() {
       </div>
       <div id="kycReviewList"></div>
     </div>
-  \`;
+  `;
   window._kycTab = 'pending';
   await loadKycReviewList();
 }
