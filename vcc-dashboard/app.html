@@ -6418,7 +6418,7 @@ async function createAnnouncement() {
       toast('✅ 公告已发布');
       title.value = '';
       content.value = '';
-      type.value = '系统维护';
+      type.dataset.value = '运营公告'; type.querySelector('.cst-sel-label').textContent = '📢 运营公告';
       loadAnnouncements();
     } else {
       toast('❌ ' + (r?.msg || '发布失败'));
