@@ -6312,11 +6312,13 @@ function fallbackCopy(text) {
 
 async function renderKyc() {
   const area = document.getElementById('contentArea');
+  area.style.paddingLeft = '0';
   area.innerHTML = `
-    <div class="cr-container" style="margin-left:-56px;width:calc(100% + 56px);padding-left:0;">
-      <div id="kycFormWrap"></div>
-    </div>
+    <div id="kycFormWrap" style="margin-left:-28px;"></div>
   `;
+  // 记录原始padding，离开时恢复
+  window._kycRestore = ()=>area.style.paddingLeft = '';
+  window._kycRestore.__active = true;
   await loadKycForm();
 }
 
