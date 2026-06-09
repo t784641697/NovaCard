@@ -6555,7 +6555,7 @@ async function openAnnouncementHistory() {
         var activeClass = a.is_active ? ' active' : '';
         html += '<div class="ann-hist-item">'
           + '<div class="ann-hist-item-title' + activeClass + '">' + esc(a.title) + (a.is_active ? '' : ' <span style="font-size:.7rem;color:var(--text3);font-weight:400;">(已过期)</span>') + '</div>'
-          + '<div class="ann-hist-item-date">' + dt + ' · <span class="ann-type-badge">' + esc(a.type || '系统维护') + '</span></div>'
+          + '<div class="ann-hist-item-date">' + dt + ' · <span class="ann-type-badge">' + esc(a.type || '运营公告') + '</span></div>'
           + '<div class="ann-hist-item-body">' + esc(a.content) + '</div>'
           + '</div>';
       }
