@@ -6250,7 +6250,7 @@ async function renderAdminSettingsPage() {
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <!-- 左侧：新建公告 -->
-            <div style="background:#0a0f1e;border:1px solid #ffffff0a;border-radius:10px;padding:14px;">
+            <div style="background:#0a0f1e;border:1px solid #ffffff0a;border-radius:10px;padding:14px;display:flex;flex-direction:column;">
               <div style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:10px;">📝 新建公告</div>
               <input id="annTitle" type="text" placeholder="公告标题" style="width:100%;box-sizing:border-box;background:#13192a;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;margin-bottom:8px;">
               <div id="annType" class="cst-sel" tabindex="0" data-value="系统维护" style="position:relative;width:100%;cursor:pointer;user-select:none;margin-bottom:8px;" onclick="toggleCstSel(this)">
@@ -6264,7 +6264,7 @@ async function renderAdminSettingsPage() {
                   <div class="cst-sel-opt" data-value="政策调整" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">📋 政策调整</div>
                 </div>
               </div>
-              <textarea id="annContent" placeholder="公告内容（支持换行）" rows="3" style="width:100%;box-sizing:border-box;background:#13192a;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;resize:none;margin-bottom:8px;"></textarea>
+              <textarea id="annContent" placeholder="公告内容（支持换行）" rows="3" style="width:100%;box-sizing:border-box;flex:1;background:#13192a;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;resize:none;margin-bottom:8px;"></textarea>
               <button onclick="createAnnouncement()" style="width:100%;background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:9px 0;font-size:.85rem;font-weight:600;cursor:pointer;">➕ 发布</button>
             </div>
             <!-- 右侧：公告列表 -->
