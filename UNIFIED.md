@@ -265,15 +265,70 @@ db.function('nowiso', () => new Date().toISOString());
 - 用户可通过 DateRangePicker 自定义周期
 - 后端 `start_date`/`end_date` 参数作用于 `created_at` 字段（ISO 格式字符串比较）
 
-### 8.6 API 依赖
+### 8.6 交易走势图
+
+走势图面板独立于统计周期，自带日期选择器 + 用户筛选：
+
+**数据接口**：`GET /api/admin/transaction-trends`
+- 参数：`start_date`, `end_date`, `user_id`（可选）
+- 返回：`{ dates: [...], datasets: { card_issued, tx_count, settle_count, topup_count, topup_amount, reversal_count, refund_count } }`
+- 数据来源：cards 表（开卡量）+ transactions 表（消费充值）+ card_transactions 表（清算/撤销/退款）
+- `tx_count` = 仅「消费」类型交易笔数
+
+**前端渲染**（Chart.js 4.4.0 CDN）：
+- 双视图切换：数量走势（柱状图）/ 金额走势（面积图）
+- Y 轴步长：数量用整数（`precision:0`），金额用 `$` 前缀
+- 绘图区域由 `layout.padding` + `border` 配置限定边界
+- 内容区域 `overflow-y: auto` 确保完整可滚动
+
+### 8.7 API 依赖
 | API | 参数 | 返回 |
 |-----|------|------|
 | `GET /api/admin/transaction-stats` | `start_date`, `end_date` | `{ metrics: {...}, per_user: [...] }` |
 | `GET /api/admin/transactions` | `start_date`, `end_date`, `page_size`, `page` | `{ list: [...], total: N }` |
+| `GET /api/admin/transaction-trends` | `start_date`, `end_date`, `user_id` | 日维度走势数据 |
 
 ---
 
-## 9. 响应格式
+## 9. 公告提醒系统
+
+### 9.1 数据库
+`announcements` 表（`src/db/database.js`）：
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `id` | INTEGER PK | 自增主键 |
+| `title` | TEXT NOT NULL | 公告标题 |
+| `content` | TEXT NOT NULL | 公告内容（支持多行文本） |
+| `is_active` | INTEGER DEFAULT 1 | 启用状态（1=启用，0=停用） |
+| `created_at` | TEXT DEFAULT nowiso() | 创建时间 |
+| `updated_at` | TEXT DEFAULT nowiso() | 更新时间 |
+
+### 9.2 API
+| 路径 | 方法 | 角色 | 说明 |
+|------|------|------|------|
+| `/api/admin/announcements` | GET | admin | 获取全部公告列表 |
+| `/api/admin/announcements` | POST | admin | 创建公告 `{title, content}` |
+| `/api/admin/announcements/:id` | PUT | admin | 更新公告 |
+| `/api/admin/announcements/:id` | DELETE | admin | 删除公告 |
+| `/api/admin/announcements/:id/toggle` | PATCH | admin | 切换启用/停用 |
+| `/api/auth/announcements/active` | GET | 公开 | 获取所有活跃公告 |
+| `/api/auth/announcements/history` | GET | 公开 | 获取全部公告（含已过期） |
+
+### 9.3 前端交互流程
+1. **管理员**：系统设置 → 公告管理面板 → 输入标题/内容 → 发布（默认启用）
+2. **用户登录**：`gotoPage()` 自动调用 `/api/auth/announcements/active` 检测
+3. **有未读公告** → 弹出 `showAnnouncementModal()` 模态框 → 点「我知道了」关闭
+4. **通知铃铛**：首页右上角显示 🔔 + 未读数字徽标 → 点击弹出历史记录面板
+
+### 9.4 展现规范
+- 活跃公告在历史列表中标题青色高亮（`color: var(--primary)`）
+- 已过期公告标记「已过期」灰色标签
+- 公告内容使用 `white-space: pre-wrap` 保留换行格式
+- 输入框使用 `<textarea>` 支持多行编辑
+
+---
+
+## 10. 响应格式
 
 所有 API 响应遵循统一格式：
 ```json
@@ -288,13 +343,14 @@ db.function('nowiso', () => new Date().toISOString());
 
 ---
 
-## 9. 数据库维护
+## 10. 数据库维护
 
 ### 9.1 技术栈
 - **数据库**：SQLite（better-sqlite3），**DELETE 模式**
 - **数据文件**：`data/vcc.db`
 - **建表与种子**：`src/db/database.js`（启动时自动执行）
 - **索引兜底**：启动时末尾自动 `REINDEX`，重建所有索引
+- **upstream_fees 表**：存储上游费用成本（fee_type/upstream_rate/upstream_fixed/rules），通过 `/api/admin/upstream-fees` 管理，与 `fee_configs`（用户费率）独立
 
 ### 9.2 历史说明：WAL → DELETE 切换
 - **v1.0.16 之前**：使用 `journal_mode = WAL`，PM2 重启时 WAL 文件未落盘导致 `SQLITE_CORRUPT`

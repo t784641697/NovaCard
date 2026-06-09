@@ -1,5 +1,30 @@
 # CHANGELOG.md
 
+## v1.0.24 (2026-06-09)
+
+### 新增
+- **📢 公告提醒功能上线**：
+  - 新增 `announcements` 表 + 管理员 CRUD API（`/api/admin/announcements`）
+  - 系统设置页新增「公告管理」面板（发布/启用/停用/删除）
+  - 用户登录后自动弹窗展示最新活跃公告（`/api/auth/announcements/active`）
+  - 用户首页右上角新增公告铃铛图标 + 未读数字徽标 + 历史记录弹窗
+  - 公告内容支持多行输入（textarea）和换行展示（white-space: pre-wrap）
+- **📊 交易走势图**：`/api/admin/transaction-trends` 按日维度聚合，Chart.js 双视图（数量柱状图 + 金额面积图），支持按用户筛选
+- **财务中心排除管理员**：`/api/admin/finance-summary` 用户余额分布不再展示 admin 账号
+
+### 修复
+- **🔔 走势图日期选择器丢失**：布局重构时 `txMonChartDateWrap` span 被意外删除，走势图面板缺少日期选择器
+- **⚙️ 系统设置页 500 错误**：`git reset` 部署覆盖了线上已有的 `/settings` 和 `/upstream-fees` 路由，补回路由 + 新建 `upstream_fees` 表
+- **📢 公告 API 500 错误**：
+  - `createAnnouncement` 未 JSON.stringify body 导致 body-parser 解析失败
+  - 弹窗 `/api/auth/announcements/active` 路径写错（多一层 /announcements）
+- **📝 nowiso() SQL 函数不存在**：`(nowiso())` 仅在 `database.js` 注册，普通路由中需用 `datetime('now')`
+
+### 变更
+- **布局重构**：交易监控页面板分组（统计周期+指标+按用户统计合一panel，走势图独立panel）
+- **搜索框样式**：走势图用户筛选框改为用户管理风格（青边框+半透明黑底+搜索图标）
+- **按钮放大**：查询/重置按钮统一 padding:8px 20px、font-weight:600
+
 ## v1.0.23 (2026-06-06)
 
 ### 变更
