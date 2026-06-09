@@ -386,6 +386,14 @@ select.form-control option{background:var(--bg3);}
 .ann-bell-wrap svg{width:20px;height:20px;color:var(--text2);}
 .ann-bell-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;border-radius:8px;background:var(--pink);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg2);}
 .ann-bell-badge.hidden{display:none;}
+/* KYC 认证横幅 */
+.kyc-banner{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#2d0a0a,#4a1414);border:1px solid rgba(255,60,60,.35);border-radius:12px;padding:14px 18px;margin-bottom:18px;}
+.kyc-banner-icon{font-size:1.4rem;flex-shrink:0;}
+.kyc-banner-text{flex:1;line-height:1.4;}
+.kyc-banner-text strong{color:#ff6b6b;font-size:.9rem;}
+.kyc-banner-text span{color:rgba(255,255,255,.55);font-size:.78rem;}
+.kyc-banner-btn{background:linear-gradient(135deg,#ff4444,#cc3333);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.kyc-banner-btn:hover{background:linear-gradient(135deg,#ff5555,#dd4444);transform:scale(1.03);}
 /* 公告历史弹窗 */
 .ann-hist-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding-top:80px;}
 .ann-hist-panel{background:#0d1322;border:1px solid rgba(255,255,255,.1);border-radius:16px;width:500px;max-width:90vw;max-height:70vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5);}
@@ -1204,6 +1212,9 @@ select.form-control option{background:var(--bg3);}
           <div class="nav-item" id="nav-topup" onclick="openTopupTypeModal()">
             <span class="nav-icon">💰</span><span>充值</span>
           </div>
+          <div class="nav-item" id="nav-kyc" onclick="gotoPage('kyc')">
+            <span class="nav-icon">🔐</span><span>企业认证</span>
+          </div>
           <div class="nav-item" id="nav-ledger" onclick="gotoPage('ledger')">
             <span class="nav-icon">📋</span><span>账户流水</span>
           </div>
@@ -1237,6 +1248,9 @@ select.form-control option{background:var(--bg3);}
           </div>
           <div class="nav-item" id="nav-admin-finance" onclick="gotoPage('admin-finance')">
             <span class="nav-icon">🏦</span><span>财务中心</span>
+          </div>
+          <div class="nav-item" id="nav-admin-kyc-review" onclick="gotoPage('admin-kyc-review')">
+            <span class="nav-icon">🪪</span><span>企业认证</span>
           </div>
           <div class="nav-item" id="nav-admin-tx-monitor" onclick="gotoPage('admin-tx-monitor')">
             <span class="nav-icon">📡</span><span>交易监控</span>
@@ -1956,6 +1970,7 @@ const PAGE_NAV_MAP = {
   'admin-finance': ['nav-admin-finance'],
   'admin-tx-monitor': ['nav-admin-tx-monitor'],
   'admin-settings': ['nav-admin-settings'],
+  'admin-kyc-review': ['nav-admin-kyc-review'],
 };
 
 function gotoPage(page) {
@@ -1978,6 +1993,7 @@ function gotoPage(page) {
   if (page==='cards') renderCards();
   else if (page==='apply') renderApply();
   else if (page==='topup') renderTopup();
+  else if (page==='kyc') renderKyc();
   else if (page==='card-mgmt') renderCardManage();
   else if (page==='ledger') renderLedger();
   else if (page==='card-tx') renderCardTx();
@@ -1987,6 +2003,7 @@ function gotoPage(page) {
   else if (page==='admin-fee-config') renderFeeConfigPage();
   else if (page==='admin-card-review') renderCardReviewPage();
   else if (page==='admin-topup-review') renderTopupReviewPage();
+  else if (page==='admin-kyc-review') renderKycReviewPage();
   else if (page==='admin-finance') renderAdminFinance();
   else if (page==='admin-tx-monitor') renderAdminTxMonitor();
   else if (page==='admin-settings') renderAdminSettingsPage();
@@ -2037,6 +2054,16 @@ async function renderCards() {
     </div>
 
     
+    <div id="kycBanner" class="kyc-banner" style="display:none;">
+      <div class="kyc-banner-icon">⚠️</div>
+      <div class="kyc-banner-text">
+        <strong>企业认证提醒</strong><br>
+        <span>请完成企业认证以解锁全部功能</span>
+      </div>
+      <button class="kyc-banner-btn" onclick="gotoPage('kyc')">去认证 →</button>
+    </div>
+
+    
     <div class="panel mb-4">
       <div class="flex items-center justify-between mb-4">
         <div style="font-weight:700;font-size:.95rem">消费趋势</div>
@@ -2065,6 +2092,7 @@ async function renderCards() {
   loadOvChart(7);
   loadOvTxList();
   loadAnnBadge();
+  checkKycStatus();
 }
 
 // ── 账户余额 ────────────────────────────────────────────────────────────────
@@ -6220,6 +6248,234 @@ function fallbackCopy(text) {
   try { document.execCommand('copy'); toast('📋 TxHash 已复制'); } catch(e) { toast('⚠️ 复制失败，请手动复制'); }
   document.body.removeChild(ta);
 }
+
+// ══════════════════════════════════════════════════════════════
+//  KYC 企业认证 - 用户端
+// ══════════════════════════════════════════════════════════════
+
+async function renderKyc() {
+  const area = document.getElementById('contentArea');
+  area.innerHTML = `
+    <div class="cr-container" style="max-width:700px;">
+      <div class="cr-header">
+        <div class="cr-header-left">
+          <h2>🔐 企业认证</h2>
+          <p>提交企业资料完成认证，审核通过后启用全部功能</p>
+        </div>
+      </div>
+      <div id="kycFormWrap"></div>
+    </div>
+  `;
+  await loadKycForm();
+}
+
+async function loadKycForm() {
+  const wrap = document.getElementById('kycFormWrap');
+  if (!wrap) return;
+  try {
+    const res = await apiFetch('/api/auth/kyc/status');
+    if (!res || res.code !== 0) throw new Error(res?.msg || '获取认证状态失败');
+    const kyc = res.data; // { status, application: {...} }
+
+    if (kyc.status === 'approved') {
+      wrap.innerHTML = \`
+        <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:12px;padding:30px;text-align:center;">
+          <div style="font-size:3rem;margin-bottom:12px;">✅</div>
+          <h3 style="margin:0 0 6px;color:#22c55e;">认证已通过</h3>
+          <p style="color:var(--text3);margin:0;">您的企业认证已审核通过，可正常使用全部功能</p>
+        </div>
+      \`;
+      return;
+    }
+    if (kyc.status === 'rejected') {
+      wrap.innerHTML = \`
+        <div style="background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.3);border-radius:12px;padding:30px;text-align:center;margin-bottom:20px;">
+          <div style="font-size:3rem;margin-bottom:12px;">❌</div>
+          <h3 style="margin:0 0 6px;color:#ff6b6b;">认证未通过</h3>
+          <p style="color:var(--text3);margin:0 0 10px;">拒绝原因：${esc(kyc.application?.reject_reason || '无')}</p>
+          <p style="color:var(--text3);font-size:.85rem;">请修改资料后重新提交</p>
+        </div>
+      \`;
+    }
+    if (kyc.status === 'pending') {
+      wrap.innerHTML = \`
+        <div style="background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.3);border-radius:12px;padding:30px;text-align:center;">
+          <div style="font-size:3rem;margin-bottom:12px;">⏳</div>
+          <h3 style="margin:0 0 6px;color:#ffc107;">审核中</h3>
+          <p style="color:var(--text3);margin:0;">您的企业认证资料已提交，请耐心等待管理员审核</p>
+        </div>
+      \`;
+      return;
+    }
+
+    // status === 'none' → 显示表单
+    wrap.innerHTML = \`
+      <div class="panel" style="padding:28px;">
+        <div style="font-size:1rem;font-weight:600;margin-bottom:20px;">📋 填写企业信息</div>
+        <div class="form-group">
+          <label>企业名称 <span style="color:#ff5f5f;">*</span></label>
+          <input class="form-input" id="kycCompany" placeholder="请输入企业名称">
+        </div>
+        <div class="form-group">
+          <label>联系人姓名 <span style="color:#ff5f5f;">*</span></label>
+          <input class="form-input" id="kycContact" placeholder="请输入联系人姓名">
+        </div>
+        <div class="form-group">
+          <label>联系电话 <span style="color:#ff5f5f;">*</span></label>
+          <input class="form-input" id="kycPhone" placeholder="请输入联系电话">
+        </div>
+        <div class="form-group">
+          <label>营业执照号</label>
+          <input class="form-input" id="kycLicense" placeholder="选填">
+        </div>
+        <div class="form-group">
+          <label>备注说明</label>
+          <textarea class="form-input" id="kycRemark" rows="3" placeholder="选填，如有特殊说明请在此填写" style="resize:none;"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="submitKyc()" style="width:100%;padding:12px;font-size:.95rem;margin-top:8px;">提交认证</button>
+      </div>
+    \`;
+  } catch(e) {
+    wrap.innerHTML = \`<div style="color:#ff5f5f;">加载失败: \${e.message}</div>\`;
+  }
+}
+
+async function submitKyc() {
+  const company = document.getElementById('kycCompany')?.value?.trim();
+  const contact = document.getElementById('kycContact')?.value?.trim();
+  const phone = document.getElementById('kycPhone')?.value?.trim();
+  const license = document.getElementById('kycLicense')?.value?.trim();
+  const remark = document.getElementById('kycRemark')?.value?.trim();
+
+  if (!company) return alert('请输入企业名称');
+  if (!contact) return alert('请输入联系人姓名');
+  if (!phone) return alert('请输入联系电话');
+
+  try {
+    const res = await apiFetch('/api/auth/kyc/submit', {
+      method: 'POST',
+      body: { company_name: company, contact_name: contact, contact_phone: phone, business_license: license, remark }
+    });
+    if (res.code !== 0) throw new Error(res.msg);
+    alert('认证资料已提交，请等待管理员审核');
+    await loadKycForm();
+    await checkKycStatus();
+  } catch(e) {
+    alert('提交失败: ' + e.message);
+  }
+}
+
+async function checkKycStatus() {
+  try {
+    const res = await apiFetch('/api/auth/kyc/status');
+    if (!res || res.code !== 0) return;
+    const banner = document.getElementById('kycBanner');
+    if (!banner) return;
+    if (res.data.status === 'none') {
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch(e) {
+    // ignore
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  KYC 企业认证 - 管理员审核
+// ══════════════════════════════════════════════════════════════
+
+async function renderKycReviewPage() {
+  if (_me?.role !== 'admin') return gotoPage('cards');
+  const area = document.getElementById('contentArea');
+  area.innerHTML = \`
+    <div class="cr-container">
+      <div class="cr-header">
+        <div class="cr-header-left">
+          <h2>🪪 企业认证审核</h2>
+          <p>审核用户提交的企业认证资料</p>
+        </div>
+        <div class="admin-tab-group" id="kycReviewTabs">
+          <button class="admin-tab active" data-tab="pending" onclick="switchKycTab(this)">待审核</button>
+          <button class="admin-tab" data-tab="approved" onclick="switchKycTab(this)">已通过</button>
+          <button class="admin-tab" data-tab="rejected" onclick="switchKycTab(this)">已拒绝</button>
+        </div>
+      </div>
+      <div id="kycReviewList"></div>
+    </div>
+  \`;
+  window._kycTab = 'pending';
+  await loadKycReviewList();
+}
+
+function switchKycTab(el) {
+  document.querySelectorAll('#kycReviewTabs .admin-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  window._kycTab = el.dataset.tab;
+  loadKycReviewList();
+}
+
+async function loadKycReviewList() {
+  const list = document.getElementById('kycReviewList');
+  if (!list) return;
+  try {
+    const res = await apiFetch('/api/admin/kyc/list?status=' + window._kycTab);
+    if (!res || res.code !== 0) throw new Error(res?.msg || '加载失败');
+    const apps = res.data || [];
+    if (apps.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);">暂无记录</div>';
+      return;
+    }
+    list.innerHTML = '<table class="table" style="width:100%;"><thead><tr><th>用户</th><th>邮箱</th><th>企业名称</th><th>联系人</th><th>电话</th><th>营业执照</th><th>备注</th><th>提交时间</th><th>操作</th></tr></thead><tbody>' +
+      apps.map(a => {
+        const dt = a.created_at ? new Date(a.created_at + 'Z').toLocaleString() : '-';
+        return '<tr>' +
+          '<td>' + esc(a.username || '-') + '</td>' +
+          '<td>' + esc(a.email || '-') + '</td>' +
+          '<td>' + esc(a.company_name || '-') + '</td>' +
+          '<td>' + esc(a.contact_name || '-') + '</td>' +
+          '<td>' + esc(a.contact_phone || '-') + '</td>' +
+          '<td>' + esc(a.business_license || '-') + '</td>' +
+          '<td>' + esc(a.remark || '-') + '</td>' +
+          '<td style="white-space:nowrap;">' + dt + '</td>' +
+          '<td>' + (a.status === 'pending' ?
+            '<button class="btn btn-sm" style="background:#22c55e;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:.8rem;margin-right:4px;" onclick="approveKyc(' + a.id + ')">通过</button>' +
+            '<button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:.8rem;" onclick="rejectKyc(' + a.id + ')">拒绝</button>' :
+            a.status === 'approved' ? '<span style="color:#22c55e;">已通过</span>' :
+              '<span style="color:#ef4444;">已拒绝' + (a.reject_reason ? ' (' + esc(a.reject_reason) + ')' : '') + '</span>') +
+          '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table>';
+  } catch(e) {
+    list.innerHTML = '<div style="color:#ff5f5f;">加载失败: ' + e.message + '</div>';
+  }
+}
+
+async function approveKyc(id) {
+  if (!confirm('确认通过该企业认证申请？')) return;
+  try {
+    const res = await apiFetch('/api/admin/kyc/' + id + '/approve', { method: 'POST' });
+    if (res.code !== 0) throw new Error(res.msg);
+    await loadKycReviewList();
+  } catch(e) {
+    alert('操作失败: ' + e.message);
+  }
+}
+
+async function rejectKyc(id) {
+  const reason = prompt('请输入拒绝原因：');
+  if (reason === null) return;
+  try {
+    const res = await apiFetch('/api/admin/kyc/' + id + '/reject', { method: 'POST', body: { reason } });
+    if (res.code !== 0) throw new Error(res.msg);
+    await loadKycReviewList();
+  } catch(e) {
+    alert('操作失败: ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
 //  系统设置页面

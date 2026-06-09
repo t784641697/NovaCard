@@ -1623,4 +1623,39 @@ router.delete('/announcements/:id', (req, res) => {
   res.json({ code: 0, msg: '公告已删除' });
 });
 
+// ── KYC 企业认证审核 ──────────────────────────────────────────────────
+
+// 获取 KYC 申请列表
+router.get('/kyc/list', (req, res) => {
+  const status = req.query.status || '';
+  let sql = `
+    SELECT k.*, u.email, u.name AS user_name
+    FROM kyc_applications k
+    LEFT JOIN users u ON u.id = k.user_id
+  `;
+  const params = [];
+  if (status) { sql += ' WHERE k.status = ?'; params.push(status); }
+  sql += ' ORDER BY k.id DESC';
+  res.json({ code: 0, msg: 'ok', data: db.prepare(sql).all(...params) });
+});
+
+// 通过 KYC 审核
+router.post('/kyc/:id/approve', (req, res) => {
+  const app = db.prepare('SELECT * FROM kyc_applications WHERE id = ?').get(req.params.id);
+  if (!app) return res.status(404).json({ code: 404, msg: '申请不存在' });
+  db.prepare("UPDATE kyc_applications SET status = 'approved', updated_at = datetime('now') WHERE id = ?").run(req.params.id);
+  db.prepare("UPDATE users SET kyc_status = 'approved', updated_at = datetime('now') WHERE id = ?").run(app.user_id);
+  res.json({ code: 0, msg: '企业认证已通过' });
+});
+
+// 拒绝 KYC 审核
+router.post('/kyc/:id/reject', (req, res) => {
+  const { reason } = req.body;
+  const app = db.prepare('SELECT * FROM kyc_applications WHERE id = ?').get(req.params.id);
+  if (!app) return res.status(404).json({ code: 404, msg: '申请不存在' });
+  db.prepare("UPDATE kyc_applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?").run(reason || '', req.params.id);
+  db.prepare("UPDATE users SET kyc_status = 'rejected', updated_at = datetime('now') WHERE id = ?").run(app.user_id);
+  res.json({ code: 0, msg: '企业认证已拒绝', data: { reject_reason: reason || '' } });
+});
+
 module.exports = router;

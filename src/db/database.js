@@ -125,6 +125,23 @@ db.exec(`
     updated_at     TEXT    NOT NULL DEFAULT (nowiso())
   );
 
+  -- 企业认证（KYC）申请表
+  CREATE TABLE IF NOT EXISTS kyc_applications (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_name      TEXT    NOT NULL DEFAULT '',
+    contact_name      TEXT    NOT NULL DEFAULT '',
+    contact_phone     TEXT    NOT NULL DEFAULT '',
+    business_license  TEXT    NOT NULL DEFAULT '',
+    status            TEXT    NOT NULL DEFAULT 'pending',  -- pending / approved / rejected
+    reject_reason     TEXT    NOT NULL DEFAULT '',
+    submitter_ip      TEXT    NOT NULL DEFAULT '',
+    created_at        TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at        TEXT    NOT NULL DEFAULT (nowiso())
+  );
+  CREATE INDEX IF NOT EXISTS idx_kyc_user_id ON kyc_applications(user_id);
+  CREATE INDEX IF NOT EXISTS idx_kyc_status ON kyc_applications(status);
+
   -- upstream_fees 种子数据（与 fee_configs 类型对应）
   INSERT OR IGNORE INTO upstream_fees (fee_type, name, upstream_rate, upstream_fixed, rules) VALUES
     ('card_creation',     '开卡费',          0,    10.00, '{"charge_timing":"创建时收取"}'),
@@ -279,6 +296,7 @@ db.exec(`
   add('total_fees',     "REAL    DEFAULT 0");
   add('last_fee_update',"TEXT");
   add('total_chargeback',"REAL   DEFAULT 0");
+  add('kyc_status',      "TEXT   NOT NULL DEFAULT 'none'");
 
   // cards 表迁移
   const cardCols = db.prepare("PRAGMA table_info(cards)").all().map(c => c.name);
@@ -358,6 +376,17 @@ if (!seedUser) {
       console.log('[DB Migration] announcements 表已添加列: type');
     }
   } catch(e) { console.error('[DB Migration] announcements 升级失败:', e.message); }
+})();
+
+// ── kyc_applications 表兼容升级（remark 列） ──
+(() => {
+  try {
+    const kycCols = db.prepare("PRAGMA table_info(kyc_applications)").all().map(c => c.name);
+    if (!kycCols.includes('remark')) {
+      db.exec("ALTER TABLE kyc_applications ADD COLUMN remark TEXT DEFAULT ''");
+      console.log('[DB Migration] kyc_applications 表已添加列: remark');
+    }
+  } catch(e) { console.error('[DB Migration] kyc_applications 升级失败:', e.message); }
 })();
 
 // ── 重建所有索引，防止跨版本 schema 不一致导致 SQLITE_CORRUPT ──

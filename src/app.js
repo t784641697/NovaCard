@@ -91,6 +91,9 @@ app.use('/api/topup',        topupRouter);
 app.use('/api/user/balance', require('./middleware/auth').authenticate, require('./routes/userBalance')); // 用户余额明细
 app.use('/api/settlements',  require('./routes/settlements'));   // 卡结算记录
 app.use('/api/admin/fee-configs', require('./routes/feeConfig')); // 费率配置管理
+// KYC 企业认证（需登录）
+app.use('/api/auth', require('./middleware/auth').authenticate, require('./routes/kyc'));
+// KYC 管理审核（已包含在 admin 路由中）
 
 // ── 健康检查 ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

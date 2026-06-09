@@ -1,19 +1,19 @@
-node_modules/
-*.log
-*.db-wal
-*.db-shm
-.env
-.DS_Store
-.cozeproj/reduction
-assets/
-*.bak
-test_createCard.js
-tmp_restore.js
-nova-backup.skill
 
 # Database files
-*.db
-data/
-
 # Preview files
+*.bak
+*.db
+*.db-shm
+*.db-wal
+*.log
+.DS_Store
+.cozeproj/reduction
+.env
 .preview
+.tar.gz
+assets/
+data/
+node_modules/
+nova-backup.skill
+test_createCard.js
+tmp_restore.js
