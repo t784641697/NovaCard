@@ -1558,6 +1558,11 @@ async function apiFetch(path, opts={}) {
     const headers = {'Content-Type':'application/json',...(opts.headers||{})};
     if (_token) headers['Authorization'] = 'Bearer ' + _token;
     
+    // 自动 JSON 序列化 body
+    if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+      opts.body = JSON.stringify(opts.body);
+    }
+    
     // 添加超时控制（60秒，vmcardio沙盒API响应慢，冻结/解冻等操作需较长时间）
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
