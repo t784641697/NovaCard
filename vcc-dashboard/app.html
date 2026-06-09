@@ -6250,6 +6250,11 @@ async function renderAdminSettingsPage() {
           <!-- 新建公告 -->
           <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
             <input id="annTitle" type="text" placeholder="公告标题" style="flex:1;min-width:120px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;">
+            <select id="annType" style="min-width:100px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.82rem;">
+              <option value="运营公告">📣 运营公告</option>
+              <option value="产品商品">🛒 产品商品</option>
+              <option value="功能升级">🚀 功能升级</option>
+            </select>
             <textarea id="annContent" placeholder="公告内容（支持换行）" rows="3" style="flex:2;min-width:200px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;resize:vertical;"></textarea>
             <button onclick="createAnnouncement()" style="background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">➕ 发布</button>
           </div>
@@ -6369,7 +6374,10 @@ async function loadAnnouncements() {
         const color = active ? '#00f2fe' : 'var(--text3)';
         html += '<div style="display:flex;align-items:center;gap:10px;background:#0a0f1e;border:1px solid #ffffff0a;border-radius:8px;padding:10px 14px;">'
           + '<div style="flex:1;min-width:0;">'
-          + '<div style="font-weight:600;font-size:.85rem;color:' + color + ';">' + esc(a.title) + '</div>'
+          + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+          + '<span style="font-weight:600;font-size:.85rem;color:' + color + ';">' + esc(a.title) + '</span>'
+          + '<span style="font-size:.7rem;background:#ffffff0d;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:1px 8px;color:var(--text3);">' + esc(a.type || '运营公告') + '</span>'
+          + '</div>'
           + '<div style="font-size:.78rem;color:var(--text3);margin-top:2px;white-space:pre-wrap;">' + esc(a.content) + '</div>'
           + '<div style="font-size:.7rem;color:var(--text3);margin-top:2px;opacity:.6;">' + (a.created_at || '').replace('T',' ').substring(0,16) + '</div>'
           + '</div>'
@@ -6390,13 +6398,15 @@ async function loadAnnouncements() {
 async function createAnnouncement() {
   const title = document.getElementById('annTitle');
   const content = document.getElementById('annContent');
+  const type = document.getElementById('annType');
   if (!title.value.trim() || !content.value.trim()) return toast('⚠️ 标题和内容不能为空');
   try {
-    const r = await apiFetch('/admin/announcements', { method:'POST', body: JSON.stringify({ title: title.value.trim(), content: content.value.trim() }) }, true);
+    const r = await apiFetch('/admin/announcements', { method:'POST', body: JSON.stringify({ title: title.value.trim(), content: content.value.trim(), type: type.value }) }, true);
     if (r?.code === 0) {
       toast('✅ 公告已发布');
       title.value = '';
       content.value = '';
+      type.value = '运营公告';
       loadAnnouncements();
     } else {
       toast('❌ ' + (r?.msg || '发布失败'));
@@ -6509,7 +6519,7 @@ async function openAnnouncementHistory() {
         var activeClass = a.is_active ? ' active' : '';
         html += '<div class="ann-hist-item">'
           + '<div class="ann-hist-item-title' + activeClass + '">' + esc(a.title) + (a.is_active ? '' : ' <span style="font-size:.7rem;color:var(--text3);font-weight:400;">(已过期)</span>') + '</div>'
-          + '<div class="ann-hist-item-date">' + dt + '</div>'
+          + '<div class="ann-hist-item-date">' + dt + ' · <span style="background:#ffffff0d;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:1px 7px;">' + esc(a.type || '运营公告') + '</span></div>'
           + '<div class="ann-hist-item-body">' + esc(a.content) + '</div>'
           + '</div>';
       }

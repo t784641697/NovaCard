@@ -1581,21 +1581,22 @@ router.get('/announcements', (req, res) => {
 
 // 新增公告
 router.post('/announcements', (req, res) => {
-  const { title, content } = req.body;
+  const { title, content, type } = req.body;
   if (!title || !content) return res.status(400).json({ code: 400, msg: '标题和内容不能为空' });
-  const info = db.prepare("INSERT INTO announcements (title, content, is_active) VALUES (?, ?, 1)").run(title, content);
+  const info = db.prepare("INSERT INTO announcements (title, content, type, is_active) VALUES (?, ?, ?, 1)").run(title, content, type || '运营公告');
   const row = db.prepare('SELECT * FROM announcements WHERE id = ?').get(info.lastInsertRowid);
   res.json({ code: 0, msg: '公告已发布', data: row });
 });
 
 // 更新公告
 router.put('/announcements/:id', (req, res) => {
-  const { title, content } = req.body;
+  const { title, content, type } = req.body;
   const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ code: 404, msg: '公告不存在' });
-  db.prepare("UPDATE announcements SET title=?, content=?, updated_at=datetime('now') WHERE id=?").run(
+  db.prepare("UPDATE announcements SET title=?, content=?, type=?, updated_at=datetime('now') WHERE id=?").run(
     title || existing.title,
     content || existing.content,
+    type || existing.type,
     req.params.id
   );
   const row = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
