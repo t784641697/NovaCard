@@ -6334,7 +6334,6 @@ async function loadKycForm() {
 
     // status === 'none' → 三段式表单
     wrap.innerHTML = kycFormHtml();
-    initCountryDropdown();
   } catch(e) {
     wrap.innerHTML = `<div style="color:#ff5f5f;">加载失败: ${e.message}</div>`;
   }
