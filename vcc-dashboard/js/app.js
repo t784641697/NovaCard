@@ -2767,7 +2767,7 @@ async function renderAdminDashboard() {
       <div class="flex items-center justify-between">
         <div>
           <div style="font-size: 0.9rem; color: var(--text2);">自动同步频率：<span style="color: var(--text1);">每分钟</span></div>
-          <div style="font-size: 0.8rem; color: var(--text3); margin-top: 4px;">服务端定时从 vmcardio 拉取最新余额</div>
+          <div style="font-size: 0.8rem; color: var(--text3); margin-top: 4px;">服务端定时拉取最新余额</div>
         </div>
         <button class="btn btn-outline btn-sm" onclick="loadMerchantBalance(true)">手动同步</button>
       </div>
