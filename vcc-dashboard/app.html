@@ -387,13 +387,13 @@ select.form-control option{background:var(--bg3);}
 .ann-bell-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;border-radius:8px;background:var(--pink);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg2);}
 .ann-bell-badge.hidden{display:none;}
 /* KYC 认证横幅 */
-.kyc-banner{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#2d0a0a,#4a1414);border:1px solid rgba(255,60,60,.35);border-radius:12px;padding:14px 18px;margin-bottom:18px;}
-.kyc-banner-icon{font-size:1.4rem;flex-shrink:0;}
-.kyc-banner-text{flex:1;line-height:1.4;}
-.kyc-banner-text strong{color:#ff6b6b;font-size:.9rem;}
-.kyc-banner-text span{color:rgba(255,255,255,.55);font-size:.78rem;}
-.kyc-banner-btn{background:linear-gradient(135deg,#ff4444,#cc3333);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;}
-.kyc-banner-btn:hover{background:linear-gradient(135deg,#ff5555,#dd4444);transform:scale(1.03);}
+.kyc-banner{display:flex;align-items:center;gap:14px;border-radius:10px;padding:12px 16px;margin-bottom:16px;border-left:3px solid;position:relative;}
+.kyc-banner-icon{font-size:1.15rem;flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+.kyc-banner-text{flex:1;line-height:1.4;min-width:0;}
+.kyc-banner-text .bt{display:block;font-size:.85rem;font-weight:600;margin-bottom:2px;}
+.kyc-banner-text .bs{display:block;font-size:.76rem;opacity:.6;}
+.kyc-banner-btn{border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .12s;flex-shrink:0;}
+.kyc-banner-btn:hover{filter:brightness(1.15);}
 /* 公告历史弹窗 */
 .ann-hist-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding-top:80px;}
 .ann-hist-panel{background:#0d1322;border:1px solid rgba(255,255,255,.1);border-radius:16px;width:500px;max-width:90vw;max-height:70vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5);}
@@ -2102,12 +2102,12 @@ async function renderCards() {
 
     
     <div id="kycBanner" class="kyc-banner" style="display:none;">
-      <div class="kyc-banner-icon">⚠️</div>
-      <div class="kyc-banner-text">
-        <strong>企业认证提醒</strong><br>
-        <span>请完成企业认证以解锁全部功能</span>
+      <div class="kyc-banner-icon" id="kycBannerIcon">⚠️</div>
+      <div class="kyc-banner-text" id="kycBannerText">
+        <span class="bt">企业认证提醒</span>
+        <span class="bs">请完成企业认证以解锁全部功能</span>
       </div>
-      <button class="kyc-banner-btn" onclick="gotoPage('kyc')">去认证 →</button>
+      <button class="kyc-banner-btn" id="kycBannerBtn" onclick="gotoPage('kyc')">去认证</button>
     </div>
 
     
@@ -6635,37 +6635,51 @@ async function checkKycStatus() {
     if (!res || res.code !== 0) return;
     const banner = document.getElementById('kycBanner');
     if (!banner) return;
-    const icon = banner.querySelector('.kyc-banner-icon');
-    const text = banner.querySelector('.kyc-banner-text');
-    const btn = banner.querySelector('.kyc-banner-btn');
+    const icon = document.getElementById('kycBannerIcon');
+    const text = document.getElementById('kycBannerText');
+    const btn = document.getElementById('kycBannerBtn');
     if (!icon || !text || !btn) return;
 
-    if (res.data.status === 'none') {
+    const s = res.data.status;
+    const bt = text.querySelector('.bt');
+    const bs = text.querySelector('.bs');
+    if (!bt || !bs) return;
+
+    btn.onclick = () => gotoPage('kyc');
+    bt.style.color = '';
+    bs.style.color = '';
+    icon.style.cssText = 'font-size:1.15rem;flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;';
+
+    if (s === 'none') {
       icon.textContent = '⚠️';
-      text.innerHTML = '<strong>企业认证提醒</strong><br><span>请完成企业认证以解锁全部功能</span>';
-      btn.textContent = '去认证 →';
-      btn.onclick = () => gotoPage('kyc');
-      banner.style.display = 'flex';
-      banner.style.background = 'linear-gradient(135deg,#2d0a0a,#4a1414)';
-      banner.style.borderColor = 'rgba(255,60,60,.35)';
-    } else if (res.data.status === 'pending') {
+      icon.style.background = 'rgba(239,68,68,.15)';
+      bt.textContent = '企业认证提醒';
+      bs.textContent = '请完成企业认证以解锁全部功能';
+      banner.style.cssText = 'display:flex;background:rgba(239,68,68,.06);border-left-color:#ef4444;';
+      btn.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+      btn.textContent = '去认证';
+    } else if (s === 'pending') {
       icon.textContent = '⏳';
-      text.innerHTML = '<strong style="color:#ffc107;">认证审核中</strong><br><span>您的企业认证资料已提交，请耐心等待管理员审核</span>';
-      btn.textContent = '查看详情';
-      btn.onclick = () => gotoPage('kyc');
-      banner.style.display = 'flex';
-      banner.style.background = 'linear-gradient(135deg,#2d2a0a,#4a3a14)';
-      banner.style.borderColor = 'rgba(255,193,7,.35)';
-    } else if (res.data.status === 'rejected') {
-      const reason = res.data.application?.reject_reason || '无';
-      icon.textContent = '❌';
-      text.innerHTML = `<strong style="color:#ff6b6b;">认证未通过</strong><br><span>拒绝原因：${esc(reason)}，请修改后重新提交</span>`;
+      icon.style.background = 'rgba(245,158,11,.15)';
+      bt.textContent = '认证审核中';
+      bt.style.color = '#f59e0b';
+      bs.textContent = '您的企业认证资料已提交，请耐心等待管理员审核';
+      banner.style.cssText = 'display:flex;background:rgba(245,158,11,.05);border-left-color:#f59e0b;';
+      btn.style.cssText = 'background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+      btn.textContent = '查看进度';
+    } else if (s === 'rejected') {
+      const reason = res.data.application?.reject_reason || '资料不完整';
+      icon.textContent = '✕';
+      icon.style.background = 'rgba(239,68,68,.15)';
+      icon.style.color = '#ef4444';
+      icon.style.fontWeight = '700';
+      bt.textContent = '认证未通过';
+      bt.style.color = '#ef4444';
+      bs.textContent = `原因：${esc(reason)}，请修改后重新提交`;
+      banner.style.cssText = 'display:flex;background:rgba(239,68,68,.06);border-left-color:#ef4444;';
+      btn.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;';
       btn.textContent = '重新提交';
-      btn.onclick = () => gotoPage('kyc');
-      banner.style.display = 'flex';
-      banner.style.background = 'linear-gradient(135deg,#2d0a0a,#4a1414)';
-      banner.style.borderColor = 'rgba(255,60,60,.35)';
-    } else if (res.data.status === 'approved') {
+    } else if (s === 'approved') {
       banner.style.display = 'none';
     }
   } catch(e) {
