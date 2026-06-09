@@ -6268,9 +6268,9 @@ async function renderAdminSettingsPage() {
               <button onclick="createAnnouncement()" style="width:100%;background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:9px 0;font-size:.85rem;font-weight:600;cursor:pointer;">➕ 发布</button>
             </div>
             <!-- 右侧：公告列表 -->
-            <div style="background:#0a0f1e;border:1px solid #ffffff0a;border-radius:10px;padding:14px;display:flex;flex-direction:column;">
+            <div style="background:#0a0f1e;border:1px solid #ffffff0a;border-radius:10px;padding:14px;height:340px;">
               <div style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:10px;">📋 发布记录</div>
-              <div id="annListWrap" style="flex:1;overflow-y:auto;color:var(--text3);font-size:.82rem;">加载中…</div>
+              <div id="annListWrap" style="height:calc(100% - 48px);overflow-y:auto;color:var(--text3);font-size:.82rem;">加载中…</div>
             </div>
           </div>
         </div>
