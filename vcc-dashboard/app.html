@@ -6312,7 +6312,14 @@ function fallbackCopy(text) {
 
 async function renderKyc() {
   const area = document.getElementById('contentArea');
-  area.innerHTML = `<div style="margin-left:-28px;width:calc(100% + 28px);padding-right:28px;"><div id="kycFormWrap"></div></div>`;
+  area.style.paddingLeft = '0';
+  area.style.maxWidth = 'none';
+  area.innerHTML = `<div id="kycFormWrap"></div>`;
+  window._kycRestoreStyle = ()=>{
+    area.style.paddingLeft = '';
+    area.style.maxWidth = '';
+    delete window._kycRestoreStyle;
+  };
   await loadKycForm();
 }
 
