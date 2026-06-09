@@ -5147,7 +5147,7 @@ async function renderAdminFinance() {
 
     // 商户余额（含资金验证）
     html += '  <div class="ov-stat-card" style="background:linear-gradient(135deg,#1e253a,#13192a);border:1px solid #2d344a;">';
-    html += '    <div class="ov-stat-label">商户余额（vmcardio）</div>';
+    html += '    <div class="ov-stat-label">商户余额</div>';
     html += '    <div class="ov-stat-val grad-text">$' + d.merchant_balance.toFixed(2) + '</div>';
     html += '    <div class="ov-stat-sub">额度钱包：$' + d.wallet_balance.toFixed(2) + '　同步：' + lastSync + '</div>';
     html += '    <div style="border-top:1px solid rgba(255,255,255,.08);margin:10px 0 8px;"></div>';
