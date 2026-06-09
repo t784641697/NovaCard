@@ -438,6 +438,12 @@ select.form-control option{background:var(--bg3);}
 .kyc-card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.05rem;}
 .kyc-card-title{font-size:.95rem;font-weight:700;color:var(--text1);margin:0 0 2px;}
 .kyc-card-desc{font-size:.76rem;color:var(--text3);margin:0;}
+.kyc-tab-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.kyc-tabs{display:flex;border-bottom:1px solid var(--border);}
+.kyc-tab{flex:1;text-align:center;padding:14px 12px;font-size:.88rem;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;background:transparent;}
+.kyc-tab:hover{color:var(--text1);background:rgba(99,133,255,.06);}
+.kyc-tab.active{color:#6385ff;border-bottom-color:#6385ff;background:rgba(99,133,255,.08);}
+.kyc-tab-content{padding:22px;}
 .kyc-country-sel{position:relative;width:100%;}
 .kyc-country-sel .cst-sel{width:100%;}
 .kyc-country-trigger{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--text1);cursor:pointer;transition:border .15s;box-sizing:border-box;}
@@ -6437,108 +6443,96 @@ function kycFormHtml() {
         </div>
       </div>
 
-      <!-- 卡片1：企业认证信息 -->
-      <div class="kyc-card">
-        <div class="kyc-card-header">
-          <div class="kyc-card-icon" style="background:rgba(99,133,255,.15);color:#6385ff;">🏢</div>
-          <div>
-            <div class="kyc-card-title">企业认证信息</div>
-            <div class="kyc-card-desc">选择国家/地区并上传注册证明</div>
-          </div>
+      <!-- Tab 切换：企业认证信息（默认）、法人代表信息、联系方式 -->
+      <div class="kyc-tab-wrap">
+        <div class="kyc-tabs">
+          <div class="kyc-tab active" data-tab="tab1" onclick="switchKycTab('tab1')">🏢 企业认证信息</div>
+          <div class="kyc-tab" data-tab="tab2" onclick="switchKycTab('tab2')">👤 法人代表信息</div>
+          <div class="kyc-tab" data-tab="tab3" onclick="switchKycTab('tab3')">📞 联系方式</div>
         </div>
-        <div class="kyc-field">
-          <label class="kyc-label">国家/地区 <span class="kyc-req">*</span></label>
-          <div class="kyc-country-sel" id="kycCountrySel">
-            <div class="kyc-country-trigger" id="kycCountryTrigger" onclick="toggleCountryList()">
-              <span id="kycCountryLabel" style="color:var(--text3);">请选择国家/地区</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-            <div class="kyc-country-drop" id="kycCountryList">
-              ${KYC_COUNTRIES.map(c => `<div class="kyc-country-opt" data-value="${esc(c)}" onclick="pickCountry(this)">${esc(c)}</div>`).join('')}
-            </div>
-          </div>
-        </div>
-        <div class="kyc-field">
-          <label class="kyc-label">企业名称 <span class="kyc-req">*</span></label>
-          <input class="kyc-input" id="kycCompany" placeholder="请输入企业全称（需与注册证书一致）">
-        </div>
-        <div class="kyc-field">
-          <label class="kyc-label">企业注册证书 <span class="kyc-req">*</span></label>
-          <div class="kyc-upload-area" onclick="document.getElementById('kycCertFile').click()">
-            <input type="file" id="kycCertFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycCertPreview','kycCertLabel','kycCertHint')">
-            <div class="kyc-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-            <div class="kyc-upload-info">
-              <div class="kyc-upload-name" id="kycCertLabel">点击上传注册证书</div>
-              <div class="kyc-upload-hint" id="kycCertHint">支持 JPG/PNG/PDF，建议文件不超过 10MB</div>
-            </div>
-            <div class="kyc-upload-preview" id="kycCertPreview" style="display:none;"></div>
-          </div>
-        </div>
-        <div class="kyc-field">
-          <label class="kyc-label">营业执照号 <span style="color:var(--text3);font-weight:400;">（选填）</span></label>
-          <input class="kyc-input" id="kycBizLicense" placeholder="企业注册编号">
-        </div>
-      </div>
 
-      <!-- 卡片2：法人代表信息 -->
-      <div class="kyc-card">
-        <div class="kyc-card-header">
-          <div class="kyc-card-icon" style="background:rgba(124,92,252,.15);color:#7c5cfc;">👤</div>
-          <div>
-            <div class="kyc-card-title">法人代表信息</div>
-            <div class="kyc-card-desc">请提供法人代表身份信息</div>
-          </div>
-        </div>
-        <div class="kyc-row">
+        <!-- Tab1: 企业认证信息 -->
+        <div class="kyc-tab-content" id="kycTab1">
           <div class="kyc-field">
-            <label class="kyc-label">法人姓名 <span class="kyc-req">*</span></label>
-            <input class="kyc-input" id="kycLegalName" placeholder="法人代表姓名">
-          </div>
-          <div class="kyc-field">
-            <label class="kyc-label">身份证号 <span class="kyc-req">*</span></label>
-            <input class="kyc-input" id="kycLegalId" placeholder="法人代表身份证号码">
-          </div>
-        </div>
-        <div class="kyc-field">
-          <label class="kyc-label">身份证照片 <span class="kyc-req">*</span></label>
-          <div class="kyc-upload-area" onclick="document.getElementById('kycIdFile').click()">
-            <input type="file" id="kycIdFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycIdPreview','kycIdLabel','kycIdHint')">
-            <div class="kyc-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-            <div class="kyc-upload-info">
-              <div class="kyc-upload-name" id="kycIdLabel">点击上传身份证照片</div>
-              <div class="kyc-upload-hint" id="kycIdHint">支持 JPG/PNG/PDF，建议文件不超过 10MB</div>
+            <label class="kyc-label">国家/地区 <span class="kyc-req">*</span></label>
+            <div class="kyc-country-sel" id="kycCountrySel">
+              <div class="kyc-country-trigger" id="kycCountryTrigger" onclick="toggleCountryList()">
+                <span id="kycCountryLabel" style="color:var(--text3);">请选择国家/地区</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div class="kyc-country-drop" id="kycCountryList">
+                ${KYC_COUNTRIES.map(c => `<div class="kyc-country-opt" data-value="${esc(c)}" onclick="pickCountry(this)">${esc(c)}</div>`).join('')}
+              </div>
             </div>
-            <div class="kyc-upload-preview" id="kycIdPreview" style="display:none;"></div>
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">企业名称 <span class="kyc-req">*</span></label>
+            <input class="kyc-input" id="kycCompany" placeholder="请输入企业全称（需与注册证书一致）">
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">企业注册证书 <span class="kyc-req">*</span></label>
+            <div class="kyc-upload-area" onclick="document.getElementById('kycCertFile').click()">
+              <input type="file" id="kycCertFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycCertPreview','kycCertLabel','kycCertHint')">
+              <div class="kyc-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+              <div class="kyc-upload-info">
+                <div class="kyc-upload-name" id="kycCertLabel">点击上传注册证书</div>
+                <div class="kyc-upload-hint" id="kycCertHint">支持 JPG/PNG/PDF，建议文件不超过 10MB</div>
+              </div>
+              <div class="kyc-upload-preview" id="kycCertPreview" style="display:none;"></div>
+            </div>
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">营业执照号 <span style="color:var(--text3);font-weight:400;">（选填）</span></label>
+            <input class="kyc-input" id="kycBizLicense" placeholder="企业注册编号">
           </div>
         </div>
-      </div>
 
-      <!-- 卡片3：联系方式 -->
-      <div class="kyc-card">
-        <div class="kyc-card-header">
-          <div class="kyc-card-icon" style="background:rgba(52,211,153,.15);color:#34d399;">📞</div>
-          <div>
-            <div class="kyc-card-title">联系方式</div>
-            <div class="kyc-card-desc">用于审核结果通知与后续沟通</div>
-          </div>
-        </div>
-        <div class="kyc-field">
-          <label class="kyc-label">联系人姓名 <span class="kyc-req">*</span></label>
-          <input class="kyc-input" id="kycContact" placeholder="请输入联系人姓名">
-        </div>
-        <div class="kyc-row">
-          <div class="kyc-field">
-            <label class="kyc-label">联系电话 <span class="kyc-req">*</span></label>
-            <input class="kyc-input" id="kycPhone" placeholder="请输入联系电话">
+        <!-- Tab2: 法人代表信息 -->
+        <div class="kyc-tab-content" id="kycTab2" style="display:none;">
+          <div class="kyc-row">
+            <div class="kyc-field">
+              <label class="kyc-label">法人姓名 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycLegalName" placeholder="法人代表姓名">
+            </div>
+            <div class="kyc-field">
+              <label class="kyc-label">身份证号 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycLegalId" placeholder="法人代表身份证号码">
+            </div>
           </div>
           <div class="kyc-field">
-            <label class="kyc-label">电子邮箱 <span class="kyc-req">*</span></label>
-            <input class="kyc-input" id="kycEmail" placeholder="请输入联系邮箱">
+            <label class="kyc-label">身份证照片 <span class="kyc-req">*</span></label>
+            <div class="kyc-upload-area" onclick="document.getElementById('kycIdFile').click()">
+              <input type="file" id="kycIdFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycIdPreview','kycIdLabel','kycIdHint')">
+              <div class="kyc-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+              <div class="kyc-upload-info">
+                <div class="kyc-upload-name" id="kycIdLabel">点击上传身份证照片</div>
+                <div class="kyc-upload-hint" id="kycIdHint">支持 JPG/PNG/PDF，建议文件不超过 10MB</div>
+              </div>
+              <div class="kyc-upload-preview" id="kycIdPreview" style="display:none;"></div>
+            </div>
           </div>
         </div>
-        <div class="kyc-field">
-          <label class="kyc-label">备注说明</label>
-          <textarea class="kyc-input" id="kycRemark" rows="2" placeholder="选填，如有特殊说明请在此填写" style="resize:none;"></textarea>
+
+        <!-- Tab3: 联系方式 -->
+        <div class="kyc-tab-content" id="kycTab3" style="display:none;">
+          <div class="kyc-field">
+            <label class="kyc-label">联系人姓名 <span class="kyc-req">*</span></label>
+            <input class="kyc-input" id="kycContact" placeholder="请输入联系人姓名">
+          </div>
+          <div class="kyc-row">
+            <div class="kyc-field">
+              <label class="kyc-label">联系电话 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycPhone" placeholder="请输入联系电话">
+            </div>
+            <div class="kyc-field">
+              <label class="kyc-label">电子邮箱 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycEmail" placeholder="请输入联系邮箱">
+            </div>
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">备注说明</label>
+            <textarea class="kyc-input" id="kycRemark" rows="2" placeholder="选填，如有特殊说明请在此填写" style="resize:none;"></textarea>
+          </div>
         </div>
       </div>
 
@@ -6552,6 +6546,15 @@ function kycFormHtml() {
 
     </div>
   `;
+}
+
+function switchKycTab(tabId) {
+  document.querySelectorAll('.kyc-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.kyc-tab-content').forEach(c => c.style.display = 'none');
+  const tab = document.querySelector(`.kyc-tab[data-tab="${tabId}"]`);
+  if (tab) tab.classList.add('active');
+  const content = document.getElementById('kyc' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
+  if (content) content.style.display = 'block';
 }
 
 function toggleCountryList() {
