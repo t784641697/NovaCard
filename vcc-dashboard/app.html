@@ -6251,11 +6251,17 @@ async function renderAdminSettingsPage() {
           <!-- 新建公告 -->
           <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
             <input id="annTitle" type="text" placeholder="公告标题" style="flex:1;min-width:120px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;">
-            <select id="annType" style="min-width:110px;background:#0a0f1e url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23888\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><polyline points=\'6 9 12 15 18 9\'/></svg>') no-repeat right 10px center;border:1px solid #ffffff1a;border-radius:8px;padding:8px 28px 8px 12px;color:var(--text1);font-size:.82rem;cursor:pointer;appearance:none;transition:border-color .2s;outline:none;" onfocus="this.style.borderColor='rgba(0,242,254,.4)'" onblur="this.style.borderColor='#ffffff1a'">
-              <option value="系统维护">🔧 系统维护</option>
-              <option value="安全提醒">🛡️ 安全提醒</option>
-              <option value="政策调整">📋 政策调整</option>
-            </select>
+            <div id="annType" class="cst-sel" tabindex="0" data-value="系统维护" style="position:relative;min-width:120px;cursor:pointer;user-select:none;display:inline-flex;" onclick="toggleCstSel(this)">
+              <div class="cst-sel-trigger" style="display:flex;align-items:center;gap:6px;justify-content:space-between;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:7px 12px;font-size:.82rem;color:var(--text1);transition:border-color .2s;flex:1;" onmouseenter="this.style.borderColor='rgba(0,242,254,.4)'" onmouseleave="this.style.borderColor='#ffffff1a'">
+                <span class="cst-sel-label">🔧 系统维护</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="cst-sel-drop" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#141a2e;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.5);">
+                <div class="cst-sel-opt" data-value="系统维护" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">🔧 系统维护</div>
+                <div class="cst-sel-opt" data-value="安全提醒" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">🛡 安全提醒</div>
+                <div class="cst-sel-opt" data-value="政策调整" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">📋 政策调整</div>
+              </div>
+            </div>
             <textarea id="annContent" placeholder="公告内容（支持换行）" rows="3" style="flex:2;min-width:200px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;resize:vertical;"></textarea>
             <button onclick="createAnnouncement()" style="background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">➕ 发布</button>
           </div>
@@ -6402,7 +6408,7 @@ async function createAnnouncement() {
   const type = document.getElementById('annType');
   if (!title.value.trim() || !content.value.trim()) return toast('⚠️ 标题和内容不能为空');
   try {
-    const r = await apiFetch('/admin/announcements', { method:'POST', body: JSON.stringify({ title: title.value.trim(), content: content.value.trim(), type: type.value }) }, true);
+    const r = await apiFetch('/admin/announcements', { method:'POST', body: JSON.stringify({ title: title.value.trim(), content: content.value.trim(), type: type.dataset.value }) }, true);
     if (r?.code === 0) {
       toast('✅ 公告已发布');
       title.value = '';
@@ -6497,6 +6503,29 @@ async function loadAnnBadge() {
 }
 
 // 打开公告历史弹窗
+// ── 自定义下拉 ──
+function toggleCstSel(el) {
+  const drop = el.querySelector('.cst-sel-drop');
+  if (!drop) return;
+  const isOpen = drop.style.display === 'block';
+  // close all others
+  document.querySelectorAll('.cst-sel-drop').forEach(d => d.style.display = 'none');
+  drop.style.display = isOpen ? 'none' : 'block';
+}
+function pickCstSel(opt, e) {
+  e.stopPropagation();
+  const sel = opt.closest('.cst-sel');
+  const label = sel.querySelector('.cst-sel-label');
+  sel.dataset.value = opt.dataset.value;
+  label.textContent = opt.textContent;
+  sel.querySelector('.cst-sel-drop').style.display = 'none';
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.cst-sel')) {
+    document.querySelectorAll('.cst-sel-drop').forEach(d => d.style.display = 'none');
+  }
+});
+
 async function openAnnouncementHistory() {
   var badge = document.getElementById('annBellBadge');
   if (badge) badge.classList.add('hidden');
