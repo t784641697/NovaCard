@@ -6714,9 +6714,9 @@ async function renderKycReviewPage() {
           <p>审核用户提交的企业认证资料</p>
         </div>
         <div class="admin-tab-group" id="kycReviewTabs">
-          <button class="admin-tab active" data-tab="pending" onclick="switchKycTab(this)">待审核</button>
-          <button class="admin-tab" data-tab="approved" onclick="switchKycTab(this)">已通过</button>
-          <button class="admin-tab" data-tab="rejected" onclick="switchKycTab(this)">已拒绝</button>
+          <button class="admin-tab active" data-tab="pending" onclick="switchAdminKycTab(this)">待审核</button>
+          <button class="admin-tab" data-tab="approved" onclick="switchAdminKycTab(this)">已通过</button>
+          <button class="admin-tab" data-tab="rejected" onclick="switchAdminKycTab(this)">已拒绝</button>
         </div>
       </div>
       <div id="kycReviewList"></div>
@@ -6726,7 +6726,7 @@ async function renderKycReviewPage() {
   await loadKycReviewList();
 }
 
-function switchKycTab(el) {
+function switchAdminKycTab(el) {
   document.querySelectorAll('#kycReviewTabs .admin-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   window._kycTab = el.dataset.tab;
