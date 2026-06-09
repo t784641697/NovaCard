@@ -78,7 +78,7 @@ app.use('/api', globalLimiter);
 // ── Body 解析 ─────────────────────────────────────────────────────────────
 // WebHook 路由需要原始 body，单独处理；其他路由用 JSON
 app.use('/api/webhook', webhookRouter);           // WebHook 路由内部自己 use express.json()
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── 业务路由 ──────────────────────────────────────────────────────────────

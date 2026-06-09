@@ -6565,9 +6565,11 @@ async function submitKyc() {
   if (!country || country === '请选择国家/地区') return alert('请选择企业所属国家/地区');
   if (!company) return alert('请输入企业名称');
   if (!certFile) return alert('请上传企业注册证书');
+  if (certFile.size > 5 * 1024 * 1024) return alert('企业注册证书文件超过 5MB，请压缩后重试');
   if (!legalName) return alert('请输入法人姓名');
   if (!legalId) return alert('请输入法人身份证号');
   if (!idFile) return alert('请上传法人身份证照片');
+  if (idFile.size > 5 * 1024 * 1024) return alert('身份证照片文件超过 5MB，请压缩后重试');
   if (!contact) return alert('请输入联系人姓名');
   if (!phone) return alert('请输入联系电话');
   if (!email) return alert('请输入电子邮箱');
