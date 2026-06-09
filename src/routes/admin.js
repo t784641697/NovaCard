@@ -1514,6 +1514,62 @@ router.post('/admin/cards/attach-web-id', async (req, res, next) => {
 });
 
 // =============================================
+// 系统设置（settings 表读写）
+// =============================================
+
+// 读取所有系统设置
+router.get('/settings', (req, res) => {
+  const rows = db.prepare('SELECT key, value FROM settings').all();
+  const data = {};
+  rows.forEach(r => { data[r.key] = r.value; });
+  res.json({ code: 0, msg: 'ok', data });
+});
+
+// 保存系统设置
+router.put('/settings', (req, res) => {
+  const allowed = ['wallet_trc20','wallet_erc20','wallet_bep20','wallet_sol','usdt_rate','min_topup','topup_notice'];
+  const stmt = db.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, nowiso()) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=nowiso()");
+  const tx = db.transaction(() => {
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) stmt.run(key, String(req.body[key]));
+    }
+  });
+  tx();
+  res.json({ code: 0, msg: '设置已保存' });
+});
+
+// =============================================
+// 上游费用成本（upstream_fees）
+// =============================================
+
+// 获取全部上游费用
+router.get('/upstream-fees', (req, res) => {
+  const list = db.prepare('SELECT * FROM upstream_fees ORDER BY fee_type').all().map(f => ({
+    ...f,
+    upstream_rate: f.upstream_rate || 0,
+    upstream_fixed: f.upstream_fixed || 0,
+    rules: (() => { try { return JSON.parse(f.rules); } catch { return {}; } })()
+  }));
+  res.json({ code: 0, msg: 'ok', data: list });
+});
+
+// 更新某条上游费用
+router.put('/upstream-fees/:feeType', (req, res) => {
+  const { upstream_rate, upstream_fixed, upstream_rules, notes } = req.body;
+  const existing = db.prepare('SELECT * FROM upstream_fees WHERE fee_type = ?').get(req.params.feeType);
+  if (!existing) return res.status(404).json({ code: 404, msg: '未找到该费用类型' });
+  db.prepare("UPDATE upstream_fees SET upstream_rate=?, upstream_fixed=?, rules=?, notes=?, updated_at=datetime('now') WHERE fee_type=?").run(
+    upstream_rate ?? existing.upstream_rate,
+    upstream_fixed ?? existing.upstream_fixed,
+    upstream_rules || existing.rules,
+    notes ?? existing.notes,
+    req.params.feeType
+  );
+  const row = db.prepare('SELECT * FROM upstream_fees WHERE fee_type = ?').get(req.params.feeType);
+  res.json({ code: 0, msg: '已更新', data: row });
+});
+
+// =============================================
 // 公告管理 CRUD
 // =============================================
 

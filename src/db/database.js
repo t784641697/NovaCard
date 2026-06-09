@@ -113,6 +113,28 @@ db.exec(`
     updated_at TEXT    NOT NULL DEFAULT (nowiso())
   );
 
+  CREATE TABLE IF NOT EXISTS upstream_fees (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    fee_type       TEXT    UNIQUE NOT NULL,
+    name           TEXT    NOT NULL DEFAULT '',
+    upstream_rate  REAL    NOT NULL DEFAULT 0,
+    upstream_fixed REAL    NOT NULL DEFAULT 0,
+    rules          TEXT    NOT NULL DEFAULT '{}',
+    notes          TEXT    NOT NULL DEFAULT '',
+    updated_at     TEXT    NOT NULL DEFAULT (nowiso())
+  );
+
+  -- upstream_fees 种子数据（与 fee_configs 类型对应）
+  INSERT OR IGNORE INTO upstream_fees (fee_type, name, upstream_rate, upstream_fixed, rules) VALUES
+    ('card_creation',     '开卡费',          0,    10.00, '{"charge_timing":"创建时收取"}'),
+    ('transaction',       '交易手续费',      0.03,  0.30, '{"free_count":"5","charge_timing":"逐笔"}'),
+    ('refund',            '退款手续费',      0.05,  0.50, '{"charge_timing":"退款时"}'),
+    ('chargeback',        '拒付手续费',      0.08,  2.00, '{"charge_timing":"拒付发生时"}'),
+    ('auth_reversal',     '授权撤销费',      0,     0,    '{"exempt":"免费"}'),
+    ('cross_border',      '跨境交易附加费',  0.01,  0.45, '{"threshold":"单笔≥$100","charge_timing":"超额部分"}'),
+    ('small_transaction', '小额交易附加费',  0,     0,    '{"threshold":"<$3","charge_timing":"每笔"}'),
+    ('card_monthly',      '卡片月管理费',    0,     3.00, '{"charge_timing":"每月","exempt":"首月免费"}');
+
   CREATE TABLE IF NOT EXISTS topup_requests (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
