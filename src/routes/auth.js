@@ -294,4 +294,10 @@ router.get('/announcements/active', (req, res) => {
   res.json({ code: 0, msg: 'ok', data: list });
 });
 
+// 获取全部公告历史（用户端历史记录用）
+router.get('/announcements/history', (req, res) => {
+  const list = db.prepare("SELECT id, title, content, is_active, created_at FROM announcements ORDER BY created_at DESC").all();
+  res.json({ code: 0, msg: 'ok', data: list });
+});
+
 module.exports = router;

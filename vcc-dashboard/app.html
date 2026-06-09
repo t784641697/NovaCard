@@ -380,6 +380,27 @@ select.form-control option{background:var(--bg3);}
 .logout-btn{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:1rem;padding:4px;border-radius:6px;}
 .logout-btn:hover{color:var(--red);}
 
+/* 公告铃铛 */
+.ann-bell-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;cursor:pointer;transition:all .15s;margin-right:4px;}
+.ann-bell-wrap:hover{background:rgba(255,255,255,.06);}
+.ann-bell-wrap svg{width:20px;height:20px;color:var(--text2);}
+.ann-bell-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;border-radius:8px;background:var(--pink);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg2);}
+.ann-bell-badge.hidden{display:none;}
+/* 公告历史弹窗 */
+.ann-hist-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding-top:80px;}
+.ann-hist-panel{background:#0d1322;border:1px solid rgba(255,255,255,.1);border-radius:16px;width:500px;max-width:90vw;max-height:70vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5);}
+.ann-hist-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,.06);}
+.ann-hist-head h3{margin:0;font-size:1.05rem;font-weight:700;color:var(--text1);}
+.ann-hist-close{background:none;border:none;color:var(--text3);font-size:1.3rem;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.ann-hist-close:hover{background:rgba(255,255,255,.06);color:var(--text1);}
+.ann-hist-item{padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.04);}
+.ann-hist-item:last-child{border-bottom:none;}
+.ann-hist-item-title{font-weight:600;font-size:.9rem;color:var(--text1);margin-bottom:4px;}
+.ann-hist-item-title.active{color:#00f2fe;}
+.ann-hist-item-date{font-size:.72rem;color:var(--text3);margin-bottom:6px;}
+.ann-hist-item-body{font-size:.82rem;color:var(--text2);line-height:1.5;white-space:pre-wrap;}
+.ann-hist-empty{padding:40px;text-align:center;color:var(--text3);font-size:.85rem;}
+
 /* MAIN */
 .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;}
 .content-area{flex:1;padding:28px;max-width:1400px;width:100%;}
@@ -1991,7 +2012,13 @@ async function renderCards() {
           <h2>账户总览</h2>
           <p class="text-muted mt-1">资产状况一目了然</p>
         </div>
-        <button class="btn btn-primary" onclick="gotoPage('apply')">✨ 申请开卡</button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="ann-bell-wrap" onclick="openAnnouncementHistory()" title="公告提醒">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="ann-bell-badge hidden" id="annBellBadge">0</span>
+          </div>
+          <button class="btn btn-primary" onclick="gotoPage('apply')">✨ 申请开卡</button>
+        </div>
       </div>
     </div>
 
@@ -2036,6 +2063,7 @@ async function renderCards() {
   loadOvCards();
   loadOvChart(7);
   loadOvTxList();
+  loadAnnBadge();
 }
 
 // ── 账户余额 ────────────────────────────────────────────────────────────────
@@ -6437,6 +6465,59 @@ function showAnnouncementModal(title, content) {
 function dismissAnnouncementModal() {
   var el = document.getElementById('annModalOverlay');
   if (el) el.remove();
+}
+
+// 加载公告铃铛未读数
+async function loadAnnBadge() {
+  if (!_me || _me.role === 'admin') return;
+  try {
+    const r = await apiFetch('/auth/announcements/active', {}, true);
+    if (r?.code === 0 && r.data?.length) {
+      var badge = document.getElementById('annBellBadge');
+      if (!badge) return;
+      // 只看未展示过的
+      var unshown = r.data.filter(function(a) { return !_shownAnnIds[a.id]; });
+      if (unshown.length > 0) {
+        badge.textContent = unshown.length;
+        badge.classList.remove('hidden');
+      }
+    }
+  } catch(e) {}
+}
+
+// 打开公告历史弹窗
+async function openAnnouncementHistory() {
+  var badge = document.getElementById('annBellBadge');
+  if (badge) badge.classList.add('hidden');
+  try {
+    const r = await apiFetch('/auth/announcements/history', {}, true);
+    var list = (r?.code === 0 && r.data) ? r.data : [];
+    var overlay = document.createElement('div');
+    overlay.className = 'ann-hist-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    var html = '<div class="ann-hist-panel">'
+      + '<div class="ann-hist-head">'
+      + '<h3>📢 公告历史记录</h3>'
+      + '<button class="ann-hist-close" onclick="this.closest(\'.ann-hist-overlay\').remove()">✕</button>'
+      + '</div>';
+    if (list.length === 0) {
+      html += '<div class="ann-hist-empty">暂无公告记录</div>';
+    } else {
+      for (var i = 0; i < list.length; i++) {
+        var a = list[i];
+        var dt = a.created_at ? a.created_at.slice(0,10) : '';
+        var activeClass = a.is_active ? ' active' : '';
+        html += '<div class="ann-hist-item">'
+          + '<div class="ann-hist-item-title' + activeClass + '">' + esc(a.title) + (a.is_active ? '' : ' <span style="font-size:.7rem;color:var(--text3);font-weight:400;">(已过期)</span>') + '</div>'
+          + '<div class="ann-hist-item-date">' + dt + '</div>'
+          + '<div class="ann-hist-item-body">' + esc(a.content) + '</div>'
+          + '</div>';
+      }
+    }
+    html += '</div>';
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+  } catch(e) { toast('❌ 加载公告失败'); }
 }
 
 // ── 编辑上游费用弹窗 ──
