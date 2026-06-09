@@ -288,4 +288,10 @@ router.post('/logout', authenticate, (req, res) => {
   res.json({ code: 0, msg: 'ok' });
 });
 
+// 获取活跃公告（用户端弹窗用）
+router.get('/announcements/active', (req, res) => {
+  const list = db.prepare("SELECT id, title, content, created_at FROM announcements WHERE is_active=1 ORDER BY created_at DESC").all();
+  res.json({ code: 0, msg: 'ok', data: list });
+});
+
 module.exports = router;

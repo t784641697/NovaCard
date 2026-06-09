@@ -1968,6 +1968,10 @@ function gotoPage(page) {
   else if (page==='admin-finance') renderAdminFinance();
   else if (page==='admin-tx-monitor') renderAdminTxMonitor();
   else if (page==='admin-settings') renderAdminSettingsPage();
+  // 非管理员页面渲染后检查活跃公告
+  if (_me && _me.role !== 'admin') {
+    checkActiveAnnouncements();
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -6208,6 +6212,24 @@ async function renderAdminSettingsPage() {
           <div id="upstreamFeeWrap" style="text-align:center;padding:20px;color:var(--text3);font-size:.85rem;">加载中…</div>
         </div>
 
+        <!-- 公告管理 -->
+        <div style="background:#13192a;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin-bottom:16px;">
+          <div style="font-weight:700;color:#00f2fe;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:1rem;">
+            <span>📢</span> 公告管理
+          </div>
+          <div style="font-size:.75rem;color:var(--text3);margin-bottom:14px;">发布平台公告，用户登录后将自动弹窗提醒</div>
+
+          <!-- 新建公告 -->
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+            <input id="annTitle" type="text" placeholder="公告标题" style="flex:1;min-width:120px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;">
+            <input id="annContent" type="text" placeholder="公告内容" style="flex:2;min-width:200px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;">
+            <button onclick="createAnnouncement()" style="background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">➕ 发布</button>
+          </div>
+
+          <!-- 公告列表 -->
+          <div id="annListWrap" style="text-align:center;padding:12px;color:var(--text3);font-size:.82rem;">加载中…</div>
+        </div>
+
         <div style="display:flex;gap:10px;padding:16px 0;">
           <button onclick="saveAdminSettings()" style="background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:.9rem;font-weight:600;cursor:pointer;flex:1;">💾 保存设置</button>
         </div>
@@ -6240,6 +6262,8 @@ async function loadAdminSettings() {
   }
   // 加载上游费用成本
   loadUpstreamFees();
+  // 加载公告列表
+  loadAnnouncements();
 }
 
 async function loadUpstreamFees() {
@@ -6300,6 +6324,119 @@ async function loadUpstreamFees() {
   } catch(e) {
     wrap.textContent = '加载失败';
   }
+}
+
+// ── 公告管理 ──────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function loadAnnouncements() {
+  const wrap = document.getElementById('annListWrap');
+  if (!wrap) return;
+  try {
+    const r = await apiFetch('/admin/announcements', {}, true);
+    if (r?.code === 0 && r.data?.length) {
+      let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+      r.data.forEach(a => {
+        const active = a.is_active ? 1 : 0;
+        const color = active ? '#00f2fe' : 'var(--text3)';
+        html += '<div style="display:flex;align-items:center;gap:10px;background:#0a0f1e;border:1px solid #ffffff0a;border-radius:8px;padding:10px 14px;">'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-weight:600;font-size:.85rem;color:' + color + ';">' + esc(a.title) + '</div>'
+          + '<div style="font-size:.78rem;color:var(--text3);margin-top:2px;">' + esc(a.content) + '</div>'
+          + '<div style="font-size:.7rem;color:var(--text3);margin-top:2px;opacity:.6;">' + (a.created_at || '').replace('T',' ').substring(0,16) + '</div>'
+          + '</div>'
+          + '<button onclick="toggleAnnouncement(' + a.id + ')" style="background:' + (active ? '#00c75822' : '#ffffff0a') + ';border:none;border-radius:6px;padding:5px 10px;color:' + (active ? '#69f0ae' : 'var(--text3)') + ';font-size:.75rem;cursor:pointer;white-space:nowrap;">' + (active ? '已启用' : '已停用') + '</button>'
+          + '<button onclick="deleteAnnouncement(' + a.id + ')" style="background:#ff525222;border:none;border-radius:6px;padding:5px 10px;color:#ff5252;font-size:.75rem;cursor:pointer;">删除</button>'
+          + '</div>';
+      });
+      html += '</div>';
+      wrap.innerHTML = html;
+    } else {
+      wrap.innerHTML = '<div style="color:var(--text3);font-size:.82rem;">暂无公告，可点击上方「发布」创建一条</div>';
+    }
+  } catch(e) {
+    wrap.innerHTML = '<div style="color:#ff5252;font-size:.82rem;">加载失败</div>';
+  }
+}
+
+async function createAnnouncement() {
+  const title = document.getElementById('annTitle');
+  const content = document.getElementById('annContent');
+  if (!title.value.trim() || !content.value.trim()) return toast('⚠️ 标题和内容不能为空');
+  try {
+    const r = await apiFetch('/admin/announcements', { method:'POST', body: { title: title.value.trim(), content: content.value.trim() } }, true);
+    if (r?.code === 0) {
+      toast('✅ 公告已发布');
+      title.value = '';
+      content.value = '';
+      loadAnnouncements();
+    } else {
+      toast('❌ ' + (r?.msg || '发布失败'));
+    }
+  } catch(e) {
+    toast('❌ 发布失败');
+  }
+}
+
+async function toggleAnnouncement(id) {
+  try {
+    const r = await apiFetch('/admin/announcements/' + id + '/toggle', { method:'PATCH' }, true);
+    if (r?.code === 0) {
+      toast(r?.msg || '已切换');
+      loadAnnouncements();
+    }
+  } catch(e) {}
+}
+
+async function deleteAnnouncement(id) {
+  if (!confirm('确认删除此公告？')) return;
+  try {
+    const r = await apiFetch('/admin/announcements/' + id, { method:'DELETE' }, true);
+    if (r?.code === 0) {
+      toast('✅ 公告已删除');
+      loadAnnouncements();
+    }
+  } catch(e) {}
+}
+
+// 用户端：检测活跃公告并弹窗
+var _shownAnnIds = {};
+async function checkActiveAnnouncements() {
+  if (!_me || _me.role === 'admin') return;
+  try {
+    const r = await apiFetch('/announcements/active', {}, true);
+    if (r?.code === 0 && r.data?.length) {
+      // 筛选未展示过的
+      var unshown = r.data.filter(function(a) { return !_shownAnnIds[a.id]; });
+      if (unshown.length === 0) return;
+      // 取最新一条
+      var ann = unshown[0];
+      _shownAnnIds[ann.id] = true;
+      showAnnouncementModal(ann.title, ann.content);
+    }
+  } catch(e) {}
+}
+
+function showAnnouncementModal(title, content) {
+  var overlay = document.createElement('div');
+  overlay.id = 'annModalOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:#0d1322;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:28px;width:400px;max-width:90vw;box-shadow:0 24px 64px rgba(0,0,0,.5);">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">'
+    + '<span style="font-size:1.5rem;">📢</span>'
+    + '<span style="font-weight:700;font-size:1.05rem;color:#00f2fe;">' + esc(title) + '</span>'
+    + '</div>'
+    + '<div style="font-size:.88rem;color:var(--text2);line-height:1.6;margin-bottom:20px;word-break:break-word;">' + esc(content) + '</div>'
+    + '<div style="text-align:center;">'
+    + '<button onclick="dismissAnnouncementModal()" style="background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:10px 32px;font-size:.9rem;font-weight:600;cursor:pointer;">我知道了</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+}
+
+function dismissAnnouncementModal() {
+  var el = document.getElementById('annModalOverlay');
+  if (el) el.remove();
 }
 
 // ── 编辑上游费用弹窗 ──

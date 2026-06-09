@@ -103,6 +103,16 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT (nowiso())
   );
 
+  -- 公告表
+  CREATE TABLE IF NOT EXISTS announcements (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT    NOT NULL DEFAULT '',
+    content    TEXT    NOT NULL DEFAULT '',
+    is_active  INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at TEXT    NOT NULL DEFAULT (nowiso())
+  );
+
   CREATE TABLE IF NOT EXISTS topup_requests (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
