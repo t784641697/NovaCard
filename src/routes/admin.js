@@ -429,13 +429,13 @@ router.get('/finance-summary', async (req, res, next) => {
     const walletBalanceVal  = parseFloat(db.prepare("SELECT value FROM settings WHERE key='wallet_balance'").get()?.value || 0);
     const lastSyncVal       = db.prepare("SELECT value FROM settings WHERE key='merchant_balance_last_sync'").get()?.value || null;
 
-    // 2. 用户总余额 & 分布
+    // 2. 用户总余额 & 分布（排除管理员）
     const allUsers = db.prepare(`
       SELECT id, email, balance,
         (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='充值') as topup_total,
         (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='消费') as total_spend,
         (SELECT COALESCE(SUM(fee_amount),0) FROM transactions WHERE user_id=u.id AND fee_amount>0) as total_fees
-      FROM users u ORDER BY balance DESC
+      FROM users u WHERE u.role != 'admin' ORDER BY balance DESC
     `).all();
     const totalUserBalance = allUsers.reduce((s, u) => s + (parseFloat(u.balance) || 0), 0);
 
