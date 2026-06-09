@@ -299,6 +299,7 @@ db.function('nowiso', () => new Date().toISOString());
 | `id` | INTEGER PK | 自增主键 |
 | `title` | TEXT NOT NULL | 公告标题 |
 | `content` | TEXT NOT NULL | 公告内容（支持多行文本） |
+| `type` | TEXT DEFAULT '运营公告' | 公告类型（运营公告/系统维护/安全提醒/政策调整） |
 | `is_active` | INTEGER DEFAULT 1 | 启用状态（1=启用，0=停用） |
 | `created_at` | TEXT DEFAULT nowiso() | 创建时间 |
 | `updated_at` | TEXT DEFAULT nowiso() | 更新时间 |
@@ -307,24 +308,31 @@ db.function('nowiso', () => new Date().toISOString());
 | 路径 | 方法 | 角色 | 说明 |
 |------|------|------|------|
 | `/api/admin/announcements` | GET | admin | 获取全部公告列表 |
-| `/api/admin/announcements` | POST | admin | 创建公告 `{title, content}` |
+| `/api/admin/announcements` | POST | admin | 创建公告 `{title, content, type}` |
 | `/api/admin/announcements/:id` | PUT | admin | 更新公告 |
 | `/api/admin/announcements/:id` | DELETE | admin | 删除公告 |
 | `/api/admin/announcements/:id/toggle` | PATCH | admin | 切换启用/停用 |
-| `/api/auth/announcements/active` | GET | 公开 | 获取所有活跃公告 |
-| `/api/auth/announcements/history` | GET | 公开 | 获取全部公告（含已过期） |
+| `/api/auth/announcements/active` | GET | 公开 | 获取所有活跃公告（`id, title, content, type, created_at`） |
+| `/api/auth/announcements/history` | GET | 公开 | 获取全部公告（含已过期，`id, title, content, type, is_active, created_at`） |
 
 ### 9.3 前端交互流程
-1. **管理员**：系统设置 → 公告管理面板 → 输入标题/内容 → 发布（默认启用）
-2. **用户登录**：`gotoPage()` 自动调用 `/api/auth/announcements/active` 检测
-3. **有未读公告** → 弹出 `showAnnouncementModal()` 模态框 → 点「我知道了」关闭
-4. **通知铃铛**：首页右上角显示 🔔 + 未读数字徽标 → 点击弹出历史记录面板
+1. **管理员**：系统设置 → 公告管理面板 → 选择类型 → 输入标题/内容 → 发布（默认启用）
+2. **管理员布局**：左右分栏设计，左侧新建（标题+类型下拉+内容+发布按钮），右侧发布记录（固定高度340px内部滚动）
+3. **公告类型下拉**：纯 div 实现的自定义下拉组件（`toggleCstSel`/`pickCstSel`），替代原生 `<select>`，深色主题样式
+4. **用户登录**：`gotoPage()` 自动调用 `/api/auth/announcements/active` 检测
+5. **有未读公告** → 弹出 `showAnnouncementModal()` 模态框 → 点「我知道了」关闭
+6. **通知铃铛**：首页右上角显示 🔔 + 未读数字徽标 → 点击弹出历史记录面板（按时间倒序，展示类型标签）
 
 ### 9.4 展现规范
 - 活跃公告在历史列表中标题青色高亮（`color: var(--primary)`）
 - 已过期公告标记「已过期」灰色标签
 - 公告内容使用 `white-space: pre-wrap` 保留换行格式
-- 输入框使用 `<textarea>` 支持多行编辑
+- 输入框使用 `<textarea>` 支持多行编辑，`resize:none` 固定尺寸
+- 公告类型显示彩色标签（`.ann-type-badge`），与类型选项图标配色一致
+- 管理员发布记录列表显示 → 操作按钮（启用/停用/删除）
+
+### 9.5 已知问题
+- ~~后端 `/auth/announcements/active` 和 `/auth/announcements/history` SQL 未 select `type` 字段，导致用户端全显示为「系统维护」→ 已修复（v1.0.24）~~
 
 ---
 
