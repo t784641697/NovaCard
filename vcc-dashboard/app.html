@@ -2035,7 +2035,7 @@ function gotoPage(page) {
   localStorage.setItem('vcc_page', page);  // 记住当前页面，刷新后恢复
   // 恢复 contentArea 默认样式（管理员卡片管理页面会临时覆盖）
   var area = document.getElementById('contentArea');
-  if (area) { area.style.paddingTop = ''; area.style.paddingLeft = ''; area.style.maxWidth = ''; area.style.overflowY = ''; area.style.minHeight = ''; }
+  if (area) { area.style.paddingTop = ''; area.style.paddingLeft = ''; area.style.padding = ''; area.style.maxWidth = ''; area.style.overflowY = ''; area.style.minHeight = ''; }
   // nav 高亮
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   // 优先按映射表找，找不到再用默认规则 nav-{page}
@@ -6312,12 +6312,10 @@ function fallbackCopy(text) {
 
 async function renderKyc() {
   const area = document.getElementById('contentArea');
-  area.style.paddingLeft = '0';
-  area.innerHTML = `
-    <div id="kycFormWrap"></div>
-  `;
+  area.style.padding = '0';
+  area.innerHTML = `<div style="padding:28px 28px 28px 0;"><div id="kycFormWrap"></div></div>`;
   // 记录原始padding，离开时恢复
-  window._kycRestore = ()=>area.style.paddingLeft = '';
+  window._kycRestore = ()=>{area.style.padding = '';};
   window._kycRestore.__active = true;
   await loadKycForm();
 }
