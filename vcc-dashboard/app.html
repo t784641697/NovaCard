@@ -6364,7 +6364,7 @@ async function createAnnouncement() {
   const content = document.getElementById('annContent');
   if (!title.value.trim() || !content.value.trim()) return toast('⚠️ 标题和内容不能为空');
   try {
-    const r = await apiFetch('/admin/announcements', { method:'POST', body: { title: title.value.trim(), content: content.value.trim() } }, true);
+    const r = await apiFetch('/admin/announcements', { method:'POST', body: JSON.stringify({ title: title.value.trim(), content: content.value.trim() }) }, true);
     if (r?.code === 0) {
       toast('✅ 公告已发布');
       title.value = '';
