@@ -1518,13 +1518,13 @@ router.post('/admin/cards/attach-web-id', async (req, res, next) => {
 // =============================================
 
 // 获取全部公告
-router.get('/admin/announcements', (req, res) => {
+router.get('/announcements', (req, res) => {
   const list = db.prepare('SELECT * FROM announcements ORDER BY created_at DESC').all();
   res.json({ code: 0, msg: 'ok', data: list });
 });
 
 // 新增公告
-router.post('/admin/announcements', (req, res) => {
+router.post('/announcements', (req, res) => {
   const { title, content } = req.body;
   if (!title || !content) return res.status(400).json({ code: 400, msg: '标题和内容不能为空' });
   const info = db.prepare("INSERT INTO announcements (title, content, is_active) VALUES (?, ?, 1)").run(title, content);
@@ -1533,7 +1533,7 @@ router.post('/admin/announcements', (req, res) => {
 });
 
 // 更新公告
-router.put('/admin/announcements/:id', (req, res) => {
+router.put('/announcements/:id', (req, res) => {
   const { title, content } = req.body;
   const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ code: 404, msg: '公告不存在' });
@@ -1547,7 +1547,7 @@ router.put('/admin/announcements/:id', (req, res) => {
 });
 
 // 切换公告启用/停用
-router.patch('/admin/announcements/:id/toggle', (req, res) => {
+router.patch('/announcements/:id/toggle', (req, res) => {
   const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ code: 404, msg: '公告不存在' });
   db.prepare("UPDATE announcements SET is_active=?, updated_at=(nowiso()) WHERE id=?").run(
@@ -1559,7 +1559,7 @@ router.patch('/admin/announcements/:id/toggle', (req, res) => {
 });
 
 // 删除公告
-router.delete('/admin/announcements/:id', (req, res) => {
+router.delete('/announcements/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ code: 404, msg: '公告不存在' });
   db.prepare('DELETE FROM announcements WHERE id = ?').run(req.params.id);

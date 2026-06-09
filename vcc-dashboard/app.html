@@ -6404,7 +6404,7 @@ var _shownAnnIds = {};
 async function checkActiveAnnouncements() {
   if (!_me || _me.role === 'admin') return;
   try {
-    const r = await apiFetch('/announcements/active', {}, true);
+    const r = await apiFetch('/auth/announcements/active', {}, true);
     if (r?.code === 0 && r.data?.length) {
       // 筛选未展示过的
       var unshown = r.data.filter(function(a) { return !_shownAnnIds[a.id]; });
