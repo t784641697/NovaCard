@@ -6314,7 +6314,7 @@ async function renderKyc() {
   const area = document.getElementById('contentArea');
   area.style.paddingLeft = '0';
   area.innerHTML = `
-    <div id="kycFormWrap" style="margin-left:-28px;"></div>
+    <div id="kycFormWrap"></div>
   `;
   // 记录原始padding，离开时恢复
   window._kycRestore = ()=>area.style.paddingLeft = '';
