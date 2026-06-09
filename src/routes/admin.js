@@ -1537,7 +1537,7 @@ router.put('/announcements/:id', (req, res) => {
   const { title, content } = req.body;
   const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ code: 404, msg: '公告不存在' });
-  db.prepare("UPDATE announcements SET title=?, content=?, updated_at=(nowiso()) WHERE id=?").run(
+  db.prepare("UPDATE announcements SET title=?, content=?, updated_at=datetime('now') WHERE id=?").run(
     title || existing.title,
     content || existing.content,
     req.params.id
@@ -1550,7 +1550,7 @@ router.put('/announcements/:id', (req, res) => {
 router.patch('/announcements/:id/toggle', (req, res) => {
   const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ code: 404, msg: '公告不存在' });
-  db.prepare("UPDATE announcements SET is_active=?, updated_at=(nowiso()) WHERE id=?").run(
+  db.prepare("UPDATE announcements SET is_active=?, updated_at=datetime('now') WHERE id=?").run(
     existing.is_active ? 0 : 1,
     req.params.id
   );
