@@ -354,7 +354,7 @@ if (!seedUser) {
   try {
     const annCols = db.prepare("PRAGMA table_info(announcements)").all().map(c => c.name);
     if (!annCols.includes('type')) {
-      db.exec("ALTER TABLE announcements ADD COLUMN type TEXT DEFAULT '系统维护'");
+      db.exec("ALTER TABLE announcements ADD COLUMN type TEXT DEFAULT '运营公告'");
       console.log('[DB Migration] announcements 表已添加列: type');
     }
   } catch(e) { console.error('[DB Migration] announcements 升级失败:', e.message); }

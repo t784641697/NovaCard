@@ -6253,13 +6253,13 @@ async function renderAdminSettingsPage() {
             <div style="background:#0a0f1e;border:1px solid #ffffff0a;border-radius:10px;padding:14px;display:flex;flex-direction:column;">
               <div style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:10px;">📝 新建公告</div>
               <input id="annTitle" type="text" placeholder="公告标题" style="width:100%;box-sizing:border-box;background:#13192a;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;margin-bottom:8px;">
-              <div id="annType" class="cst-sel" tabindex="0" data-value="系统维护" style="position:relative;width:100%;cursor:pointer;user-select:none;margin-bottom:8px;" onclick="toggleCstSel(this)">
+              <div id="annType" class="cst-sel" tabindex="0" data-value="运营公告" style="position:relative;width:100%;cursor:pointer;user-select:none;margin-bottom:8px;" onclick="toggleCstSel(this)">
                 <div class="cst-sel-trigger" style="display:flex;align-items:center;gap:6px;justify-content:space-between;background:#13192a;border:1px solid #ffffff1a;border-radius:8px;padding:7px 12px;font-size:.82rem;color:var(--text1);transition:border-color .2s;" onmouseenter="this.style.borderColor='rgba(0,242,254,.4)'" onmouseleave="this.style.borderColor='#ffffff1a'">
-                  <span class="cst-sel-label">🔧 系统维护</span>
+                  <span class="cst-sel-label">📢 运营公告</span>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="cst-sel-drop" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#141a2e;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.5);">
-                  <div class="cst-sel-opt" data-value="系统维护" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">🔧 系统维护</div>
+                  <div class="cst-sel-opt" data-value="运营公告" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">🔧 系统维护</div>
                   <div class="cst-sel-opt" data-value="安全提醒" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">🛡 安全提醒</div>
                   <div class="cst-sel-opt" data-value="政策调整" style="padding:7px 10px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .15s;" onclick="pickCstSel(this,event)" onmouseenter="this.style.background='rgba(0,242,254,.08)'" onmouseleave="this.style.background=''">📋 政策调整</div>
                 </div>
