@@ -438,8 +438,8 @@ select.form-control option{background:var(--bg3);}
 .kyc-card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.05rem;}
 .kyc-card-title{font-size:.95rem;font-weight:700;color:var(--text1);margin:0 0 2px;}
 .kyc-card-desc{font-size:.76rem;color:var(--text3);margin:0;}
-.kyc-tab-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
-.kyc-tabs{display:flex;border-bottom:1px solid var(--border);}
+.kyc-tab-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:visible;}
+.kyc-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);}
 .kyc-tab{flex:1;text-align:center;padding:14px 12px;font-size:.88rem;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;background:transparent;}
 .kyc-tab:hover{color:var(--text1);background:rgba(99,133,255,.06);}
 .kyc-tab.active{color:#6385ff;border-bottom-color:#6385ff;background:rgba(99,133,255,.08);}
@@ -453,6 +453,10 @@ select.form-control option{background:var(--bg3);}
 .kyc-country-drop{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#0d1324;border:1px solid rgba(255,255,255,.12);border-radius:10px;max-height:200px;overflow-y:auto;z-index:999;box-shadow:0 8px 30px rgba(0,0,0,.5);padding:4px;}
 .kyc-country-opt{padding:8px 12px;border-radius:6px;font-size:.82rem;color:var(--text1);cursor:pointer;transition:background .12s;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .kyc-country-opt:hover{background:rgba(0,242,254,.08);}
+.kyc-submit-wrap{padding:16px 22px;border-top:1px solid var(--border);}
+.kyc-submit-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;font-size:.9rem;font-weight:600;color:#fff;background:#6385ff;border:none;border-radius:8px;cursor:pointer;transition:background .15s;letter-spacing:.3px;}
+.kyc-submit-btn:hover{background:#5270e0;}
+.kyc-submit-btn svg{width:18px;height:18px;}
 .kyc-status-card{background:var(--card-bg);border:2px solid var(--border);border-radius:16px;padding:80px 64px;text-align:center;max-width:2080px;margin:0 auto;}
 .kyc-status-card .status-icon{font-size:2.8rem;margin-bottom:14px;}
 .kyc-status-card .status-msg{font-size:1.15rem;font-weight:600;color:var(--text1);margin-bottom:10px;}
@@ -6534,14 +6538,14 @@ function kycFormHtml() {
             <textarea class="kyc-input" id="kycRemark" rows="2" placeholder="选填，如有特殊说明请在此填写" style="resize:none;"></textarea>
           </div>
         </div>
-      </div>
 
-      <!-- 提交 -->
-      <div class="kyc-submit-wrap">
-        <button class="kyc-submit-btn" onclick="submitKyc()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          提交认证申请
-        </button>
+        <!-- 提交按钮（放在框内底部） -->
+        <div class="kyc-submit-wrap">
+          <button class="kyc-submit-btn" onclick="submitKyc()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            提交认证申请
+          </button>
+        </div>
       </div>
 
     </div>
