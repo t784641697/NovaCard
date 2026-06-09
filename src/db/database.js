@@ -114,9 +114,6 @@ db.exec(`
     updated_at TEXT    NOT NULL DEFAULT (nowiso())
   );
 
-  -- 兼容升级：已有表补 type 列
-  ALTER TABLE announcements ADD COLUMN type TEXT DEFAULT '系统维护';
-
   CREATE TABLE IF NOT EXISTS upstream_fees (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     fee_type       TEXT    UNIQUE NOT NULL,
@@ -351,6 +348,17 @@ if (!seedUser) {
   `).run('user@vcc.hub', hash, 'TestUser');
   console.log('[DB] 已插入默认用户账号 user@vcc.hub / User@20261');
 }
+
+// ── announcements 表兼容升级 ──
+(() => {
+  try {
+    const annCols = db.prepare("PRAGMA table_info(announcements)").all().map(c => c.name);
+    if (!annCols.includes('type')) {
+      db.exec("ALTER TABLE announcements ADD COLUMN type TEXT DEFAULT '系统维护'");
+      console.log('[DB Migration] announcements 表已添加列: type');
+    }
+  } catch(e) { console.error('[DB Migration] announcements 升级失败:', e.message); }
+})();
 
 // ── 重建所有索引，防止跨版本 schema 不一致导致 SQLITE_CORRUPT ──
 try { db.exec('REINDEX'); } catch(e) { console.error('[DB] REINDEX failed:', e.message); }
