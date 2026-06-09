@@ -6342,6 +6342,7 @@ async function loadKycForm() {
       return;
     }
     if (kyc.status === 'rejected') {
+      window._kycRejectedApp = app;
       wrap.innerHTML = kycRejectedHtml(app);
       return;
     }
@@ -6382,9 +6383,35 @@ function kycRejectedHtml(app) {
       <div class="kyc-status-icon">❌</div>
       <h3 style="color:#ff6b6b;margin:0 0 6px;">认证未通过</h3>
       <p style="color:var(--text3);margin:0 0 10px;">拒绝原因：${esc(app?.reject_reason || '无')}</p>
-      <p style="color:var(--text3);font-size:.85rem;">请修改资料后重新提交</p>
+      <p style="color:var(--text3);font-size:.85rem;margin:0 0 18px;">请修改资料后重新提交</p>
+      <button class="kyc-submit-btn" onclick="showKycReSubmit()" style="font-size:.85rem;padding:10px 28px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        修改资料重新提交
+      </button>
     </div>
   `;
+}
+
+function showKycReSubmit() {
+  const wrap = document.getElementById('kycFormWrap');
+  if (!wrap) return;
+  wrap.innerHTML = kycFormHtml();
+  const app = window._kycRejectedApp;
+  if (!app) return;
+  // 预填之前提交过的数据
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  if (app.country) {
+    const lbl = document.getElementById('kycCountryLabel');
+    if (lbl) { lbl.textContent = app.country; lbl.style.color = ''; }
+  }
+  setVal('kycCompany', app.company_name);
+  setVal('kycBizLicense', app.business_license);
+  setVal('kycLegalName', app.legal_person_name);
+  setVal('kycLegalId', app.legal_person_id);
+  setVal('kycContact', app.contact_name);
+  setVal('kycPhone', app.contact_phone);
+  setVal('kycEmail', app.email);
+  setVal('kycRemark', app.remark);
 }
 
 function kycPendingHtml() {
@@ -6608,9 +6635,37 @@ async function checkKycStatus() {
     if (!res || res.code !== 0) return;
     const banner = document.getElementById('kycBanner');
     if (!banner) return;
+    const icon = banner.querySelector('.kyc-banner-icon');
+    const text = banner.querySelector('.kyc-banner-text');
+    const btn = banner.querySelector('.kyc-banner-btn');
+    if (!icon || !text || !btn) return;
+
     if (res.data.status === 'none') {
+      icon.textContent = '⚠️';
+      text.innerHTML = '<strong>企业认证提醒</strong><br><span>请完成企业认证以解锁全部功能</span>';
+      btn.textContent = '去认证 →';
+      btn.onclick = () => gotoPage('kyc');
       banner.style.display = 'flex';
-    } else {
+      banner.style.background = 'linear-gradient(135deg,#2d0a0a,#4a1414)';
+      banner.style.borderColor = 'rgba(255,60,60,.35)';
+    } else if (res.data.status === 'pending') {
+      icon.textContent = '⏳';
+      text.innerHTML = '<strong style="color:#ffc107;">认证审核中</strong><br><span>您的企业认证资料已提交，请耐心等待管理员审核</span>';
+      btn.textContent = '查看详情';
+      btn.onclick = () => gotoPage('kyc');
+      banner.style.display = 'flex';
+      banner.style.background = 'linear-gradient(135deg,#2d2a0a,#4a3a14)';
+      banner.style.borderColor = 'rgba(255,193,7,.35)';
+    } else if (res.data.status === 'rejected') {
+      const reason = res.data.application?.reject_reason || '无';
+      icon.textContent = '❌';
+      text.innerHTML = `<strong style="color:#ff6b6b;">认证未通过</strong><br><span>拒绝原因：${esc(reason)}，请修改后重新提交</span>`;
+      btn.textContent = '重新提交';
+      btn.onclick = () => gotoPage('kyc');
+      banner.style.display = 'flex';
+      banner.style.background = 'linear-gradient(135deg,#2d0a0a,#4a1414)';
+      banner.style.borderColor = 'rgba(255,60,60,.35)';
+    } else if (res.data.status === 'approved') {
       banner.style.display = 'none';
     }
   } catch(e) {
