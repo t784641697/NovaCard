@@ -389,6 +389,27 @@ if (!seedUser) {
   } catch(e) { console.error('[DB Migration] kyc_applications 升级失败:', e.message); }
 })();
 
+// ── kyc_applications 企业认证扩展字段 ──
+(() => {
+  try {
+    const kycCols = db.prepare("PRAGMA table_info(kyc_applications)").all().map(c => c.name);
+    const newCols = [
+      { name: 'country',            desc: '国家/地区' },
+      { name: 'legal_person_name',  desc: '法人姓名' },
+      { name: 'legal_person_id',    desc: '法人身份证号' },
+      { name: 'reg_cert_file',      desc: '企业注册证书文件' },
+      { name: 'id_card_file',       desc: '法人身份证文件' },
+      { name: 'email',              desc: '联系邮箱' },
+    ];
+    newCols.forEach(({ name, desc }) => {
+      if (!kycCols.includes(name)) {
+        db.exec(`ALTER TABLE kyc_applications ADD COLUMN ${name} TEXT DEFAULT ''`);
+        console.log(`[DB Migration] kyc_applications 表已添加列: ${name} (${desc})`);
+      }
+    });
+  } catch(e) { console.error('[DB Migration] kyc_applications 扩展字段升级失败:', e.message); }
+})();
+
 // ── 重建所有索引，防止跨版本 schema 不一致导致 SQLITE_CORRUPT ──
 try { db.exec('REINDEX'); } catch(e) { console.error('[DB] REINDEX failed:', e.message); }
 

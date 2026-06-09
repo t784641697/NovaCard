@@ -409,6 +409,35 @@ select.form-control option{background:var(--bg3);}
 .ann-hist-item-date{font-size:.72rem;color:var(--text3);margin-bottom:6px;}
 .ann-hist-item-body{font-size:.82rem;color:var(--text2);line-height:1.5;white-space:pre-wrap;}
 .ann-hist-empty{padding:40px;text-align:center;color:var(--text3);font-size:.85rem;}
+/* KYC 企业认证页面 */
+.kyc-page{max-width:720px;margin:0 auto;}
+.kyc-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:18px;}
+.kyc-card-title{font-size:.95rem;font-weight:700;color:var(--text1);margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+.kyc-card-title .step{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#00f2fe,#4facfe);color:#000;font-size:.78rem;font-weight:700;flex-shrink:0;}
+.kyc-field{margin-bottom:16px;}
+.kyc-field:last-child{margin-bottom:0;}
+.kyc-field label{display:block;font-size:.78rem;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.kyc-field label .req{color:#ff6b6b;margin-left:2px;}
+.kyc-field input,.kyc-field textarea,.kyc-field .field-display{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--text1);outline:none;transition:border .15s;box-sizing:border-box;}
+.kyc-field input:focus,.kyc-field textarea:focus{border-color:rgba(0,242,254,.4);}
+.kyc-field textarea{resize:none;min-height:80px;}
+.kyc-field .field-display{opacity:.6;cursor:not-allowed;}
+.kyc-field .field-hint{font-size:.72rem;color:var(--text3);margin-top:4px;}
+.kyc-upload-wrap{position:relative;}
+.kyc-upload-btn{display:inline-flex;align-items:center;gap:6px;background:var(--input-bg);border:1px dashed var(--border);border-radius:8px;padding:10px 16px;font-size:.82rem;color:var(--text2);cursor:pointer;transition:all .15s;}
+.kyc-upload-btn:hover{border-color:rgba(0,242,254,.4);color:var(--text1);}
+.kyc-upload-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.kyc-upload-name{font-size:.78rem;color:var(--text3);margin-left:8px;}
+.kyc-submit-row{display:flex;justify-content:center;margin-top:10px;}
+.kyc-submit-row button{background:linear-gradient(135deg,#00f2fe,#4facfe);color:#000;border:none;border-radius:10px;padding:12px 48px;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;}
+.kyc-submit-row button:hover{transform:scale(1.03);box-shadow:0 4px 20px rgba(0,242,254,.3);}
+/* country dropdown in KYC */
+.kyc-country-sel{position:relative;width:100%;}
+.kyc-country-sel .cst-sel{width:100%;}
+.kyc-status-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:32px;text-align:center;}
+.kyc-status-card .status-icon{font-size:2.5rem;margin-bottom:12px;}
+.kyc-status-card .status-msg{font-size:1rem;font-weight:600;color:var(--text1);margin-bottom:6px;}
+.kyc-status-card .status-detail{font-size:.82rem;color:var(--text3);}
 
 /* MAIN */
 .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;}
@@ -6269,92 +6298,282 @@ async function renderKyc() {
   await loadKycForm();
 }
 
+const KYC_COUNTRIES = [
+  '香港 (Hong Kong)', '澳门 (Macau)', '台湾 (Taiwan)',
+  '新加坡 (Singapore)', '马来西亚 (Malaysia)', '印度尼西亚 (Indonesia)',
+  '泰国 (Thailand)', '越南 (Vietnam)', '菲律宾 (Philippines)',
+  '日本 (Japan)', '韩国 (South Korea)',
+  '美国 (United States)', '加拿大 (Canada)',
+  '英国 (United Kingdom)', '德国 (Germany)', '法国 (France)',
+  '澳大利亚 (Australia)', '新西兰 (New Zealand)',
+  '阿联酋 (UAE)', '沙特 (Saudi Arabia)', '印度 (India)',
+  '其他 (Other)'
+];
+
 async function loadKycForm() {
   const wrap = document.getElementById('kycFormWrap');
   if (!wrap) return;
   try {
     const res = await apiFetch('/auth/kyc/status');
     if (!res || res.code !== 0) throw new Error(res?.msg || '获取认证状态失败');
-    const kyc = res.data; // { status, application: {...} }
+    const kyc = res.data;
+    const app = kyc.application;
 
     if (kyc.status === 'approved') {
-      wrap.innerHTML = `
-        <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:12px;padding:30px;text-align:center;">
-          <div style="font-size:3rem;margin-bottom:12px;">✅</div>
-          <h3 style="margin:0 0 6px;color:#22c55e;">认证已通过</h3>
-          <p style="color:var(--text3);margin:0;">您的企业认证已审核通过，可正常使用全部功能</p>
-        </div>
-      `;
+      wrap.innerHTML = kycApprovedHtml();
       return;
     }
     if (kyc.status === 'rejected') {
-      wrap.innerHTML = `
-        <div style="background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.3);border-radius:12px;padding:30px;text-align:center;margin-bottom:20px;">
-          <div style="font-size:3rem;margin-bottom:12px;">❌</div>
-          <h3 style="margin:0 0 6px;color:#ff6b6b;">认证未通过</h3>
-          <p style="color:var(--text3);margin:0 0 10px;">拒绝原因：${esc(kyc.application?.reject_reason || '无')}</p>
-          <p style="color:var(--text3);font-size:.85rem;">请修改资料后重新提交</p>
-        </div>
-      `;
+      wrap.innerHTML = kycRejectedHtml(app);
+      return;
     }
     if (kyc.status === 'pending') {
-      wrap.innerHTML = `
-        <div style="background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.3);border-radius:12px;padding:30px;text-align:center;">
-          <div style="font-size:3rem;margin-bottom:12px;">⏳</div>
-          <h3 style="margin:0 0 6px;color:#ffc107;">审核中</h3>
-          <p style="color:var(--text3);margin:0;">您的企业认证资料已提交，请耐心等待管理员审核</p>
-        </div>
-      `;
+      wrap.innerHTML = kycPendingHtml();
       return;
     }
 
-    // status === 'none' → 显示表单
-    wrap.innerHTML = `
-      <div class="panel" style="padding:28px;">
-        <div style="font-size:1rem;font-weight:600;margin-bottom:20px;">📋 填写企业信息</div>
-        <div class="form-group">
-          <label>企业名称 <span style="color:#ff5f5f;">*</span></label>
-          <input class="form-input" id="kycCompany" placeholder="请输入企业名称">
-        </div>
-        <div class="form-group">
-          <label>联系人姓名 <span style="color:#ff5f5f;">*</span></label>
-          <input class="form-input" id="kycContact" placeholder="请输入联系人姓名">
-        </div>
-        <div class="form-group">
-          <label>联系电话 <span style="color:#ff5f5f;">*</span></label>
-          <input class="form-input" id="kycPhone" placeholder="请输入联系电话">
-        </div>
-        <div class="form-group">
-          <label>营业执照号</label>
-          <input class="form-input" id="kycLicense" placeholder="选填">
-        </div>
-        <div class="form-group">
-          <label>备注说明</label>
-          <textarea class="form-input" id="kycRemark" rows="3" placeholder="选填，如有特殊说明请在此填写" style="resize:none;"></textarea>
-        </div>
-        <button class="btn btn-primary" onclick="submitKyc()" style="width:100%;padding:12px;font-size:.95rem;margin-top:8px;">提交认证</button>
-      </div>
-    `;
+    // status === 'none' → 三段式表单
+    wrap.innerHTML = kycFormHtml();
+    initCountryDropdown();
   } catch(e) {
     wrap.innerHTML = `<div style="color:#ff5f5f;">加载失败: ${e.message}</div>`;
   }
 }
 
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function kycApprovedHtml() {
+  return `
+    <div class="kyc-status-card" style="border-color:rgba(34,197,94,.3);">
+      <div class="kyc-status-icon">✅</div>
+      <h3 style="color:#22c55e;margin:0 0 6px;">认证已通过</h3>
+      <p style="color:var(--text3);margin:0;">您的企业认证已审核通过，可正常使用全部功能</p>
+    </div>
+  `;
+}
+
+function kycRejectedHtml(app) {
+  return `
+    <div class="kyc-status-card" style="border-color:rgba(255,60,60,.3);margin-bottom:20px;">
+      <div class="kyc-status-icon">❌</div>
+      <h3 style="color:#ff6b6b;margin:0 0 6px;">认证未通过</h3>
+      <p style="color:var(--text3);margin:0 0 10px;">拒绝原因：${esc(app?.reject_reason || '无')}</p>
+      <p style="color:var(--text3);font-size:.85rem;">请修改资料后重新提交</p>
+    </div>
+  `;
+}
+
+function kycPendingHtml() {
+  return `
+    <div class="kyc-status-card" style="border-color:rgba(255,193,7,.3);">
+      <div class="kyc-status-icon">⏳</div>
+      <h3 style="color:#ffc107;margin:0 0 6px;">审核中</h3>
+      <p style="color:var(--text3);margin:0;">您的企业认证资料已提交，请耐心等待管理员审核</p>
+    </div>
+  `;
+}
+
+function kycFormHtml() {
+  return `
+    <div class="kyc-page">
+
+      <!-- 第1步：选择国家/地区 -->
+      <div class="kyc-section">
+        <div class="kyc-section-header">
+          <span class="kyc-section-step">01</span>
+          <div>
+            <div class="kyc-section-title">企业所属国家/地区</div>
+            <div class="kyc-section-desc">仅支持中国大陆以外的企业进行认证</div>
+          </div>
+        </div>
+        <div class="kyc-section-body">
+          <div class="kyc-country-sel" id="kycCountrySel">
+            <div class="kyc-country-trigger" onclick="toggleCountryList()">
+              <span id="kycCountryLabel" style="color:var(--text3);">请选择国家/地区</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="kyc-country-list" id="kycCountryList" style="display:none;">
+              ${KYC_COUNTRIES.map(c => `<div class="kyc-country-opt" data-value="${esc(c)}" onclick="pickCountry(this)">${esc(c)}</div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第2步：企业认证信息 -->
+      <div class="kyc-section">
+        <div class="kyc-section-header">
+          <span class="kyc-section-step">02</span>
+          <div>
+            <div class="kyc-section-title">企业认证信息</div>
+            <div class="kyc-section-desc">请上传企业注册证书等证明文件</div>
+          </div>
+        </div>
+        <div class="kyc-section-body">
+          <div class="kyc-field">
+            <label class="kyc-label">企业名称 <span class="kyc-req">*</span></label>
+            <input class="kyc-input" id="kycCompany" placeholder="请输入企业全称（需与注册证书一致）">
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">企业注册证书 <span class="kyc-req">*</span></label>
+            <div class="kyc-upload" onclick="document.getElementById('kycCertFile').click()">
+              <input type="file" id="kycCertFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycCertPreview','kycCertLabel')">
+              <div class="kyc-upload-box">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text3);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span id="kycCertLabel" style="color:var(--text3);font-size:.85rem;">点击上传注册证书</span>
+              </div>
+              <div id="kycCertPreview" style="display:none;margin-top:8px;max-width:200px;border-radius:8px;overflow:hidden;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第3步：法人信息 -->
+      <div class="kyc-section">
+        <div class="kyc-section-header">
+          <span class="kyc-section-step">03</span>
+          <div>
+            <div class="kyc-section-title">法人代表信息</div>
+            <div class="kyc-section-desc">请提供法人代表身份信息</div>
+          </div>
+        </div>
+        <div class="kyc-section-body">
+          <div class="kyc-field">
+            <label class="kyc-label">法人姓名 <span class="kyc-req">*</span></label>
+            <input class="kyc-input" id="kycLegalName" placeholder="请输入法人代表姓名">
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">法人身份证号 <span class="kyc-req">*</span></label>
+            <input class="kyc-input" id="kycLegalId" placeholder="请输入法人代表身份证号码">
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">法人身份证照片 <span class="kyc-req">*</span></label>
+            <div class="kyc-upload" onclick="document.getElementById('kycIdFile').click()">
+              <input type="file" id="kycIdFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycIdPreview','kycIdLabel')">
+              <div class="kyc-upload-box">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text3);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span id="kycIdLabel" style="color:var(--text3);font-size:.85rem;">点击上传身份证照片</span>
+              </div>
+              <div id="kycIdPreview" style="display:none;margin-top:8px;max-width:200px;border-radius:8px;overflow:hidden;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第4步：联系方式 -->
+      <div class="kyc-section">
+        <div class="kyc-section-header">
+          <span class="kyc-section-step">04</span>
+          <div>
+            <div class="kyc-section-title">联系方式</div>
+            <div class="kyc-section-desc">用于审核结果通知与后续沟通</div>
+          </div>
+        </div>
+        <div class="kyc-section-body">
+          <div class="kyc-row">
+            <div class="kyc-field" style="flex:1;">
+              <label class="kyc-label">联系人姓名 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycContact" placeholder="请输入联系人姓名">
+            </div>
+            <div class="kyc-field" style="flex:1;">
+              <label class="kyc-label">联系电话 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycPhone" placeholder="请输入联系电话">
+            </div>
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">电子邮箱 <span class="kyc-req">*</span></label>
+            <input class="kyc-input" id="kycEmail" placeholder="请输入联系邮箱">
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">备注说明</label>
+            <textarea class="kyc-input" id="kycRemark" rows="3" placeholder="选填，如有特殊说明请在此填写" style="resize:none;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 提交按钮 -->
+      <button class="kyc-submit-btn" onclick="submitKyc()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        提交认证申请
+      </button>
+
+    </div>
+  `;
+}
+
+function toggleCountryList() {
+  const list = document.getElementById('kycCountryList');
+  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+function pickCountry(el) {
+  const label = document.getElementById('kycCountryLabel');
+  label.textContent = el.dataset.value;
+  label.style.color = 'var(--text1)';
+  document.getElementById('kycCountryList').style.display = 'none';
+}
+
+function previewKycFile(input, previewId, labelId) {
+  const preview = document.getElementById(previewId);
+  const label = document.getElementById(labelId);
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  label.textContent = file.name;
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      preview.innerHTML = `<img src="${e.target.result}" style="width:100%;display:block;">`;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    preview.innerHTML = `<div style="padding:8px;background:rgba(255,255,255,.05);border-radius:6px;color:var(--text3);font-size:.82rem;">📄 ${esc(file.name)}</div>`;
+    preview.style.display = 'block';
+  }
+}
+
 async function submitKyc() {
+  const country = document.getElementById('kycCountryLabel')?.textContent;
   const company = document.getElementById('kycCompany')?.value?.trim();
+  const legalName = document.getElementById('kycLegalName')?.value?.trim();
+  const legalId = document.getElementById('kycLegalId')?.value?.trim();
   const contact = document.getElementById('kycContact')?.value?.trim();
   const phone = document.getElementById('kycPhone')?.value?.trim();
-  const license = document.getElementById('kycLicense')?.value?.trim();
+  const email = document.getElementById('kycEmail')?.value?.trim();
   const remark = document.getElementById('kycRemark')?.value?.trim();
 
+  const certFile = document.getElementById('kycCertFile')?.files?.[0];
+  const idFile = document.getElementById('kycIdFile')?.files?.[0];
+
+  if (!country || country === '请选择国家/地区') return alert('请选择企业所属国家/地区');
   if (!company) return alert('请输入企业名称');
+  if (!certFile) return alert('请上传企业注册证书');
+  if (!legalName) return alert('请输入法人姓名');
+  if (!legalId) return alert('请输入法人身份证号');
+  if (!idFile) return alert('请上传法人身份证照片');
   if (!contact) return alert('请输入联系人姓名');
   if (!phone) return alert('请输入联系电话');
+  if (!email) return alert('请输入电子邮箱');
 
   try {
+    let certBase64 = '', idBase64 = '';
+    certBase64 = await readFileAsBase64(certFile);
+    idBase64 = await readFileAsBase64(idFile);
+
     const res = await apiFetch('/auth/kyc/submit', {
       method: 'POST',
-      body: { company_name: company, contact_name: contact, contact_phone: phone, business_license: license, remark }
+      body: {
+        country, company_name: company,
+        legal_person_name: legalName, legal_person_id: legalId,
+        reg_cert_file: certBase64, id_card_file: idBase64,
+        contact_name: contact, contact_phone: phone, email, remark
+      }
     });
     if (res.code !== 0) throw new Error(res.msg);
     alert('认证资料已提交，请等待管理员审核');
