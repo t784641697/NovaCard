@@ -115,7 +115,7 @@ db.exec(`
   );
 
   -- 兼容升级：已有表补 type 列
-  ALTER TABLE announcements ADD COLUMN type TEXT DEFAULT '运营公告';
+  ALTER TABLE announcements ADD COLUMN type TEXT DEFAULT '系统维护';
 
   CREATE TABLE IF NOT EXISTS upstream_fees (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,

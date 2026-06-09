@@ -389,6 +389,7 @@ select.form-control option{background:var(--bg3);}
 /* 公告历史弹窗 */
 .ann-hist-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding-top:80px;}
 .ann-hist-panel{background:#0d1322;border:1px solid rgba(255,255,255,.1);border-radius:16px;width:500px;max-width:90vw;max-height:70vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5);}
+.ann-type-badge{display:inline-block;font-size:.7rem;background:#ffffff0d;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:1px 8px;color:var(--text3);white-space:nowrap;}
 .ann-hist-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,.06);}
 .ann-hist-head h3{margin:0;font-size:1.05rem;font-weight:700;color:var(--text1);}
 .ann-hist-close{background:none;border:none;color:var(--text3);font-size:1.3rem;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
@@ -6250,10 +6251,10 @@ async function renderAdminSettingsPage() {
           <!-- 新建公告 -->
           <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
             <input id="annTitle" type="text" placeholder="公告标题" style="flex:1;min-width:120px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;">
-            <select id="annType" style="min-width:100px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.82rem;">
-              <option value="运营公告">📣 运营公告</option>
-              <option value="产品商品">🛒 产品商品</option>
-              <option value="功能升级">🚀 功能升级</option>
+            <select id="annType" style="min-width:110px;background:#0a0f1e url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23888\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><polyline points=\'6 9 12 15 18 9\'/></svg>') no-repeat right 10px center;border:1px solid #ffffff1a;border-radius:8px;padding:8px 28px 8px 12px;color:var(--text1);font-size:.82rem;cursor:pointer;appearance:none;transition:border-color .2s;outline:none;" onfocus="this.style.borderColor='rgba(0,242,254,.4)'" onblur="this.style.borderColor='#ffffff1a'">
+              <option value="系统维护">🔧 系统维护</option>
+              <option value="安全提醒">🛡️ 安全提醒</option>
+              <option value="政策调整">📋 政策调整</option>
             </select>
             <textarea id="annContent" placeholder="公告内容（支持换行）" rows="3" style="flex:2;min-width:200px;background:#0a0f1e;border:1px solid #ffffff1a;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:.85rem;resize:vertical;"></textarea>
             <button onclick="createAnnouncement()" style="background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">➕ 发布</button>
@@ -6376,7 +6377,7 @@ async function loadAnnouncements() {
           + '<div style="flex:1;min-width:0;">'
           + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
           + '<span style="font-weight:600;font-size:.85rem;color:' + color + ';">' + esc(a.title) + '</span>'
-          + '<span style="font-size:.7rem;background:#ffffff0d;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:1px 8px;color:var(--text3);">' + esc(a.type || '运营公告') + '</span>'
+          + '<span class="ann-type-badge">' + esc(a.type || '系统维护') + '</span>'
           + '</div>'
           + '<div style="font-size:.78rem;color:var(--text3);margin-top:2px;white-space:pre-wrap;">' + esc(a.content) + '</div>'
           + '<div style="font-size:.7rem;color:var(--text3);margin-top:2px;opacity:.6;">' + (a.created_at || '').replace('T',' ').substring(0,16) + '</div>'
@@ -6406,7 +6407,7 @@ async function createAnnouncement() {
       toast('✅ 公告已发布');
       title.value = '';
       content.value = '';
-      type.value = '运营公告';
+      type.value = '系统维护';
       loadAnnouncements();
     } else {
       toast('❌ ' + (r?.msg || '发布失败'));
@@ -6519,7 +6520,7 @@ async function openAnnouncementHistory() {
         var activeClass = a.is_active ? ' active' : '';
         html += '<div class="ann-hist-item">'
           + '<div class="ann-hist-item-title' + activeClass + '">' + esc(a.title) + (a.is_active ? '' : ' <span style="font-size:.7rem;color:var(--text3);font-weight:400;">(已过期)</span>') + '</div>'
-          + '<div class="ann-hist-item-date">' + dt + ' · <span style="background:#ffffff0d;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:1px 7px;">' + esc(a.type || '运营公告') + '</span></div>'
+          + '<div class="ann-hist-item-date">' + dt + ' · <span class="ann-type-badge">' + esc(a.type || '系统维护') + '</span></div>'
           + '<div class="ann-hist-item-body">' + esc(a.content) + '</div>'
           + '</div>';
       }
