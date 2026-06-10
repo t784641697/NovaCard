@@ -1920,19 +1920,17 @@ function showAuth() {
   document.getElementById('dashWrap').classList.add('hidden');
   // refreshCaptcha('login'); // 验证码暂时注释
 }
-function enterDash() {
-  document.getElementById('authWrap').classList.add('hidden');
-  document.getElementById('dashWrap').classList.remove('hidden');
-  // 更新侧边栏用户信息
-
-
-// ── ✅ 邮箱号脱敏 ──
 function maskEmail(email) {
   if (!email || !email.includes('@')) return email;
   const [name, domain] = email.split('@');
   if (name.length <= 2) return name[0] + '***@' + domain;
   return name[0] + name[1] + '***@' + domain;
 }
+
+function enterDash() {
+  document.getElementById('authWrap').classList.add('hidden');
+  document.getElementById('dashWrap').classList.remove('hidden');
+  // 更新侧边栏用户信息
   const avatar = (_me?.name||_me?.email||'U')[0].toUpperCase();
   document.getElementById('sidebarAvatar').textContent = avatar;
   document.getElementById('sidebarName').textContent = (()=>{const n=_me?.name||_me?.email||'用户';return n.includes('@')?maskEmail(n):n;})();
