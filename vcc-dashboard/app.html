@@ -6837,6 +6837,49 @@ async function renderKycReviewPage() {
   const area = document.getElementById('contentArea');
   area.innerHTML = `
     <style>
+      .cr-container { padding: 0px 4px 28px; max-width: 1400px; margin: 0 auto; }
+      .cr-stats { display: flex; gap: 16px; margin-bottom: 20px; }
+      .cr-stat-card { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px 24px; min-width: 130px; flex: 1; text-align: center; transition: all 0.2s; }
+      .cr-stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
+      .cr-stat-num { font-size: 1.8rem; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+      .cr-stat-label { font-size: .8rem; color: var(--text3); letter-spacing: 0.5px; }
+      .cr-toolbar { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+      .cr-toolbar-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .cr-search-wrap { flex: 1; min-width: 300px; max-width: 420px; position: relative; }
+      .cr-search-wrap input { width: 100%; background: #0a0f1c; border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px 10px 38px; border-radius: 8px; color: var(--text1); outline: none; font-size: .9rem; transition: all 0.2s; box-sizing: border-box; }
+      .cr-search-wrap input:focus { border-color: rgba(0,242,254,0.35); box-shadow: 0 0 0 3px rgba(0,242,254,0.08); }
+      .cr-search-wrap::before { content: "🔍"; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: .85rem; opacity: 0.5; }
+      .cr-tabs { display: flex; gap: 6px; align-items: center; background: #0a0f1c; padding: 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+      .cr-tab { padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 500; border: none; background: transparent; color: var(--text3); transition: all 0.2s; white-space: nowrap; }
+      .cr-tab:hover { color: var(--text2); }
+      .cr-tab.active { background: #1a2340; color: #fff; }
+      .cr-tab.active[data-tab="pending"] { background: rgba(255,170,0,0.12); color: #ffaa00; }
+      .cr-tab.active[data-tab="approved"] { background: rgba(0,199,88,0.12); color: #00c758; }
+      .cr-tab.active[data-tab="rejected"] { background: rgba(255,95,95,0.12); color: #ff5f5f; }
+      .cr-btn { padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: .9rem; font-weight: 500; border: none; transition: all 0.2s; white-space: nowrap; }
+      .cr-btn-search { background: linear-gradient(135deg, rgba(0,242,254,0.12), rgba(0,242,254,0.06)); color: #00f2fe; border: 1px solid rgba(0,242,254,0.2); }
+      .cr-btn-search:hover { background: linear-gradient(135deg, rgba(0,242,254,0.2), rgba(0,242,254,0.1)); border-color: rgba(0,242,254,0.3); }
+      .cr-btn-reset { background: transparent; color: #8fa0c7; border: 1px solid rgba(255,255,255,0.08); }
+      .cr-btn-reset:hover { border-color: rgba(255,255,255,0.15); color: var(--text2); background: rgba(255,255,255,0.02); }
+      .cr-table-wrap { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
+      .cr-table { width: 100%; border-collapse: collapse; }
+      .cr-table thead th { text-align: left; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text3); font-size: .78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+      .cr-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+      .cr-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+      .cr-table tbody td { padding: 14px 16px; vertical-align: middle; }
+      .cr-table .col-id { width: 60px; color: var(--text3); font-size: .8rem; }
+      .cr-table .col-status { width: 110px; }
+      .cr-table .col-time { width: 140px; }
+      .cr-table .col-action { width: 140px; }
+      .cr-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: .8rem; font-weight: 500; }
+      .cr-tag-pending { background: rgba(255,170,0,0.1); color: #ffaa00; }
+      .cr-tag-approved { background: rgba(0,199,88,0.1); color: #00c758; }
+      .cr-tag-rejected { background: rgba(255,95,95,0.1); color: #ff5f5f; }
+      .cr-empty { text-align: center; padding: 80px 40px; }
+      .cr-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
+      .cr-empty-text { color: var(--text3); font-size: .95rem; }
+      .cr-applicant-name { font-size: .9rem; font-weight: 500; }
+      .cr-applicant-email { font-size: .78rem; color: var(--text3); margin-top: 3px; }
       .kyc-btn-action { padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .8rem; font-weight: 500; border: none; transition: all 0.2s; }
       .kyc-btn-pass { background: rgba(0,199,88,0.1); color: #00c758; }
       .kyc-btn-pass:hover { background: rgba(0,199,88,0.2); }
