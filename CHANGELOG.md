@@ -1,6 +1,33 @@
 # CHANGELOG.md
 
-## v1.0.25 (2026-06-09)
+## v1.0.26 (2026-06-11)
+
+### 新增
+- **🧩 KYC 表单 Tab 切换布局**：三段独立卡片 → 统一 Tab 切换（企业认证信息/法人代表信息/联系方式）
+- **🆔 身份证正反面分拆并排上传**：`id_card_file` 存储 JSON `{"front":"base64","back":"base64"}`
+- **📄 PDF 上传支持**：表单 `accept="image/*,.pdf"`，管理员证件预览支持 PDF 图标+下载
+- **🗃️ 管理员 KYC 审核页改造**：改为与开卡审核一致的卡片式布局（统计卡片+搜索栏+表格+操作按钮）
+- **🖼️ KYC 证件预览弹窗**：卡片式布局（企业注册证书+法人身份证正反面并排），下载按钮统一渐变配色
+- **📋 邮箱脱敏**：侧边栏显示 `te***@163.com` 格式，溢出省略
+- **🔄 自定义 Modal 系统**：`alertModal()`/`confirmModal()`/`promptModal()` 替换全部原生 alert/prompt/confirm
+
+### 变更
+- **KYC 字段调整**：营业执照号(选填) → 证书编号(必填)，企业名称与证书编号 grid 2列并排
+- **KYC 驳回页面美化**：改为与"余额不足"弹窗一致的渐变暗色背景+红色边框+❌图标
+- **国家下拉交互优化**：点击外部自动关闭下拉列表
+- **提交按钮加载状态**：KYC 提交后显示"提交中..."+禁用态，防止重复提交
+- **移除 `kyc-mode` CSS 注入**：表单回归默认 `max-width:720px` 居中布局，不再撑满全屏
+
+### 修复
+- **🔴 严重：HTML 结构缺陷导致登录后黑屏**：`app.html` 第1332行多余 `</div>` 导致 `<main>` 被排出 `dashWrap` 外侧
+- **🔴 严重：submitKyc 验证跳过**：`return alert()` → `await alertModal()` 替换后 `return` 移出 `if` 块，所有校验失效
+- **415 提交错误**：base64 图片请求体过大 → Express `limit: 50mb` + Nginx `client_max_body_size 50m`
+- **KYC 审核页加载空白**：`loading-spinner` CSS 未定义 + `kycLoad()` 缺少 try/catch
+- **approveKyc/rejectKyc 引用已删除函数**：`loadKycReviewList` → `kycLoad`
+- **证件预览身份证图片未加载**：`id_card_file` 是 JSON 字符串 `{"front":"...","back":"..."}`，直接作为 `<img src>` 失效 → 解析后分别渲染
+- **Tab 点击无反应**：两个同名 `switchKycTab` 函数冲突（用户表单+管理员审核），管理员版更名为 `switchAdminKycTab`
+- **sidebar 邮箱不脱敏**：`_me?.name || maskEmail()` 短路（`_me.name` 就是邮箱字符串）
+- **KYC 驳回弹窗按钮颜色未更新**：用户反馈颜色未变→确认页面路由正确性后修复样式
 
 ### 新增
 - **🔐 企业认证（KYC）系统上线**：
