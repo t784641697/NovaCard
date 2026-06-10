@@ -2124,11 +2124,28 @@ function gotoPage(page) {
 // ══════════════════════════════════════════════
 //  PAGE: 账户总览
 // ══════════════════════════════════════════════
+// 全局异常捕获 - 确保页面不会因为错误而空白
+// ══════════════════════════════════════════════
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('[全局捕获] 未处理的 Promise 错误:', e.reason?.message || e.reason);
+  // 若是 innerHTML 错误，尝试在页面显示
+  if ((e.reason?.message||'').includes('innerHTML')) {
+    const area = document.getElementById('contentArea');
+    if (area && area.innerHTML.trim() === '') {
+      area.innerHTML = '<div style="padding:40px;color:#ff6b6b;text-align:center;"><h3>⚠️ 页面渲染异常</h3><p style="color:#a6aabe;margin-top:8px;">' + 
+        (e.reason?.message||'未知错误') + '</p><button class="btn btn-primary mt-4" onclick="gotoPage(\'cards\')">重试</button></div>';
+    }
+  }
+});
+
+// ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
 //  PAGE: 账户总览 — 主入口
 // ══════════════════════════════════════════════
 async function renderCards() {
   const area = document.getElementById('contentArea');
+  try {
+  if (!area) { console.error('[renderCards] contentArea 不存在!'); return; }
   area.style.overflowY = 'auto';
   area.style.minHeight = '0';
   area.innerHTML = `
@@ -2201,6 +2218,10 @@ async function renderCards() {
   loadOvTxList();
   loadAnnBadge();
   checkKycStatus();
+  } catch(e) {
+    console.error('[renderCards] 渲染出错:', e);
+    if (area) area.innerHTML = '<div style="padding:40px;color:#ff6b6b;text-align:center;"><h3>⚠️ 页面渲染异常</h3><p style="color:#a6aabe;margin-top:8px;">' + e.message + '</p><button class="btn btn-primary mt-4" onclick="gotoPage(\'cards\')">重试</button></div>';
+  }
 }
 
 // ── 账户余额 ────────────────────────────────────────────────────────────────
