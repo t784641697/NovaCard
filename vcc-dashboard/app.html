@@ -1434,6 +1434,37 @@ function confirmModalCancel() {
   if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
 }
 
+// ── Alert Modal (提示弹窗，匹配余额不足样式) ──
+window.alertModal = function(msg, icon) {
+  icon = icon || '\u26a0\ufe0f';
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    overlay.onclick = function(e) { if (e.target === overlay) { document.body.removeChild(overlay); resolve(); } };
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(0,242,254,.2);border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4);';
+    
+    modal.innerHTML = '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">' +
+      '<div style="font-size:32px;line-height:1;">' + icon + '</div>' +
+      '<h3 style="margin:0;color:#ffb347;font-size:18px;font-weight:700;">\u63d0\u793a</h3></div>' +
+      '<p style="color:#a6aabe;margin:0 0 24px;line-height:1.6;font-size:14px;">' + msg + '</p>' +
+      '<div style="text-align:right;"><button onclick="(function(){var o=this.closest(\'[id^=alertOv]\');document.body.removeChild(o);resolve();})()" style="background:linear-gradient(135deg,#00f2fe,#4facfe);color:#fff;padding:10px 28px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;border:none;">\u786e\u5b9a</button></div>';
+    
+    overlay.id = 'alertOv_' + Date.now();
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Store resolve for the button
+    overlay._resolve = resolve;
+    modal.querySelector('button').onclick = function() { 
+      document.body.removeChild(overlay); 
+      resolve(); 
+    };
+  });
+};
+
+
 // ── Prompt Modal (拒绝原因输入) ──
 let _promptResolve = null;
 function promptModal(opts, defaultValue) {
@@ -6633,20 +6664,34 @@ async function submitKyc() {
   const idFrontFile = document.getElementById('kycIdFrontFile')?.files?.[0];
   const idBackFile = document.getElementById('kycIdBackFile')?.files?.[0];
 
-  if (!country || country === '请选择国家/地区') return alert('请选择企业所属国家/地区');
-  if (!company) return alert('请输入企业名称');
-  if (!bizLicense) return alert('请输入证书编号');
-  if (!certFile) return alert('请上传企业注册证书');
-  if (certFile.size > 5 * 1024 * 1024) return alert('企业注册证书文件超过 5MB，请压缩后重试');
-  if (!legalName) return alert('请输入法人姓名');
-  if (!legalId) return alert('请输入法人身份证号');
-  if (!idFrontFile) return alert('请上传身份证正面照片');
-  if (idFrontFile.size > 5 * 1024 * 1024) return alert('身份证正面照片超过 5MB，请压缩后重试');
-  if (!idBackFile) return alert('请上传身份证背面照片');
-  if (idBackFile.size > 5 * 1024 * 1024) return alert('身份证背面照片超过 5MB，请压缩后重试');
-  if (!contact) return alert('请输入联系人姓名');
-  if (!phone) return alert('请输入联系电话');
-  if (!email) return alert('请输入电子邮箱');
+  if (!country || country === '请选择国家/地区') await alertModal('请选择企业所属国家/地区');
+    return;
+  if (!company) await alertModal('请输入企业名称');
+    return;
+  if (!bizLicense) await alertModal('请输入证书编号');
+    return;
+  if (!certFile) await alertModal('请上传企业注册证书');
+    return;
+  if (certFile.size > 5 * 1024 * 1024) await alertModal('企业注册证书文件超过 5MB，请压缩后重试');
+    return;
+  if (!legalName) await alertModal('请输入法人姓名');
+    return;
+  if (!legalId) await alertModal('请输入法人身份证号');
+    return;
+  if (!idFrontFile) await alertModal('请上传身份证正面照片');
+    return;
+  if (idFrontFile.size > 5 * 1024 * 1024) await alertModal('身份证正面照片超过 5MB，请压缩后重试');
+    return;
+  if (!idBackFile) await alertModal('请上传身份证背面照片');
+    return;
+  if (idBackFile.size > 5 * 1024 * 1024) await alertModal('身份证背面照片超过 5MB，请压缩后重试');
+    return;
+  if (!contact) await alertModal('请输入联系人姓名');
+    return;
+  if (!phone) await alertModal('请输入联系电话');
+    return;
+  if (!email) await alertModal('请输入电子邮箱');
+    return;
 
   try {
     let certBase64 = '', idFrontBase64 = '', idBackBase64 = '';
@@ -6666,11 +6711,11 @@ async function submitKyc() {
       }
     });
     if (res.code !== 0) throw new Error(res.msg);
-    alert('认证资料已提交，请等待管理员审核');
+    await alertModal('认证资料已提交，请等待管理员审核', '\u2705');
     await loadKycForm();
     await checkKycStatus();
   } catch(e) {
-    alert('提交失败: ' + e.message);
+    await alertModal('提交失败: ' + e.message, '\u274c');
   }
 }
 
@@ -6804,13 +6849,13 @@ async function loadKycReviewList() {
 }
 
 async function approveKyc(id) {
-  if (!confirm('确认通过该企业认证申请？')) return;
+  if (!await confirmModal('确认通过该企业认证申请？')) return;
   try {
     const res = await apiFetch('/admin/kyc/' + id + '/approve', { method: 'POST' });
     if (res.code !== 0) throw new Error(res.msg);
     await loadKycReviewList();
   } catch(e) {
-    alert('操作失败: ' + e.message);
+    await alertModal('操作失败: ' + e.message, '\u274c');
   }
 }
 
@@ -6826,7 +6871,7 @@ async function rejectKyc(id) {
     if (res.code !== 0) throw new Error(res.msg);
     await loadKycReviewList();
   } catch(e) {
-    alert('操作失败: ' + e.message);
+    await alertModal('操作失败: ' + e.message, '\u274c');
   }
 }
 
