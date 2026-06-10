@@ -7088,7 +7088,7 @@ function kycPreviewDocs(id) {
   // ── 三个下载按钮放在两个大框下方同一水平线 ──
   if (downloads.length) {
     html += '<div style="display:flex;gap:16px;justify-content:center;margin-top:20px;">' +
-      downloads.map(d => '<a href="' + d.src + '" download style="padding:8px 22px;background:linear-gradient(135deg,#7eb8f7,#a78bfa,#e879f9);color:#0a0f1e;border-radius:8px;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;">⬇ 下载' + d.label + '</a>').join('') +
+      downloads.map(d => '<a href="' + d.src + '" download style="padding:8px 22px;background:linear-gradient(135deg,#7eb8f7,#a78bfa,#e879f9);color:#fff;border-radius:8px;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-weight:500;padding:9px 24px;transition:opacity .2s;">⬇ 下载' + d.label + '</a>').join('') +
       '</div>';
   }
   // 使用独立大弹窗（alertModal 只有420px太窄）
