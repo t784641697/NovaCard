@@ -6433,16 +6433,21 @@ function kycApprovedHtml() {
 function kycRejectedHtml(app) {
   const reason = app?.reject_reason || '资料不完整';
   return `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:480px;padding:40px 0;">
-      <div class="kyc-status-card" style="border-color:rgba(239,68,68,.25);max-width:480px;">
-        <div class="status-msg" style="color:#ef4444;">认证未通过</div>
-        <div class="status-detail" style="margin-bottom:12px;">请修改以下问题并重新提交</div>
-        <div style="background:rgba(239,68,68,.08);border-radius:8px;padding:10px 16px;margin-bottom:24px;">
-          <span style="color:#ef4444;font-size:.8rem;font-weight:600;">拒绝原因：</span>
-          <span style="color:var(--text2);font-size:.85rem;">${esc(reason)}</span>
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:480px;padding:40px 20px;">
+      <div style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(239,68,68,.4);border-radius:16px;padding:40px 32px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+          <div style="font-size:36px;line-height:1;">❌</div>
+          <div>
+            <h3 style="margin:0 0 2px;color:#ef4444;font-size:20px;font-weight:700;">认证未通过</h3>
+            <p style="margin:0;color:#a6aabe;font-size:13px;">请修改以下问题并重新提交</p>
+          </div>
         </div>
-        <button class="kyc-submit-btn" onclick="showKycReSubmit()" style="font-size:.85rem;padding:10px 28px;display:inline-flex;align-items:center;gap:6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:14px 16px;margin-bottom:28px;">
+          <span style="color:#ef4444;font-size:.8rem;font-weight:600;">拒绝原因：</span>
+          <span style="color:#a6aabe;font-size:.85rem;">${esc(reason)}</span>
+        </div>
+        <button onclick="showKycReSubmit()" style="width:100%;background:linear-gradient(135deg,#00f2fe,#4facfe);color:#fff;padding:12px 24px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;border:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           修改资料重新提交
         </button>
       </div>
@@ -6615,10 +6620,23 @@ function switchKycTab(tabId) {
 
 function toggleCountryList() {
   const list = document.getElementById('kycCountryList');
+  if (!list) return;
   const trigger = document.getElementById('kycCountryTrigger');
   const show = list.style.display !== 'block';
   list.style.display = show ? 'block' : 'none';
   trigger.setAttribute('aria-expanded', show);
+  if (show) {
+    // 点击外部关闭下拉
+    const closer = function(e) {
+      const sel = document.getElementById('kycCountrySel');
+      if (sel && !sel.contains(e.target)) {
+        list.style.display = 'none';
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', closer);
+      }
+    };
+    setTimeout(function(){ document.addEventListener('click', closer); }, 0);
+  }
 }
 
 function pickCountry(el) {
