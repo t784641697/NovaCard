@@ -375,7 +375,7 @@ select.form-control option{background:var(--bg3);}
   background:var(--grad);display:flex;align-items:center;justify-content:center;
   font-size:.85rem;font-weight:700;color:#fff;flex-shrink:0;
 }
-.user-name{font-size:.85rem;font-weight:600;line-height:1.2;}
+.user-name{font-size:.85rem;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;}
 .user-role{font-size:.7rem;color:var(--text3);}
 .logout-btn{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:1rem;padding:4px;border-radius:6px;}
 .logout-btn:hover{color:var(--red);}
@@ -1322,8 +1322,10 @@ select.form-control option{background:var(--bg3);}
           <div class="user-name" id="sidebarName">用户</div>
           <div class="user-role" id="sidebarRole">普通用户</div>
         </div>
-        <button class="logout-btn" ti      </div>
-      <button class="logout-btn" title="退出登录" onclick="doLogout()">⏏</button>
+        </div>
+      <div style="display:flex;gap:4px;margin-left:auto;">
+        <button class="logout-btn" title="退出登录" onclick="doLogout()">⏏</button>
+      </div>
     </div>
     
 
@@ -1922,9 +1924,18 @@ function enterDash() {
   document.getElementById('authWrap').classList.add('hidden');
   document.getElementById('dashWrap').classList.remove('hidden');
   // 更新侧边栏用户信息
+
+
+// ── ✅ 邮箱号脱敏 ──
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return email;
+  const [name, domain] = email.split('@');
+  if (name.length <= 2) return name[0] + '***@' + domain;
+  return name[0] + name[1] + '***@' + domain;
+}
   const avatar = (_me?.name||_me?.email||'U')[0].toUpperCase();
   document.getElementById('sidebarAvatar').textContent = avatar;
-  document.getElementById('sidebarName').textContent = _me?.name || _me?.email || '用户';
+  document.getElementById('sidebarName').textContent = _me?.name || maskEmail(_me?.email) || '用户';
   document.getElementById('sidebarRole').textContent = _me?.role === 'admin' ? '管理员' : '普通用户';
   
   // 管理员专属导航和隐藏普通用户菜单
