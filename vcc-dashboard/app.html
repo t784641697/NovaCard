@@ -421,6 +421,7 @@ select.form-control option{background:var(--bg3);}
 .kyc-field textarea{resize:none;min-height:80px;}
 .kyc-field .field-display{opacity:.6;cursor:not-allowed;}
 .kyc-field .field-hint{font-size:.72rem;color:var(--text3);margin-top:4px;}
+.kyc-row{display:flex;gap:16px;}.kyc-row>.kyc-field{flex:1;min-width:0;}
 .kyc-upload-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .kyc-upload-icon svg{width:20px;height:20px;opacity:.55;}
 .kyc-upload-area{display:flex;align-items:center;gap:12px;background:var(--input-bg);border:1px dashed var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border .15s,background .15s;position:relative;overflow:hidden;}
@@ -6505,6 +6506,7 @@ function kycFormHtml() {
               <input class="kyc-input" id="kycLegalId" placeholder="法人代表身份证号码">
             </div>
           </div>
+          <div class="kyc-row">
           <div class="kyc-field">
             <label class="kyc-label">身份证照片（正面） <span class="kyc-req">*</span></label>
             <div class="kyc-upload-area" onclick="document.getElementById('kycIdFrontFile').click()">
@@ -6528,6 +6530,7 @@ function kycFormHtml() {
               </div>
               <div class="kyc-upload-preview" id="kycIdBackPreview" style="display:none;"></div>
             </div>
+          </div>
           </div>
         </div>
 
