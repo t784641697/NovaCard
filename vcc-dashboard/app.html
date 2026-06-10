@@ -1935,7 +1935,7 @@ function maskEmail(email) {
 }
   const avatar = (_me?.name||_me?.email||'U')[0].toUpperCase();
   document.getElementById('sidebarAvatar').textContent = avatar;
-  document.getElementById('sidebarName').textContent = _me?.name || maskEmail(_me?.email) || '用户';
+  document.getElementById('sidebarName').textContent = (()=>{const n=_me?.name||_me?.email||'用户';return n.includes('@')?maskEmail(n):n;})();
   document.getElementById('sidebarRole').textContent = _me?.role === 'admin' ? '管理员' : '普通用户';
   
   // 管理员专属导航和隐藏普通用户菜单
