@@ -7038,15 +7038,40 @@ async function kycLoad() {
 function kycPreviewDocs(id) {
   const item = window._kycCurrentList.find(a => a.id === id);
   if (!item) return;
+  const renderFile = (src, label) => {
+    if (!src) return '<div style="color:var(--text3);text-align:center;padding:20px;font-size:.85rem;">未上传</div>';
+    if (src.startsWith('data:image/')) {
+      return '<img src="' + src + '" style="width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;" onerror="this.outerHTML=\'<div style=color:#ff5f5f;text-align:center;padding:20px;font-size:.85rem;>❌ 图片加载失败</div>\'">' +
+        '<div style="margin-top:6px;text-align:center;"><a href="' + src + '" download style="color:#47b5ff;font-size:.8rem;text-decoration:none;">⬇ 下载</a></div>';
+    }
+    // 非图片文件（PDF等）
+    return '<div style="border:1px dashed rgba(255,255,255,0.15);border-radius:8px;padding:24px;text-align:center;">' +
+      '<div style="font-size:2rem;margin-bottom:8px;">📄</div>' +
+      '<div style="color:var(--text3);font-size:.85rem;margin-bottom:12px;">' + label.replace('📄 ', '').replace('🪪 ', '') + '（PDF文件）</div>' +
+      '<a href="' + src + '" download style="display:inline-block;padding:8px 20px;background:linear-gradient(135deg,#47b5ff,#6c5ce7);color:#fff;border-radius:6px;font-size:.85rem;text-decoration:none;">⬇ 下载文件</a></div>';
+  };
   let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
-  if (item.reg_cert_file) {
-    html += '<div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px;color:var(--text2);">📄 企业注册证书</div><img src="' + item.reg_cert_file + '" style="width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.08);"></div>';
+  // 企业注册证书
+  html += '<div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px;color:var(--text2);">📄 企业注册证书</div>' +
+    renderFile(item.reg_cert_file, '📄 企业注册证书') + '</div>';
+  // 法人身份证：可能是JSON或base64
+  html += '<div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px;color:var(--text2);">🪪 法人身份证</div>';
+  if (item.id_card_file && item.id_card_file.startsWith('{')) {
+    try {
+      const card = JSON.parse(item.id_card_file);
+      html += '<div style="display:flex;flex-direction:column;gap:12px;">' +
+        '<div><div style="font-size:.75rem;color:var(--text3);margin-bottom:4px;">正面</div>' + renderFile(card.front, '身份证正面') + '</div>' +
+        '<div><div style="font-size:.75rem;color:var(--text3);margin-bottom:4px;">背面</div>' + renderFile(card.back, '身份证背面') + '</div>' +
+        '</div>';
+    } catch(e) {
+      html += '<div style="color:#ff5f5f;padding:12px;font-size:.85rem;">❌ 证件数据解析失败</div>';
+    }
+  } else {
+    html += renderFile(item.id_card_file, '🪪 法人身份证');
   }
-  if (item.id_card_file) {
-    html += '<div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px;color:var(--text2);">🪪 法人身份证</div><img src="' + item.id_card_file + '" style="width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.08);"></div>';
-  }
+  html += '</div>';
   if (!item.reg_cert_file && !item.id_card_file) {
-    html += '<div style="color:var(--text3);text-align:center;padding:40px;grid-column:1/-1;">暂无证件图片</div>';
+    html += '<div style="color:var(--text3);text-align:center;padding:40px;grid-column:1/-1;">暂无证件文件</div>';
   }
   html += '</div>';
   alertModal(html, '📎');
