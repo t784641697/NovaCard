@@ -457,7 +457,9 @@ select.form-control option{background:var(--bg3);}
 .kyc-submit-wrap{padding:16px 22px;border-top:1px solid var(--border);}
 .kyc-submit-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;font-size:.9rem;font-weight:700;color:#fff;background:var(--grad);border:none;border-radius:8px;cursor:pointer;transition:all .2s;letter-spacing:.3px;}
 .kyc-submit-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 6px 24px rgba(167,139,250,.4);}
-.kyc-submit-btn svg{width:18px;height:18px;}
+.kyc-submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none;}
+.kyc-submit-btn .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:kycSpin .6s linear infinite;}
+@keyframes kycSpin{to{transform:rotate(360deg)}}
 .kyc-status-card{background:var(--card-bg);border:2px solid var(--border);border-radius:16px;padding:80px 64px;text-align:center;max-width:2080px;margin:0 auto;}
 .kyc-status-card .status-icon{font-size:2.8rem;margin-bottom:14px;}
 .kyc-status-card .status-msg{font-size:1.15rem;font-weight:600;color:var(--text1);margin-bottom:10px;}
@@ -6732,6 +6734,9 @@ async function submitKyc() {
   if (!phone) { await alertModal('请输入联系电话'); return; }
   if (!email) { await alertModal('请输入电子邮箱'); return; }
 
+  const subBtn = document.querySelector('#kycFormWrap .kyc-submit-btn');
+  if (subBtn) { subBtn.disabled = true; subBtn.textContent = '  提交中...'; }
+
   try {
     let certBase64 = '', idFrontBase64 = '', idBackBase64 = '';
     certBase64 = await readFileAsBase64(certFile);
@@ -6755,6 +6760,9 @@ async function submitKyc() {
     await checkKycStatus();
   } catch(e) {
     await alertModal('提交失败: ' + e.message, '\u274c');
+  } finally {
+    const subBtn2 = document.querySelector('#kycFormWrap .kyc-submit-btn');
+    if (subBtn2) { subBtn2.disabled = false; subBtn2.textContent = '提交认证申请'; }
   }
 }
 
