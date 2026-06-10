@@ -6664,34 +6664,20 @@ async function submitKyc() {
   const idFrontFile = document.getElementById('kycIdFrontFile')?.files?.[0];
   const idBackFile = document.getElementById('kycIdBackFile')?.files?.[0];
 
-  if (!country || country === '请选择国家/地区') await alertModal('请选择企业所属国家/地区');
-    return;
-  if (!company) await alertModal('请输入企业名称');
-    return;
-  if (!bizLicense) await alertModal('请输入证书编号');
-    return;
-  if (!certFile) await alertModal('请上传企业注册证书');
-    return;
-  if (certFile.size > 5 * 1024 * 1024) await alertModal('企业注册证书文件超过 5MB，请压缩后重试');
-    return;
-  if (!legalName) await alertModal('请输入法人姓名');
-    return;
-  if (!legalId) await alertModal('请输入法人身份证号');
-    return;
-  if (!idFrontFile) await alertModal('请上传身份证正面照片');
-    return;
-  if (idFrontFile.size > 5 * 1024 * 1024) await alertModal('身份证正面照片超过 5MB，请压缩后重试');
-    return;
-  if (!idBackFile) await alertModal('请上传身份证背面照片');
-    return;
-  if (idBackFile.size > 5 * 1024 * 1024) await alertModal('身份证背面照片超过 5MB，请压缩后重试');
-    return;
-  if (!contact) await alertModal('请输入联系人姓名');
-    return;
-  if (!phone) await alertModal('请输入联系电话');
-    return;
-  if (!email) await alertModal('请输入电子邮箱');
-    return;
+  if (!country || country === '请选择国家/地区') { await alertModal('请选择企业所属国家/地区'); return; }
+  if (!company) { await alertModal('请输入企业名称'); return; }
+  if (!bizLicense) { await alertModal('请输入证书编号'); return; }
+  if (!certFile) { await alertModal('请上传企业注册证书'); return; }
+  if (certFile.size > 5 * 1024 * 1024) { await alertModal('企业注册证书文件超过 5MB，请压缩后重试'); return; }
+  if (!legalName) { await alertModal('请输入法人姓名'); return; }
+  if (!legalId) { await alertModal('请输入法人身份证号'); return; }
+  if (!idFrontFile) { await alertModal('请上传身份证正面照片'); return; }
+  if (idFrontFile.size > 5 * 1024 * 1024) { await alertModal('身份证正面照片超过 5MB，请压缩后重试'); return; }
+  if (!idBackFile) { await alertModal('请上传身份证背面照片'); return; }
+  if (idBackFile.size > 5 * 1024 * 1024) { await alertModal('身份证背面照片超过 5MB，请压缩后重试'); return; }
+  if (!contact) { await alertModal('请输入联系人姓名'); return; }
+  if (!phone) { await alertModal('请输入联系电话'); return; }
+  if (!email) { await alertModal('请输入电子邮箱'); return; }
 
   try {
     let certBase64 = '', idFrontBase64 = '', idBackBase64 = '';
