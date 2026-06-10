@@ -6547,9 +6547,15 @@ function kycFormHtml() {
               </div>
             </div>
           </div>
-          <div class="kyc-field">
-            <label class="kyc-label">企业名称 <span class="kyc-req">*</span></label>
-            <input class="kyc-input" id="kycCompany" placeholder="请输入企业全称（需与注册证书一致）">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">
+            <div class="kyc-field" style="margin-bottom:0;">
+              <label class="kyc-label">企业名称 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycCompany" placeholder="请输入企业全称（需与注册证书一致）">
+            </div>
+            <div class="kyc-field" style="margin-bottom:0;">
+              <label class="kyc-label">证书编号 <span class="kyc-req">*</span></label>
+              <input class="kyc-input" id="kycBizLicense" placeholder="企业注册证书编号">
+            </div>
           </div>
           <div class="kyc-field">
             <label class="kyc-label">企业注册证书 <span class="kyc-req">*</span></label>
@@ -6562,10 +6568,6 @@ function kycFormHtml() {
               </div>
               <div class="kyc-upload-preview" id="kycCertPreview" style="display:none;"></div>
             </div>
-          </div>
-          <div class="kyc-field">
-            <label class="kyc-label">证书编号 <span class="kyc-req">*</span></label>
-            <input class="kyc-input" id="kycBizLicense" placeholder="企业注册证书编号">
           </div>
         </div>
 
