@@ -6488,8 +6488,8 @@ function kycFormHtml() {
             </div>
           </div>
           <div class="kyc-field">
-            <label class="kyc-label">营业执照号 <span style="color:var(--text3);font-weight:400;">（选填）</span></label>
-            <input class="kyc-input" id="kycBizLicense" placeholder="企业注册编号">
+            <label class="kyc-label">证书编号 <span class="kyc-req">*</span></label>
+            <input class="kyc-input" id="kycBizLicense" placeholder="企业注册证书编号">
           </div>
         </div>
 
@@ -6506,15 +6506,27 @@ function kycFormHtml() {
             </div>
           </div>
           <div class="kyc-field">
-            <label class="kyc-label">身份证照片 <span class="kyc-req">*</span></label>
-            <div class="kyc-upload-area" onclick="document.getElementById('kycIdFile').click()">
-              <input type="file" id="kycIdFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycIdPreview','kycIdLabel','kycIdHint')">
+            <label class="kyc-label">身份证照片（正面） <span class="kyc-req">*</span></label>
+            <div class="kyc-upload-area" onclick="document.getElementById('kycIdFrontFile').click()">
+              <input type="file" id="kycIdFrontFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycIdFrontPreview','kycIdFrontLabel','kycIdFrontHint')">
               <div class="kyc-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
               <div class="kyc-upload-info">
-                <div class="kyc-upload-name" id="kycIdLabel">点击上传身份证照片</div>
-                <div class="kyc-upload-hint" id="kycIdHint">支持 JPG/PNG/PDF，建议文件不超过 10MB</div>
+                <div class="kyc-upload-name" id="kycIdFrontLabel">点击上传身份证正面</div>
+                <div class="kyc-upload-hint" id="kycIdFrontHint">支持 JPG/PNG/PDF，建议文件不超过 5MB</div>
               </div>
-              <div class="kyc-upload-preview" id="kycIdPreview" style="display:none;"></div>
+              <div class="kyc-upload-preview" id="kycIdFrontPreview" style="display:none;"></div>
+            </div>
+          </div>
+          <div class="kyc-field">
+            <label class="kyc-label">身份证照片（背面） <span class="kyc-req">*</span></label>
+            <div class="kyc-upload-area" onclick="document.getElementById('kycIdBackFile').click()">
+              <input type="file" id="kycIdBackFile" accept="image/*,.pdf" style="display:none;" onchange="previewKycFile(this,'kycIdBackPreview','kycIdBackLabel','kycIdBackHint')">
+              <div class="kyc-upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+              <div class="kyc-upload-info">
+                <div class="kyc-upload-name" id="kycIdBackLabel">点击上传身份证背面</div>
+                <div class="kyc-upload-hint" id="kycIdBackHint">支持 JPG/PNG/PDF，建议文件不超过 5MB</div>
+              </div>
+              <div class="kyc-upload-preview" id="kycIdBackPreview" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -6602,6 +6614,7 @@ function previewKycFile(input, previewId, labelId) {
 async function submitKyc() {
   const country = document.getElementById('kycCountryLabel')?.textContent;
   const company = document.getElementById('kycCompany')?.value?.trim();
+  const bizLicense = document.getElementById('kycBizLicense')?.value?.trim();
   const legalName = document.getElementById('kycLegalName')?.value?.trim();
   const legalId = document.getElementById('kycLegalId')?.value?.trim();
   const contact = document.getElementById('kycContact')?.value?.trim();
@@ -6610,31 +6623,38 @@ async function submitKyc() {
   const remark = document.getElementById('kycRemark')?.value?.trim();
 
   const certFile = document.getElementById('kycCertFile')?.files?.[0];
-  const idFile = document.getElementById('kycIdFile')?.files?.[0];
+  const idFrontFile = document.getElementById('kycIdFrontFile')?.files?.[0];
+  const idBackFile = document.getElementById('kycIdBackFile')?.files?.[0];
 
   if (!country || country === '请选择国家/地区') return alert('请选择企业所属国家/地区');
   if (!company) return alert('请输入企业名称');
+  if (!bizLicense) return alert('请输入证书编号');
   if (!certFile) return alert('请上传企业注册证书');
   if (certFile.size > 5 * 1024 * 1024) return alert('企业注册证书文件超过 5MB，请压缩后重试');
   if (!legalName) return alert('请输入法人姓名');
   if (!legalId) return alert('请输入法人身份证号');
-  if (!idFile) return alert('请上传法人身份证照片');
-  if (idFile.size > 5 * 1024 * 1024) return alert('身份证照片文件超过 5MB，请压缩后重试');
+  if (!idFrontFile) return alert('请上传身份证正面照片');
+  if (idFrontFile.size > 5 * 1024 * 1024) return alert('身份证正面照片超过 5MB，请压缩后重试');
+  if (!idBackFile) return alert('请上传身份证背面照片');
+  if (idBackFile.size > 5 * 1024 * 1024) return alert('身份证背面照片超过 5MB，请压缩后重试');
   if (!contact) return alert('请输入联系人姓名');
   if (!phone) return alert('请输入联系电话');
   if (!email) return alert('请输入电子邮箱');
 
   try {
-    let certBase64 = '', idBase64 = '';
+    let certBase64 = '', idFrontBase64 = '', idBackBase64 = '';
     certBase64 = await readFileAsBase64(certFile);
-    idBase64 = await readFileAsBase64(idFile);
+    idFrontBase64 = await readFileAsBase64(idFrontFile);
+    idBackBase64 = await readFileAsBase64(idBackFile);
+    // 将正反面合并为 JSON 存入 id_card_file
+    const idCardJson = JSON.stringify({ front: idFrontBase64, back: idBackBase64 });
 
     const res = await apiFetch('/auth/kyc/submit', {
       method: 'POST',
       body: {
-        country, company_name: company,
+        country, company_name: company, business_license: bizLicense,
         legal_person_name: legalName, legal_person_id: legalId,
-        reg_cert_file: certBase64, id_card_file: idBase64,
+        reg_cert_file: certBase64, id_card_file: idCardJson,
         contact_name: contact, contact_phone: phone, email, remark
       }
     });
