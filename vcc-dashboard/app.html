@@ -2087,7 +2087,7 @@ function gotoPage(page) {
   localStorage.setItem('vcc_page', page);  // 记住当前页面，刷新后恢复
   // 恢复 contentArea 默认样式（管理员卡片管理页面会临时覆盖）
   var area = document.getElementById('contentArea');
-  if (area) { area.style.paddingTop = ''; area.style.paddingLeft = ''; area.style.padding = ''; area.style.maxWidth = ''; area.style.overflowY = ''; area.style.minHeight = ''; area.classList.remove('kyc-mode'); }
+  if (area) { area.style.paddingTop = ''; area.style.paddingLeft = ''; area.style.padding = ''; area.style.maxWidth = ''; area.style.overflowY = ''; area.style.minHeight = ''; }
   // nav 高亮
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   // 优先按映射表找，找不到再用默认规则 nav-{page}
@@ -6385,18 +6385,6 @@ function fallbackCopy(text) {
 
 async function renderKyc() {
   const area = document.getElementById('contentArea');
-  // 注入样式：强制 content-area 左 padding 归零
-  const styleId = '_kycLayout';
-  let styleEl = document.getElementById(styleId);
-  if (!styleEl) {
-    styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    styleEl.textContent = `
-      #contentArea.kyc-mode { padding-left: 0 !important; padding-top: 0 !important; max-width: none !important; }
-    `;
-    document.head.appendChild(styleEl);
-  }
-  area.classList.add('kyc-mode');
   area.innerHTML = `<div id="kycFormWrap"></div>`;
   await loadKycForm();
 }
