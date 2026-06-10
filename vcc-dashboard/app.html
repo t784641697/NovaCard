@@ -7041,27 +7041,32 @@ function kycPreviewDocs(id) {
   const renderFile = (src, label) => {
     if (!src) return '<div style="color:var(--text3);text-align:center;padding:20px;font-size:.85rem;">未上传</div>';
     if (src.startsWith('data:image/')) {
-      return '<img src="' + src + '" style="width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;" onerror="this.outerHTML=\'<div style=color:#ff5f5f;text-align:center;padding:20px;font-size:.85rem;>❌ 图片加载失败</div>\'">' +
+      return '<img src="' + src + '" style="width:100%;max-height:260px;object-fit:contain;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;background:rgba(0,0,0,0.15);" onerror="this.outerHTML=\'<div style=color:#ff5f5f;text-align:center;padding:20px;font-size:.85rem;>❌ 图片加载失败</div>\'">' +
         '<div style="margin-top:6px;text-align:center;"><a href="' + src + '" download style="color:#47b5ff;font-size:.8rem;text-decoration:none;">⬇ 下载</a></div>';
     }
-    // 非图片文件（PDF等）
     return '<div style="border:1px dashed rgba(255,255,255,0.15);border-radius:8px;padding:24px;text-align:center;">' +
       '<div style="font-size:2rem;margin-bottom:8px;">📄</div>' +
       '<div style="color:var(--text3);font-size:.85rem;margin-bottom:12px;">' + label.replace('📄 ', '').replace('🪪 ', '') + '（PDF文件）</div>' +
       '<a href="' + src + '" download style="display:inline-block;padding:8px 20px;background:linear-gradient(135deg,#47b5ff,#6c5ce7);color:#fff;border-radius:6px;font-size:.85rem;text-decoration:none;">⬇ 下载文件</a></div>';
   };
+  const cardStyle = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;';
+
   let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
-  // 企业注册证书
-  html += '<div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px;color:var(--text2);">📄 企业注册证书</div>' +
+  // ── 小框1：企业注册证书 ──
+  html += '<div style="' + cardStyle + '">' +
+    '<div style="font-size:.9rem;font-weight:700;margin-bottom:12px;color:#47b5ff;text-align:center;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);">📄 企业注册证书</div>' +
     renderFile(item.reg_cert_file, '📄 企业注册证书') + '</div>';
-  // 法人身份证：可能是JSON或base64
-  html += '<div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px;color:var(--text2);">🪪 法人身份证</div>';
+  // ── 小框2：法人身份证 ──
+  html += '<div style="' + cardStyle + '">' +
+    '<div style="font-size:.9rem;font-weight:700;margin-bottom:12px;color:#47b5ff;text-align:center;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);">🪪 法人身份证</div>';
   if (item.id_card_file && item.id_card_file.startsWith('{')) {
     try {
       const card = JSON.parse(item.id_card_file);
-      html += '<div style="display:flex;flex-direction:row;gap:16px;">' +
-        '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:#47b5ff;margin-bottom:4px;">正面</div>' + renderFile(card.front, '身份证正面') + '</div>' +
-        '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:#47b5ff;margin-bottom:4px;">背面</div>' + renderFile(card.back, '身份证背面') + '</div>' +
+      html += '<div style="display:flex;flex-direction:row;gap:12px;">' +
+        '<div style="flex:1;min-width:0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;">' +
+        '<div style="font-size:.8rem;font-weight:600;color:#47b5ff;margin-bottom:8px;text-align:center;">正面</div>' + renderFile(card.front, '身份证正面') + '</div>' +
+        '<div style="flex:1;min-width:0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;">' +
+        '<div style="font-size:.8rem;font-weight:600;color:#47b5ff;margin-bottom:8px;text-align:center;">背面</div>' + renderFile(card.back, '身份证背面') + '</div>' +
         '</div>';
     } catch(e) {
       html += '<div style="color:#ff5f5f;padding:12px;font-size:.85rem;">❌ 证件数据解析失败</div>';
