@@ -17,3 +17,11 @@ node_modules/
 nova-backup.skill
 test_createCard.js
 tmp_restore.js
+.workbuddy/
+.codebuddy/
+nova-backup/
+vcc-dashboard/js/
+vcc-dashboard/index.html
+package-lock.json
+config/*.bak.*
+config/*_old*
