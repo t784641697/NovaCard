@@ -6315,12 +6315,13 @@ async function renderKyc() {
   area.style.paddingLeft = '0';
   area.style.maxWidth = 'none';
   area.innerHTML = `<div id="kycFormWrap"></div>`;
-  window._kycRestoreStyle = ()=>{
-    area.style.paddingLeft = '';
-    area.style.maxWidth = '';
-    delete window._kycRestoreStyle;
-  };
   await loadKycForm();
+  // 去除 .kyc-page 的 margin:0 auto 居中，让表单贴左
+  const kycPage = document.querySelector('.kyc-page');
+  if (kycPage) {
+    kycPage.style.maxWidth = 'none';
+    kycPage.style.margin = '0';
+  }
 }
 
 const KYC_COUNTRIES = [
