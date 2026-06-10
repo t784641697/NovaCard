@@ -7059,9 +7059,9 @@ function kycPreviewDocs(id) {
   if (item.id_card_file && item.id_card_file.startsWith('{')) {
     try {
       const card = JSON.parse(item.id_card_file);
-      html += '<div style="display:flex;flex-direction:column;gap:12px;">' +
-        '<div><div style="font-size:.75rem;color:var(--text3);margin-bottom:4px;">正面</div>' + renderFile(card.front, '身份证正面') + '</div>' +
-        '<div><div style="font-size:.75rem;color:var(--text3);margin-bottom:4px;">背面</div>' + renderFile(card.back, '身份证背面') + '</div>' +
+      html += '<div style="display:flex;flex-direction:row;gap:16px;">' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:#47b5ff;margin-bottom:4px;">正面</div>' + renderFile(card.front, '身份证正面') + '</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:.75rem;color:#47b5ff;margin-bottom:4px;">背面</div>' + renderFile(card.back, '身份证背面') + '</div>' +
         '</div>';
     } catch(e) {
       html += '<div style="color:#ff5f5f;padding:12px;font-size:.85rem;">❌ 证件数据解析失败</div>';
