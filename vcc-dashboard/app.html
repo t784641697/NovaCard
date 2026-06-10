@@ -6910,7 +6910,7 @@ async function renderKycReviewPage() {
         </div>
       </div>
 
-      <div id="kycList"><div class="loading-spinner" style="margin:60px auto;"></div></div>
+      <div id="kycList"><div style="text-align:center;padding:40px;color:var(--text3);font-size:.9rem;">🔄 加载中…</div></div>
     </div>
   `;
   window._kycTab = "pending";
@@ -6941,89 +6941,98 @@ function kycResetSearch() {
 function kycRefresh() { kycLoad(); }
 
 async function kycLoad() {
-  const tab = window._kycTab || "pending";
-  const r = await apiFetch("/admin/kyc/list?status=" + tab, {}, true);
-  if (!r || r.code !== 0) return;
-  let list = r.data || [];
-
-  // 搜索过滤
-  const search = window._kycSearch || "";
-  if (search) {
-    list = list.filter(a => {
-      const company = (a.company_name || "").toLowerCase();
-      const contact = (a.contact_name || "").toLowerCase();
-      const phone = (a.contact_phone || "").toLowerCase();
-      const email = (a.email || "").toLowerCase();
-      const uname = (a.user_name || "").toLowerCase();
-      return company.includes(search) || contact.includes(search) || phone.includes(search) || email.includes(search) || uname.includes(search);
-    });
-  }
-  window._kycCurrentList = list;
-
-  // 统计
-  const statsEl = document.getElementById("kycStats");
-  if (statsEl) {
-    const allR = await apiFetch("/admin/kyc/list?status=", {}, true);
-    const allList = allR?.data || [];
-    const cnt = { pending: 0, approved: 0, rejected: 0 };
-    allList.forEach(a => { if (cnt[a.status] !== undefined) cnt[a.status]++; });
-    statsEl.innerHTML = [
-      { label: "待审核", val: cnt.pending, color: "#ffaa00" },
-      { label: "已通过", val: cnt.approved, color: "#00c758" },
-      { label: "已拒绝", val: cnt.rejected, color: "#ff5f5f" },
-      { label: "共计", val: allList.length, color: "#00f2fe" },
-    ].map(s => `<div class="cr-stat-card"><div class="cr-stat-num" style="color:${s.color}">${s.val}</div><div class="cr-stat-label">${s.label}</div></div>`).join("");
-  }
-
   const wrap = document.getElementById("kycList");
   if (!wrap) return;
-  if (!list.length) {
-    wrap.innerHTML = `<div class="cr-empty"><div class="cr-empty-icon">📭</div><div class="cr-empty-text">暂无符合条件的认证申请</div></div>`;
-    return;
+  // 显示加载中
+  wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-size:.9rem;">🔄 加载中…</div>';
+  try {
+    const tab = window._kycTab || "pending";
+    const r = await apiFetch("/admin/kyc/list?status=" + tab);
+    if (!r || r.code !== 0) {
+      wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#ff5f5f;font-size:.9rem;">❌ 加载失败: ' + (r?.msg || '未知错误') + '</div>';
+      return;
+    }
+    let list = r.data || [];
+
+    // 搜索过滤
+    const search = window._kycSearch || "";
+    if (search) {
+      list = list.filter(a => {
+        const company = (a.company_name || "").toLowerCase();
+        const contact = (a.contact_name || "").toLowerCase();
+        const phone = (a.contact_phone || "").toLowerCase();
+        const email = (a.email || "").toLowerCase();
+        const uname = (a.user_name || "").toLowerCase();
+        return company.includes(search) || contact.includes(search) || phone.includes(search) || email.includes(search) || uname.includes(search);
+      });
+    }
+    window._kycCurrentList = list;
+
+    // 统计
+    const statsEl = document.getElementById("kycStats");
+    if (statsEl) {
+      const allR = await apiFetch("/admin/kyc/list?status=");
+      const allList = allR?.data || [];
+      const cnt = { pending: 0, approved: 0, rejected: 0 };
+      allList.forEach(a => { if (cnt[a.status] !== undefined) cnt[a.status]++; });
+      statsEl.innerHTML = [
+        { label: "待审核", val: cnt.pending, color: "#ffaa00" },
+        { label: "已通过", val: cnt.approved, color: "#00c758" },
+        { label: "已拒绝", val: cnt.rejected, color: "#ff5f5f" },
+        { label: "共计", val: allList.length, color: "#00f2fe" },
+      ].map(s => `<div class="cr-stat-card"><div class="cr-stat-num" style="color:${s.color}">${s.val}</div><div class="cr-stat-label">${s.label}</div></div>`).join("");
+    }
+
+    if (!list.length) {
+      wrap.innerHTML = `<div class="cr-empty"><div class="cr-empty-icon">📭</div><div class="cr-empty-text">暂无符合条件的认证申请</div></div>`;
+      return;
+    }
+
+    const statusMap = { pending: "待审核", approved: "已通过", rejected: "已拒绝" };
+    const statusClass = { pending: "cr-tag-pending", approved: "cr-tag-approved", rejected: "cr-tag-rejected" };
+
+    wrap.innerHTML = `<div class="cr-table-wrap"><table class="cr-table"><thead><tr>` +
+      `<th class="col-id">ID</th>` +
+      `<th class="kyc-col-name">申请人</th>` +
+      `<th class="kyc-col-company">企业名称</th>` +
+      `<th>国家</th>` +
+      `<th class="kyc-col-contact">法人代表</th>` +
+      `<th>法人证件</th>` +
+      `<th>联系人</th>` +
+      `<th class="col-status">状态</th>` +
+      `<th class="col-time">提交时间</th>` +
+      `<th class="col-action">操作</th>` +
+      `</tr></thead><tbody>` +
+      list.map(a => {
+        const isPending = a.status === "pending";
+        const st = statusMap[a.status] || a.status;
+        const sc = statusClass[a.status] || "";
+        const dt = (a.created_at || "").replace("T", " ").slice(0, 16);
+        const legalInfo = (a.legal_person_name || "-") + (a.legal_person_id ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + esc(a.legal_person_id) + '</div>' : '');
+        const contactInfo = (a.contact_name || "-") + (a.contact_phone ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + esc(a.contact_phone) + '</div>' : '');
+        return `<tr>` +
+          `<td class="col-id">#${a.id}</td>` +
+          `<td class="kyc-col-name"><div class="cr-applicant-name">${esc(a.user_name || "-")}</div><div class="cr-applicant-email">${esc(a.email || "")}</div></td>` +
+          `<td class="kyc-col-company">${esc(a.company_name || "-")}${a.remark ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">备注: ' + esc(a.remark) + '</div>' : ''}</td>` +
+          `<td>${esc(a.country || "-")}</td>` +
+          `<td class="kyc-col-contact">${legalInfo}</td>` +
+          `<td style="font-size:.8rem;">${a.legal_person_name ? '<span class="kyc-detail-link" onclick="kycPreviewDocs(' + a.id + ')">📎 查看证件</span>' : '-'}</td>` +
+          `<td>${contactInfo}</td>` +
+          `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? '<div style="font-size:.75rem;color:#ff5f5f;margin-top:4px">原因: ' + esc(a.reject_reason) + '</div>' : ''}</td>` +
+          `<td class="col-time">${dt}</td>` +
+          `<td class="col-action">` +
+            (isPending ?
+              '<button class="kyc-btn-action kyc-btn-pass" onclick="approveKyc(' + a.id + ')">✅ 通过</button>' +
+              '<button class="kyc-btn-action kyc-btn-reject" onclick="rejectKyc(' + a.id + ')" style="margin-left:4px;">❌ 拒绝</button>' :
+              st === '已通过' ? '<span style="color:#00c758;font-size:.85rem;">✅ 已通过</span>' :
+                '<span style="color:#ff5f5f;font-size:.85rem;">❌ 已拒绝</span>') +
+          `</td>` +
+        `</tr>`;
+      }).join('') +
+      `</tbody></table></div>`;
+  } catch(e) {
+    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#ff5f5f;font-size:.9rem;">❌ 加载异常: ' + e.message + '</div>';
   }
-
-  const statusMap = { pending: "待审核", approved: "已通过", rejected: "已拒绝" };
-  const statusClass = { pending: "cr-tag-pending", approved: "cr-tag-approved", rejected: "cr-tag-rejected" };
-
-  wrap.innerHTML = `<div class="cr-table-wrap"><table class="cr-table"><thead><tr>` +
-    `<th class="col-id">ID</th>` +
-    `<th class="kyc-col-name">申请人</th>` +
-    `<th class="kyc-col-company">企业名称</th>` +
-    `<th>国家</th>` +
-    `<th class="kyc-col-contact">法人代表</th>` +
-    `<th>法人证件</th>` +
-    `<th>联系人</th>` +
-    `<th class="col-status">状态</th>` +
-    `<th class="col-time">提交时间</th>` +
-    `<th class="col-action">操作</th>` +
-    `</tr></thead><tbody>` +
-    list.map(a => {
-      const isPending = a.status === "pending";
-      const st = statusMap[a.status] || a.status;
-      const sc = statusClass[a.status] || "";
-      const dt = (a.created_at || "").replace("T", " ").slice(0, 16);
-      const legalInfo = (a.legal_person_name || "-") + (a.legal_person_id ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + esc(a.legal_person_id) + '</div>' : '');
-      const contactInfo = (a.contact_name || "-") + (a.contact_phone ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + esc(a.contact_phone) + '</div>' : '');
-      return `<tr>` +
-        `<td class="col-id">#${a.id}</td>` +
-        `<td class="kyc-col-name"><div class="cr-applicant-name">${esc(a.user_name || "-")}</div><div class="cr-applicant-email">${esc(a.email || "")}</div></td>` +
-        `<td class="kyc-col-company">${esc(a.company_name || "-")}${a.remark ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">备注: ' + esc(a.remark) + '</div>' : ''}</td>` +
-        `<td>${esc(a.country || "-")}</td>` +
-        `<td class="kyc-col-contact">${legalInfo}</td>` +
-        `<td style="font-size:.8rem;">${a.legal_person_name ? '<span class="kyc-detail-link" onclick="kycPreviewDocs(' + a.id + ')">📎 查看证件</span>' : '-'}</td>` +
-        `<td>${contactInfo}</td>` +
-        `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? '<div style="font-size:.75rem;color:#ff5f5f;margin-top:4px">原因: ' + esc(a.reject_reason) + '</div>' : ''}</td>` +
-        `<td class="col-time">${dt}</td>` +
-        `<td class="col-action">` +
-          (isPending ?
-            '<button class="kyc-btn-action kyc-btn-pass" onclick="approveKyc(' + a.id + ')">✅ 通过</button>' +
-            '<button class="kyc-btn-action kyc-btn-reject" onclick="rejectKyc(' + a.id + ')" style="margin-left:4px;">❌ 拒绝</button>' :
-            st === '已通过' ? '<span style="color:#00c758;font-size:.85rem;">✅ 已通过</span>' :
-              '<span style="color:#ff5f5f;font-size:.85rem;">❌ 已拒绝</span>') +
-        `</td>` +
-      `</tr>`;
-    }).join('') +
-    `</tbody></table></div>`;
 }
 
 function kycPreviewDocs(id) {
@@ -7048,7 +7057,7 @@ async function approveKyc(id) {
   try {
     const res = await apiFetch('/admin/kyc/' + id + '/approve', { method: 'POST' });
     if (res.code !== 0) throw new Error(res.msg);
-    await loadKycReviewList();
+    await kycLoad();
   } catch(e) {
     await alertModal('操作失败: ' + e.message, '\u274c');
   }
@@ -7064,7 +7073,7 @@ async function rejectKyc(id) {
   try {
     const res = await apiFetch('/admin/kyc/' + id + '/reject', { method: 'POST', body: { reason } });
     if (res.code !== 0) throw new Error(res.msg);
-    await loadKycReviewList();
+    await kycLoad();
   } catch(e) {
     await alertModal('操作失败: ' + e.message, '\u274c');
   }
