@@ -1444,7 +1444,11 @@ window.alertModal = function(msg, icon) {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
     overlay.onclick = function(e) { if (e.target === overlay) { document.body.removeChild(overlay); resolve(); } };
     
-    const modal = document.createElement('div');
+    overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
+  
+  const modal = document.createElement('div');
     modal.style.cssText = 'background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(0,242,254,.2);border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4);';
     
     modal.innerHTML = '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">' +
@@ -1958,10 +1962,10 @@ function enterDash() {
     gotoPage(lastPage || 'cards');
   }
   
-  // 延迟检查账户余额，确保 _me 已初始化
+  // 延迟检查账户余额，确保页面已渲染完毕
   setTimeout(() => {
     checkAccountBalanceWarning();
-  }, 300);
+  }, 800);
 }
 function doLogout() {
   _token = null; _me = null;
@@ -2033,7 +2037,7 @@ function showBalanceWarningModal(balance, balanceType = '账户余额') {
         style="padding:10px 16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#e1e5f9;cursor:pointer;font-weight:600;transition:.2s;\">
         稍后处理
       </button>
-      <button onclick="${buttonAction};this.parentElement.parentElement.parentElement.remove()\" 
+      <button onclick="${buttonAction};this.parentElement.parentElement.parentElement.remove()" 
         style="padding:10px 16px;background:linear-gradient(135deg, #00f2fe 0%, #00deec 100%);border:none;border-radius:8px;color:#000;cursor:pointer;font-weight:600;transition:.2s;\">
         ${buttonText}
       </button>
