@@ -1,5 +1,20 @@
 # CHANGELOG.md
 
+## v1.0.27 (2026-06-11)
+
+### 修复
+- **KYC 表单布局问题**：
+  - **问题1**：表单未贴近侧边栏（之前 `margin:0 auto` 居中导致右侧大量空白）→ 改为 `margin:0` 左对齐
+  - **问题2**：提交认证申请按钮尺寸异常（之前 `width:100%` 撑满 720px 表单）→ 改为 `inline-flex;width:auto;min-width:180px;padding:11px 28px;` 自适应宽度
+
+### 变更
+- **KYC 提交按钮位置**：`.kyc-submit-wrap` 增加 `text-align:right`，按钮靠表单右下角显示
+
+### 清理
+- **删除无用文件**：`assets/`(11MB截图)、`vcc-dashboard/js/`(444KB旧JS)、`vcc-dashboard/index.html`(312KB)、`package-lock.json`、`nova-backup/`、agent记忆目录、备份密钥
+- **项目体积**：14MB → ~1MB
+- **更新 `.gitignore`**：忽略 `.workbuddy/`、`.codebuddy/`、`nova-backup/`、`package-lock.json`、备份密钥
+
 ## v1.0.26 (2026-06-11)
 
 ### 新增
