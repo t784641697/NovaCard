@@ -1,5 +1,16 @@
 # CHANGELOG.md
 
+## v1.0.31 (2026-06-12)
+
+### 修复
+- **KYC 提交按钮再次细化**（用户反馈仍偏胖）：
+  - `min-width: 180px → 240px`（更长）
+  - `padding: 7px 32px → 5px 32px`（更薄）
+  - `font-size: .82rem → .78rem`（更精致）
+  - `border-radius: 20px → 14px`（薄按钮小圆角更协调）
+  - 字距 `.4px → .5px`（更有节奏）
+  - SVG 图标 `width/height: 24px(默认) → 13px`，`stroke-width: 2 → 2.5`（缩小+加粗让小图标清晰）
+
 ## v1.0.30 (2026-06-12)
 
 ### 修复
