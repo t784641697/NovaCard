@@ -1,5 +1,15 @@
 # CHANGELOG.md
 
+## v1.0.33 (2026-06-12)
+
+### 修复
+- **KYC 上传 PDF 文件名与系统提示重叠**：
+  - 原因：`.kyc-upload-info` 没有显式 flex column 布局，长文件名无省略号处理
+  - 修复 CSS：`.kyc-upload-info { display:flex; flex-direction:column; gap:2px; }`
+  - 修复 CSS：`.kyc-upload-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }`
+  - 修复 JS：上传后 `hint.style.display='none'` 隐藏系统提示，避免重叠
+  - 优化 PDF 预览：显示文件名 + 文件大小（KB/MB 自动单位）
+
 ## v1.0.32 (2026-06-12)
 ### 修复
 - **KYC 提交按钮调整为饱满修长版**（参考全项目按钮尺寸规范）：
