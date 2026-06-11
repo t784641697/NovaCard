@@ -408,10 +408,10 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 - **文件格式**：`accept="image/*,.pdf"`，支持图片和 PDF
 - **法人代表信息区**：法人姓名在上，身份证号在下（垂直排列）
 - **表单左对齐**（贴近侧边栏）：`.kyc-page { max-width: 720px; margin: 0; }`
-- **提交按钮自适应宽度+居中+胶囊形**：
-  - `.kyc-submit-btn { display: inline-flex; width: auto; min-width: 0; padding: 10px 24px; font-size: .88rem; border-radius: 22px; box-shadow: 0 4px 14px rgba(126,184,247,.25); }`
+- **提交按钮自适应宽度+居中+胶囊形(细长版)**：
+  - `.kyc-submit-btn { display: inline-flex; width: auto; min-width: 180px; padding: 7px 32px; font-size: .82rem; border-radius: 20px; letter-spacing: .4px; box-shadow: 0 0 18px rgba(126,184,247,.28), 0 4px 12px rgba(167,139,250,.22); }`
   - 按钮在 `.kyc-submit-wrap { text-align: center; }` 中**居中对齐**
-  - 视觉参考「修改资料重新提交」按钮（胶囊形 + 渐变 + 柔和阴影）
+  - 视觉参考「修改资料重新提交」按钮（胶囊形 + 渐变 + 柔和外发光）
   - 不再 `width: 100%` 撑满
 
 ### 10.2 自定义弹窗系统（已替换所有原生弹窗）
