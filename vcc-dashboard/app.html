@@ -426,9 +426,9 @@ select.form-control option{background:var(--bg3);}
 .kyc-upload-icon svg{width:20px;height:20px;opacity:.55;}
 .kyc-upload-area{display:flex;align-items:center;gap:12px;background:var(--input-bg);border:1px dashed var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border .15s,background .15s;position:relative;overflow:hidden;}
 .kyc-upload-area:hover{border-color:rgba(0,242,254,.35);background:rgba(0,242,254,.03);}
-.kyc-upload-area .kyc-upload-info{flex:1;min-width:0;}
-.kyc-upload-area .kyc-upload-name{font-size:.82rem;color:var(--text2);}
-.kyc-upload-area .kyc-upload-hint{font-size:.7rem;color:var(--text3);margin-top:2px;}
+.kyc-upload-area .kyc-upload-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.kyc-upload-area .kyc-upload-name{font-size:.82rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.kyc-upload-area .kyc-upload-hint{font-size:.7rem;color:var(--text3);}
 .kyc-upload-area .kyc-upload-preview{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--input-bg);}
 .kyc-upload-area .kyc-upload-preview img{max-height:100%;max-width:100%;object-fit:contain;border-radius:6px;}
 .kyc-submit-row{display:flex;justify-content:center;margin-top:10px;}
@@ -6672,12 +6672,20 @@ function pickCountry(el) {
   document.getElementById('kycCountryTrigger').setAttribute('aria-expanded', 'false');
 }
 
-function previewKycFile(input, previewId, labelId) {
+function previewKycFile(input, previewId, labelId, hintId) {
   const preview = document.getElementById(previewId);
   const label = document.getElementById(labelId);
+  const hint = hintId ? document.getElementById(hintId) : null;
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
+  const sizeKB = (file.size / 1024).toFixed(1);
+  const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+  const sizeStr = file.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB';
   label.textContent = file.name;
+  // 上传后：隐藏系统提示（避免和文件名重叠）
+  if (hint) {
+    hint.style.display = 'none';
+  }
   if (file.type.startsWith('image/')) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -6686,7 +6694,7 @@ function previewKycFile(input, previewId, labelId) {
     };
     reader.readAsDataURL(file);
   } else {
-    preview.innerHTML = `<div style="padding:8px;background:rgba(255,255,255,.05);border-radius:6px;color:var(--text3);font-size:.82rem;">📄 ${esc(file.name)}</div>`;
+    preview.innerHTML = `<div style="padding:8px 12px;background:rgba(126,184,247,.12);border:1px solid rgba(126,184,247,.3);border-radius:6px;color:var(--text2);font-size:.82rem;display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem;">📄</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(file.name)}</span><span style="color:var(--text3);font-size:.72rem;flex-shrink:0;">${sizeStr}</span></div>`;
     preview.style.display = 'block';
   }
 }
