@@ -7076,16 +7076,38 @@ function kycPreviewDocs(id) {
     if (src.startsWith('data:image/')) {
       return '<img src="' + src + '" style="width:100%;max-height:320px;object-fit:contain;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;background:rgba(0,0,0,0.15);" onerror="this.outerHTML=\'<div style=color:#ff5f5f;text-align:center;padding:20px;font-size:.85rem;>❌ 图片加载失败</div>\'">';
     }
-    // PDF：使用 iframe 内嵌直接显示（浏览器原生 PDF 阅读器）
+    // PDF：使用 iframe 内嵌 + 加载动画 + 失败降级提示
     if (src.startsWith('data:application/pdf') || /\.pdf$/i.test(label || '')) {
       const key = 'pdf_' + (pdfIdx++);
       window._kycPdfCache[key] = src;
-      return '<div style="position:relative;background:rgba(0,0,0,.2);border-radius:8px;overflow:hidden;">' +
-        '<iframe src="' + src + '" style="width:100%;height:320px;border:none;border-radius:8px;background:#1a1f2e;display:block;" title="PDF预览"></iframe>' +
-        '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;">' +
-          '<button onclick="openKycPdf(\'' + key + '\')" title="在新窗口打开" style="background:rgba(0,0,0,.65);color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 8px;font-size:.7rem;cursor:pointer;display:inline-flex;align-items:center;gap:3px;backdrop-filter:blur(4px);">⛶ 新窗口</button>' +
+      const wrapId = 'pdfWrap_' + key;
+      const loadId = 'pdfLoad_' + key;
+      const errId = 'pdfErr_' + key;
+      return '<div id="' + wrapId + '" style="position:relative;background:rgba(0,0,0,.25);border-radius:8px;overflow:hidden;min-height:360px;">' +
+        // 加载中提示
+        '<div id="' + loadId + '" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(13,19,34,.92);z-index:2;color:var(--text3);font-size:.85rem;gap:10px;">' +
+          '<div style="width:32px;height:32px;border:3px solid rgba(126,184,247,.2);border-top-color:#7eb8f7;border-radius:50%;animation:kycSpin .8s linear infinite;"></div>' +
+          '<div>正在加载 PDF...</div>' +
         '</div>' +
-      '</div>';
+        // 失败降级提示（默认隐藏）
+        '<div id="' + errId + '" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:rgba(13,19,34,.95);z-index:3;padding:20px;text-align:center;gap:12px;">' +
+          '<div style="font-size:2.2rem;">📄</div>' +
+          '<div style="color:#ffb347;font-size:.9rem;font-weight:600;">浏览器无法内嵌预览此 PDF</div>' +
+          '<div style="color:var(--text3);font-size:.78rem;line-height:1.5;">建议点击下方按钮在新窗口中查看<br>或下载到本地查看</div>' +
+        '</div>' +
+        // iframe 本体
+        '<iframe src="' + src + '" style="width:100%;height:360px;border:none;background:#1a1f2e;display:block;" title="PDF预览" onload="var l=document.getElementById(\'' + loadId + '\');if(l)l.style.display=\'none\';" onerror="document.getElementById(\'' + loadId + '\').style.display=\'none\';document.getElementById(\'' + errId + '\').style.display=\'flex\';"></iframe>' +
+        // 顶部工具栏
+        '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;z-index:4;">' +
+          '<button onclick="openKycPdf(\'' + key + '\')" title="在新窗口打开（推荐）" style="background:linear-gradient(135deg,#7eb8f7,#a78bfa,#e879f9);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:.72rem;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:600;box-shadow:0 2px 8px rgba(126,184,247,.35);">⛶ 新窗口打开</button>' +
+        '</div>' +
+        // 底部状态栏
+        '<div style="position:absolute;bottom:0;left:0;right:0;padding:6px 10px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.6));font-size:.7rem;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:6px;">' +
+          '<span>📄</span><span>PDF 文档</span>' +
+        '</div>' +
+      '</div>' +
+      // 3秒后如果还在加载，强制隐藏 loading 并显示降级提示（处理部分浏览器不支持内嵌的情况）
+      '<script>(function(){var tries=0;var iv=setInterval(function(){tries++;var l=document.getElementById("' + loadId + '");var e=document.getElementById("' + errId + '");if(!l)return clearInterval(iv);if(tries>=6){if(l.style.display!=="none"){l.style.display="none";}if(e&&e.style.display!=="flex"){e.style.display="flex";}clearInterval(iv);}else if(l.style.display==="none"){clearInterval(iv);}},500);})();</script>';
     }
     return '<div style="border:1px dashed rgba(255,255,255,0.15);border-radius:8px;padding:24px;text-align:center;">' +
       '<div style="font-size:2rem;margin-bottom:8px;">📎</div>' +
