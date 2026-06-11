@@ -411,9 +411,19 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 - **提交按钮自适应宽度+居中+胶囊形(超细长版)**：
   - `.kyc-submit-btn { display: inline-flex; width: auto; min-width: 240px; padding: 5px 32px; font-size: .78rem; border-radius: 14px; letter-spacing: .5px; box-shadow: 0 0 18px rgba(126,184,247,.28), 0 4px 12px rgba(167,139,250,.22); }`
   - SVG 图标固定 `width="13" height="13" stroke-width="2.5"`（缩小+加粗避免小图标模糊）
+  ### 10.1 KYC 企业认证表单
+- 页面布局：表单 `max-width:720px;margin:0;`（左对齐，贴近侧边栏）
+- 提交按钮 `.kyc-submit-btn` 规范（v1.0.32）：
+  - `padding: 10px 32px`（高度 34px）
+  - `font-size: .88rem; font-weight: 700`
+  - `min-width: 160px; max-width: 220px; width: auto`（不再撑满，饱满修长）
+  - `border-radius: 16px`（胶囊形）
+  - `box-shadow: 0 0 18px rgba(126,184,247,.28), 0 4px 12px rgba(167,139,250,.22)`（双层彩色外发光）
+  - 背景 `var(--grad)`（冰蓝→薰衣草紫→品粉）
+  - SVG 图标：`width:13px; height:13px; stroke-width:2.5`（避免过大）
   - 按钮在 `.kyc-submit-wrap { text-align: center; }` 中**居中对齐**
   - 视觉参考「修改资料重新提交」按钮（胶囊形 + 渐变 + 柔和外发光）
-  - 不再 `width: 100%` 撑满
+  - 实际宽高比约 5.6:1，既修长又饱满
 
 ### 10.2 自定义弹窗系统（已替换所有原生弹窗）
 - **`alertModal(msg)`** — 替换原生 `alert()`，渐变暗色背景+半透明遮罩，max-width:780px（用于证件预览）/420px（普通提示）
