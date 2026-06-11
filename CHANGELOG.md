@@ -1,5 +1,14 @@
 # CHANGELOG.md
 
+## v1.0.34 (2026-06-12)
+
+### 修复
+- **KYC 上传 PDF 文件名仍重复显示**：
+  - 原因：v1.0.33 修复后，PDF 仍同时在 `.kyc-upload-name`（label 区域）和 `.kyc-upload-preview`（绝对定位覆盖层）渲染文件名，导致叠加重复
+  - 修复 JS（`previewKycFile`）：PDF 文件不再渲染 preview 缩略图；hint 区域改为显示"📄 PDF 文件 · 105.4 KB"替代系统提示
+  - 修复 JS：清空文件时重置 label 和 hint 文本
+  - 优化图片预览：max-height 120px，object-fit contain，垂直居中（替代原本 width:100% 撑满）
+
 ## v1.0.33 (2026-06-12)
 
 ### 修复
