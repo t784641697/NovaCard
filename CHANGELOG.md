@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## v1.0.28 (2026-06-12)
+
+### 修复
+- **KYC 提交按钮尺寸再次调整**：
+  - 缩小按钮：`min-width: 180px → 0`、`padding: 11px 28px → 9px 22px`、`font-size: .9rem → .85rem`
+  - 改为居中：`.kyc-submit-wrap` 由 `text-align: right` → `text-align: center`
+
 ## v1.0.27 (2026-06-11)
 
 ### 修复

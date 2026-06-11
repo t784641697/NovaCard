@@ -408,7 +408,7 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 - **文件格式**：`accept="image/*,.pdf"`，支持图片和 PDF
 - **法人代表信息区**：法人姓名在上，身份证号在下（垂直排列）
 - **表单左对齐**（贴近侧边栏）：`.kyc-page { max-width: 720px; margin: 0; }`
-- **提交按钮自适应宽度**：`.kyc-submit-btn { display: inline-flex; width: auto; min-width: 180px; padding: 11px 28px; }`，按钮右对齐（`.kyc-submit-wrap { text-align: right; }`），不再 `width: 100%` 撑满
+- **提交按钮自适应宽度+居中**：`.kyc-submit-btn { display: inline-flex; width: auto; min-width: 0; padding: 9px 22px; font-size: .85rem; }`，按钮在 `.kyc-submit-wrap { text-align: center; }` 中**居中对齐**，不再 `width: 100%` 撑满
 
 ### 10.2 自定义弹窗系统（已替换所有原生弹窗）
 - **`alertModal(msg)`** — 替换原生 `alert()`，渐变暗色背景+半透明遮罩，max-width:780px（用于证件预览）/420px（普通提示）
