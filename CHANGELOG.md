@@ -1,3 +1,15 @@
+
+## v1.0.37 | 2026-06-12 | KYC预览弹窗重构
+
+**弹窗固定大小 + PDF 图标卡片化**
+
+- **问题1（PDF预览空白）**：之前用 iframe 内嵌 base64 PDF，受浏览器兼容性影响会出现静默空白。改为：PDF 显示为图标卡片（📄 + 文件名 + 大小 + 「预览」+「下载」按钮），点击触发新窗口打开。
+- **问题2（身份证框过高）**：法人身份证正反面改为**上下堆叠**（grid-template-rows: 1fr 1fr）而非左右并排，框体高度减半。
+- **问题3（弹窗整体滚动）**：弹窗改为**固定大小** `width:780px; height:520px; max-height:calc(100vh - 80px); overflow:hidden`，仅中间 body 区域 `overflow-y:auto`，弹窗本身不再出现滚动条。
+- 重写 `kycPreviewDocs()` 函数，引入 `renderFile()` 统一处理图片/PDF/其他文件。
+- 新增 `openKycPdf()` 异步函数：base64 → Blob URL → `window.open()`，60秒后自动释放。
+
+
 # CHANGELOG.md
 
 ## v1.0.36 (2026-06-12) — KYC PDF预览加载体验优化
