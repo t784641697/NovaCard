@@ -6676,26 +6676,37 @@ function previewKycFile(input, previewId, labelId, hintId) {
   const preview = document.getElementById(previewId);
   const label = document.getElementById(labelId);
   const hint = hintId ? document.getElementById(hintId) : null;
-  if (!input.files || !input.files[0]) return;
+  if (!input.files || !input.files[0]) {
+    if (label) { label.textContent = '点击上传注册证书'; }
+    if (hint) { hint.textContent = '支持 JPG/PNG/PDF，建议文件不超过 10MB'; hint.style.display = ''; }
+    if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+    return;
+  }
   const file = input.files[0];
   const sizeKB = (file.size / 1024).toFixed(1);
   const sizeMB = (file.size / 1024 / 1024).toFixed(2);
   const sizeStr = file.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB';
+  // 更新主标签：仅显示文件名
   label.textContent = file.name;
-  // 上传后：隐藏系统提示（避免和文件名重叠）
+  label.title = file.name;
+  // 更新提示：显示文件类型 + 大小（替代系统提示，避免重叠）
   if (hint) {
-    hint.style.display = 'none';
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const isImg = file.type.startsWith('image/');
+    const typeLabel = isPdf ? '📄 PDF 文件' : (isImg ? '🖼️ 图片' : '📎 文件');
+    hint.textContent = `${typeLabel} · ${sizeStr}`;
+    hint.style.display = '';
   }
   if (file.type.startsWith('image/')) {
     const reader = new FileReader();
     reader.onload = (e) => {
-      preview.innerHTML = `<img src="${e.target.result}" style="width:100%;display:block;">`;
-      preview.style.display = 'block';
+      preview.innerHTML = `<img src="${e.target.result}" style="max-height:120px;max-width:100%;object-fit:contain;border-radius:6px;">`;
+      preview.style.display = 'flex';
     };
     reader.readAsDataURL(file);
   } else {
-    preview.innerHTML = `<div style="padding:8px 12px;background:rgba(126,184,247,.12);border:1px solid rgba(126,184,247,.3);border-radius:6px;color:var(--text2);font-size:.82rem;display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem;">📄</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(file.name)}</span><span style="color:var(--text3);font-size:.72rem;flex-shrink:0;">${sizeStr}</span></div>`;
-    preview.style.display = 'block';
+    // PDF/其他文件：不显示预览缩略图（避免与文件名重复）
+    if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
   }
 }
 
