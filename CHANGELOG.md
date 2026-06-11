@@ -1,5 +1,15 @@
 # CHANGELOG.md
 
+## v1.0.35 (2026-06-12)
+
+### 新增
+- **KYC 管理员可在线查看 PDF**（用户反馈：用户上传的 PDF 文件之前只能下载，无法在浏览器中直接查看）：
+  - **PDF 内嵌预览**：`renderFile` 函数对 PDF 文件不再只显示图标，改为用 `<iframe src="data:application/pdf;base64,...">` 内嵌浏览器原生 PDF 阅读器，直接在弹窗内可滚动查看 PDF 内容
+  - **"新窗口打开"按钮**：每个 PDF iframe 右上角增加 `⛶ 新窗口` 浮动按钮（半透明黑底+blur 玻璃质感）
+  - **Blob URL 优化**：`openKycPdf()` 函数将 base64 data URL 转成 Blob URL 打开新窗口，避免某些浏览器对 data URL 长度的限制；60秒后自动 `URL.revokeObjectURL` 释放内存；Blob 创建失败时降级用 data URL
+  - **图片预览同步优化**：`max-height: 260px → 320px`（更清晰）
+- **PDF 数据缓存**：`window._kycPdfCache` 全局对象按 `pdf_N` 键存储 PDF data URL，供"新窗口打开"按钮回调
+
 ## v1.0.34 (2026-06-12)
 
 ### 修复

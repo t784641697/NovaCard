@@ -455,3 +455,31 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 - **已通过**：✅ 图标 + "已通过企业认证"
 - **已拒绝**：❌ 图标 + 拒绝原因 + "修改资料重新提交"按钮（点击渲染表单）
 - 状态卡片样式：`.kyc-status-card { max-width: 420px; margin: 40px auto; }`
+
+### 10.2 管理员证件预览弹窗
+
+**功能**：管理员审核 KYC 申请时，点击"查看附件"弹出预览弹窗，可直接查看图片和 PDF 文档。
+
+**布局结构**（卡片式三层嵌套）：
+```
+外层大框（max-width 780px）
+  ├── 内框1：企业注册证书
+  │     └── 图片/iframe预览 + 底部"下载证书"按钮
+  └── 内框2：法人身份证
+        ├── 子框2.1：身份证正面
+        │     └── 图片/iframe预览 + "下载身份证正面"按钮
+        └── 子框2.2：身份证背面
+              └── 图片/iframe预览 + "下载身份证背面"按钮
+```
+3个下载按钮统一在外层大框下方，水平排列。
+
+**PDF 预览机制**：
+- **内嵌预览**：使用 `<iframe src="data:application/pdf;base64,...">` 在弹窗内直接渲染 PDF，无需下载
+- **新窗口打开**：iframe 右上角浮动按钮 `⛶ 新窗口`，调用 `openKycPdf(id)` 函数：
+  - 将 base64 data URL 转为 Blob URL（`URL.createObjectURL`）
+  - `window.open(blobUrl, '_blank')` 打开新窗口
+  - 60秒后 `URL.revokeObjectURL` 释放内存
+  - Blob 创建失败时降级使用 data URL
+- **PDF 数据缓存**：`window._kycPdfCache['pdf_1']` 等键存储 data URL，按钮回调时读取
+
+**统一按钮样式**：渐变 `linear-gradient(135deg, #7eb8f7, #a78bfa, #e879f9)` + 白色文字 + hover 阴影提升
