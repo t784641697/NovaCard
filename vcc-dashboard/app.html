@@ -7041,18 +7041,55 @@ async function kycLoad() {
   }
 }
 
+// ── 在新窗口打开 KYC PDF（使用浏览器原生 PDF 阅读器）──
+function openKycPdf(key) {
+  const dataUrl = window._kycPdfCache && window._kycPdfCache[key];
+  if (!dataUrl) { alertModal('PDF 数据已失效，请重新打开预览', '⚠️'); return; }
+  // 用 Blob URL 打开，避免 data URL 在某些浏览器中的 URL 长度限制
+  try {
+    const arr = dataUrl.split(',');
+    const mime = (arr[0].match(/:(.*?);/) || [])[1] || 'application/pdf';
+    const bin = atob(arr[1]);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const blob = new Blob([u8], { type: mime });
+    const blobUrl = URL.createObjectURL(blob);
+    const w = window.open(blobUrl, '_blank');
+    if (!w) { alertModal('浏览器拦截了新窗口，请允许弹窗后再试', '⚠️'); return; }
+    // 60 秒后释放 Blob URL
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch(e) {
+    // 降级：直接用 data URL 打开
+    window.open(dataUrl, '_blank');
+  }
+}
+
 function kycPreviewDocs(id) {
   const item = window._kycCurrentList.find(a => a.id === id);
   if (!item) return;
-  // ── 渲染文件（不含下载按钮） ──
-  const renderFile = (src) => {
+  // ── PDF 数据 URL 缓存（供"在新窗口打开"使用）──
+  window._kycPdfCache = window._kycPdfCache || {};
+  // ── 渲染文件（图片用 img，PDF 用 iframe 内嵌）──
+  let pdfIdx = 0;
+  const renderFile = (src, label) => {
     if (!src) return '<div style="color:var(--text3);text-align:center;padding:20px;font-size:.85rem;">未上传</div>';
     if (src.startsWith('data:image/')) {
-      return '<img src="' + src + '" style="width:100%;max-height:260px;object-fit:contain;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;background:rgba(0,0,0,0.15);" onerror="this.outerHTML=\'<div style=color:#ff5f5f;text-align:center;padding:20px;font-size:.85rem;>❌ 图片加载失败</div>\'">';
+      return '<img src="' + src + '" style="width:100%;max-height:320px;object-fit:contain;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;background:rgba(0,0,0,0.15);" onerror="this.outerHTML=\'<div style=color:#ff5f5f;text-align:center;padding:20px;font-size:.85rem;>❌ 图片加载失败</div>\'">';
+    }
+    // PDF：使用 iframe 内嵌直接显示（浏览器原生 PDF 阅读器）
+    if (src.startsWith('data:application/pdf') || /\.pdf$/i.test(label || '')) {
+      const key = 'pdf_' + (pdfIdx++);
+      window._kycPdfCache[key] = src;
+      return '<div style="position:relative;background:rgba(0,0,0,.2);border-radius:8px;overflow:hidden;">' +
+        '<iframe src="' + src + '" style="width:100%;height:320px;border:none;border-radius:8px;background:#1a1f2e;display:block;" title="PDF预览"></iframe>' +
+        '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;">' +
+          '<button onclick="openKycPdf(\'' + key + '\')" title="在新窗口打开" style="background:rgba(0,0,0,.65);color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 8px;font-size:.7rem;cursor:pointer;display:inline-flex;align-items:center;gap:3px;backdrop-filter:blur(4px);">⛶ 新窗口</button>' +
+        '</div>' +
+      '</div>';
     }
     return '<div style="border:1px dashed rgba(255,255,255,0.15);border-radius:8px;padding:24px;text-align:center;">' +
-      '<div style="font-size:2rem;margin-bottom:8px;">📄</div>' +
-      '<div style="color:var(--text3);font-size:.85rem;">PDF文件</div></div>';
+      '<div style="font-size:2rem;margin-bottom:8px;">📎</div>' +
+      '<div style="color:var(--text3);font-size:.85rem;">附件文件</div></div>';
   };
   const cardStyle = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;';
   // ── 收集下载列表 ──
