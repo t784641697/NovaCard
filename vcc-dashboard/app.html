@@ -465,6 +465,61 @@ select.form-control option{background:var(--bg3);}
 .kyc-status-card .status-msg{font-size:1.15rem;font-weight:600;color:var(--text1);margin-bottom:10px;}
 .kyc-status-card .status-detail{font-size:.9rem;color:var(--text3);}
 
+/* KYC 管理员证件预览弹窗（v1.0.37 固定大小 + PDF 图标卡片） */
+.kyc-preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.kyc-preview-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;width:780px;max-width:calc(100vw - 40px);height:520px;max-height:calc(100vh - 80px);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;}
+.kyc-preview-header{display:flex;align-items:center;gap:10px;padding:16px 22px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(126,184,247,.06),rgba(231,121,249,.06));}
+.kyc-preview-header-icon{font-size:1.4rem;}
+.kyc-preview-header-title{margin:0;font-size:1.05rem;font-weight:600;color:var(--text1);}
+.kyc-preview-body{flex:1;padding:18px 22px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;min-height:0;}
+.kyc-preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;}
+.kyc-preview-card{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+.kyc-preview-card-title{padding:10px 14px;font-size:.85rem;font-weight:600;color:#7eb8f7;border-bottom:1px solid var(--border);background:rgba(126,184,247,.04);display:flex;align-items:center;gap:6px;}
+.kyc-preview-card-body{flex:1;padding:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:0;}
+
+/* 身份证正反面：上下堆叠（避免单个框过高） */
+.kyc-idcard-sub-grid{display:grid;grid-template-rows:1fr 1fr;gap:8px;width:100%;height:100%;min-height:0;}
+.kyc-idcard-sub-card{display:flex;flex-direction:column;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-height:0;}
+.kyc-idcard-sub-label{padding:5px 10px;font-size:.72rem;color:var(--text3);border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);display:flex;align-items:center;gap:4px;}
+.kyc-idcard-sub-card img.kyc-img-preview,
+.kyc-idcard-sub-card .kyc-pdf-card,
+.kyc-idcard-sub-card .kyc-file-card{flex:1;min-height:0;}
+
+/* 图片预览：缩略图自适应，最大高度不超过容器 */
+.kyc-img-preview{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;background:#0a0e1a;}
+
+/* PDF 预览卡片（点击触发新窗口打开） */
+.kyc-pdf-card{width:100%;height:100%;min-height:100px;background:linear-gradient(135deg,rgba(126,184,247,.08),rgba(167,139,250,.08));border:1px solid rgba(126,184,247,.3);border-radius:8px;padding:14px 12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;position:relative;}
+.kyc-pdf-card:hover{background:linear-gradient(135deg,rgba(126,184,247,.14),rgba(167,139,250,.14));border-color:rgba(126,184,247,.5);transform:translateY(-1px);box-shadow:0 4px 12px rgba(126,184,247,.18);}
+.kyc-pdf-icon{font-size:2.6rem;line-height:1;flex-shrink:0;}
+.kyc-pdf-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.kyc-pdf-name{font-size:.82rem;color:var(--text1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kyc-pdf-size{font-size:.7rem;color:var(--text3);}
+.kyc-pdf-actions{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+.kyc-pdf-btn{padding:5px 10px;font-size:.7rem;border-radius:5px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;transition:all .2s;font-weight:600;white-space:nowrap;}
+.kyc-pdf-btn-view{background:linear-gradient(135deg,#7eb8f7,#a78bfa);color:#fff;}
+.kyc-pdf-btn-view:hover{box-shadow:0 2px 8px rgba(126,184,247,.4);transform:translateY(-1px);}
+.kyc-pdf-btn-dl{background:rgba(255,255,255,.08);color:var(--text2);border:1px solid var(--border);}
+.kyc-pdf-btn-dl:hover{background:rgba(255,255,255,.14);color:var(--text1);}
+
+/* 通用文件卡片（非图片非PDF） */
+.kyc-file-card{width:100%;height:100%;min-height:100px;background:rgba(255,255,255,.03);border:1px dashed var(--border);border-radius:8px;padding:14px 12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;}
+.kyc-file-card:hover{background:rgba(255,255,255,.06);}
+
+/* 空状态 */
+.kyc-no-file{color:var(--text3);font-size:.8rem;padding:20px;text-align:center;}
+.kyc-no-files{color:var(--text3);font-size:.9rem;padding:40px;text-align:center;}
+.kyc-img-err{color:#e879f9;font-size:.8rem;padding:14px;text-align:center;background:rgba(231,121,249,.06);border:1px dashed rgba(231,121,249,.3);border-radius:6px;}
+
+/* 底部下载按钮 + 确认按钮 */
+.kyc-preview-downloads{display:flex;gap:8px;padding:0 22px 12px;flex-wrap:wrap;}
+.kyc-dl-btn{padding:7px 14px;font-size:.78rem;color:#fff;background:var(--grad);border:none;border-radius:7px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-weight:600;transition:all .2s;box-shadow:0 2px 8px rgba(126,184,247,.25);}
+.kyc-dl-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(126,184,247,.4);}
+.kyc-preview-footer{padding:12px 22px;border-top:1px solid var(--border);display:flex;justify-content:center;}
+.kyc-preview-confirm{padding:8px 32px;min-width:120px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(126,184,247,.3);}
+.kyc-preview-confirm:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(126,184,247,.45);}
+
+
 /* MAIN */
 .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;}
 .content-area{flex:1;padding:28px;max-width:1400px;width:100%;}
@@ -7064,110 +7119,125 @@ function openKycPdf(key) {
   }
 }
 
+// ── KYC 证件预览弹窗（v1.0.37：PDF 改为图标卡片+点击预览，固定弹窗大小） ──
+window._escHtml = function(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+};
 function kycPreviewDocs(id) {
   const item = window._kycCurrentList.find(a => a.id === id);
   if (!item) return;
   // ── PDF 数据 URL 缓存（供"在新窗口打开"使用）──
   window._kycPdfCache = window._kycPdfCache || {};
-  // ── 渲染文件（图片用 img，PDF 用 iframe 内嵌）──
+  const esc = window._escHtml;
+  // ── 格式化文件大小（base64 → 字节 → KB/MB） ──
+  const fmtSize = (b64) => {
+    if (!b64) return '';
+    const bytes = Math.floor((b64.length * 3) / 4);
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  };
+  // ── 渲染文件：图片用 img 缩略图，PDF 用图标卡片（点击预览） ──
   let pdfIdx = 0;
   const renderFile = (src, label) => {
-    if (!src) return '<div style="color:var(--text3);text-align:center;padding:20px;font-size:.85rem;">未上传</div>';
+    if (!src) return '<div class="kyc-no-file">未上传</div>';
     if (src.startsWith('data:image/')) {
-      return '<img src="' + src + '" style="width:100%;max-height:320px;object-fit:contain;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;background:rgba(0,0,0,0.15);" onerror="this.outerHTML=\'<div style=color:#ff5f5f;text-align:center;padding:20px;font-size:.85rem;>❌ 图片加载失败</div>\'">';
+      return '<img class="kyc-img-preview" src="' + src + '" onerror="this.outerHTML=\'<div class=kyc-img-err>❌ 图片加载失败</div>\'" />';
     }
-    // PDF：使用 iframe 内嵌 + 加载动画 + 失败降级提示
     if (src.startsWith('data:application/pdf') || /\.pdf$/i.test(label || '')) {
       const key = 'pdf_' + (pdfIdx++);
       window._kycPdfCache[key] = src;
-      const wrapId = 'pdfWrap_' + key;
-      const loadId = 'pdfLoad_' + key;
-      const errId = 'pdfErr_' + key;
-      return '<div id="' + wrapId + '" style="position:relative;background:rgba(0,0,0,.25);border-radius:8px;overflow:hidden;min-height:360px;">' +
-        // 加载中提示
-        '<div id="' + loadId + '" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(13,19,34,.92);z-index:2;color:var(--text3);font-size:.85rem;gap:10px;">' +
-          '<div style="width:32px;height:32px;border:3px solid rgba(126,184,247,.2);border-top-color:#7eb8f7;border-radius:50%;animation:kycSpin .8s linear infinite;"></div>' +
-          '<div>正在加载 PDF...</div>' +
+      return '<div class="kyc-pdf-card" onclick="openKycPdf(\'' + key + '\')" title="点击在新窗口预览">' +
+        '<div class="kyc-pdf-icon">📄</div>' +
+        '<div class="kyc-pdf-info">' +
+          '<div class="kyc-pdf-name">' + esc(label || 'PDF 文档') + '</div>' +
+          '<div class="kyc-pdf-size">' + fmtSize(src) + ' · 点击预览</div>' +
         '</div>' +
-        // 失败降级提示（默认隐藏）
-        '<div id="' + errId + '" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:rgba(13,19,34,.95);z-index:3;padding:20px;text-align:center;gap:12px;">' +
-          '<div style="font-size:2.2rem;">📄</div>' +
-          '<div style="color:#ffb347;font-size:.9rem;font-weight:600;">浏览器无法内嵌预览此 PDF</div>' +
-          '<div style="color:var(--text3);font-size:.78rem;line-height:1.5;">建议点击下方按钮在新窗口中查看<br>或下载到本地查看</div>' +
+        '<div class="kyc-pdf-actions" onclick="event.stopPropagation();">' +
+          '<button class="kyc-pdf-btn kyc-pdf-btn-view" onclick="openKycPdf(\'' + key + '\')" title="在新窗口预览">⛶ 预览</button>' +
+          '<a class="kyc-pdf-btn kyc-pdf-btn-dl" href="' + src + '" download title="下载到本地" onclick="event.stopPropagation();">⬇</a>' +
         '</div>' +
-        // iframe 本体
-        '<iframe src="' + src + '" style="width:100%;height:360px;border:none;background:#1a1f2e;display:block;" title="PDF预览" onload="var l=document.getElementById(\'' + loadId + '\');if(l)l.style.display=\'none\';" onerror="document.getElementById(\'' + loadId + '\').style.display=\'none\';document.getElementById(\'' + errId + '\').style.display=\'flex\';"></iframe>' +
-        // 顶部工具栏
-        '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;z-index:4;">' +
-          '<button onclick="openKycPdf(\'' + key + '\')" title="在新窗口打开（推荐）" style="background:linear-gradient(135deg,#7eb8f7,#a78bfa,#e879f9);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:.72rem;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:600;box-shadow:0 2px 8px rgba(126,184,247,.35);">⛶ 新窗口打开</button>' +
-        '</div>' +
-        // 底部状态栏
-        '<div style="position:absolute;bottom:0;left:0;right:0;padding:6px 10px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.6));font-size:.7rem;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:6px;">' +
-          '<span>📄</span><span>PDF 文档</span>' +
-        '</div>' +
-      '</div>' +
-      // 3秒后如果还在加载，强制隐藏 loading 并显示降级提示（处理部分浏览器不支持内嵌的情况）
-      '<script>(function(){var tries=0;var iv=setInterval(function(){tries++;var l=document.getElementById("' + loadId + '");var e=document.getElementById("' + errId + '");if(!l)return clearInterval(iv);if(tries>=6){if(l.style.display!=="none"){l.style.display="none";}if(e&&e.style.display!=="flex"){e.style.display="flex";}clearInterval(iv);}else if(l.style.display==="none"){clearInterval(iv);}},500);})();</script>';
+      '</div>';
     }
-    return '<div style="border:1px dashed rgba(255,255,255,0.15);border-radius:8px;padding:24px;text-align:center;">' +
-      '<div style="font-size:2rem;margin-bottom:8px;">📎</div>' +
-      '<div style="color:var(--text3);font-size:.85rem;">附件文件</div></div>';
+    return '<div class="kyc-pdf-card">' +
+      '<div class="kyc-pdf-icon">📎</div>' +
+      '<div class="kyc-pdf-info">' +
+        '<div class="kyc-pdf-name">' + esc(label || '附件') + '</div>' +
+        '<div class="kyc-pdf-size">' + fmtSize(src) + '</div>' +
+      '</div>' +
+      '<a class="kyc-pdf-btn kyc-pdf-btn-dl" href="' + src + '" download>⬇</a>' +
+    '</div>';
   };
-  const cardStyle = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;';
-  // ── 收集下载列表 ──
+  // ── 收集下载列表（用于底部下载按钮行） ──
   const downloads = [];
-
-  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
-  // ── 小框1：企业注册证书 ──
   if (item.reg_cert_file) downloads.push({src: item.reg_cert_file, label: '证书'});
-  html += '<div style="' + cardStyle + '">' +
-    '<div style="font-size:.9rem;font-weight:700;margin-bottom:12px;color:#47b5ff;text-align:center;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);">📄 企业注册证书</div>' +
-    renderFile(item.reg_cert_file) + '</div>';
-  // ── 小框2：法人身份证 ──
-  html += '<div style="' + cardStyle + '">' +
-    '<div style="font-size:.9rem;font-weight:700;margin-bottom:12px;color:#47b5ff;text-align:center;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);">🪪 法人身份证</div>';
   if (item.id_card_file && item.id_card_file.startsWith('{')) {
     try {
       const card = JSON.parse(item.id_card_file);
       if (card.front) downloads.push({src: card.front, label: '身份证正面'});
       if (card.back) downloads.push({src: card.back, label: '身份证背面'});
-      html += '<div style="display:flex;flex-direction:row;gap:12px;">' +
-        '<div style="flex:1;min-width:0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;">' +
-        '<div style="font-size:.8rem;font-weight:600;color:#47b5ff;margin-bottom:8px;text-align:center;">正面</div>' + renderFile(card.front) + '</div>' +
-        '<div style="flex:1;min-width:0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;">' +
-        '<div style="font-size:.8rem;font-weight:600;color:#47b5ff;margin-bottom:8px;text-align:center;">背面</div>' + renderFile(card.back) + '</div>' +
-        '</div>';
+    } catch(e) {}
+  } else if (item.id_card_file) {
+    downloads.push({src: item.id_card_file, label: '身份证'});
+  }
+  // ── 渲染主体：左右分栏（证书 vs 身份证） ──
+  let bodyHtml = '<div class="kyc-preview-grid">';
+  bodyHtml += '<div class="kyc-preview-card">' +
+    '<div class="kyc-preview-card-title">📄 企业注册证书</div>' +
+    '<div class="kyc-preview-card-body">' + renderFile(item.reg_cert_file, '证书') + '</div>' +
+  '</div>';
+  bodyHtml += '<div class="kyc-preview-card">' +
+    '<div class="kyc-preview-card-title">🪪 法人身份证</div>' +
+    '<div class="kyc-preview-card-body">';
+  if (item.id_card_file && item.id_card_file.startsWith('{')) {
+    try {
+      const card = JSON.parse(item.id_card_file);
+      bodyHtml += '<div class="kyc-idcard-sub-grid">' +
+        '<div class="kyc-idcard-sub-card">' +
+          '<div class="kyc-idcard-sub-label">📌 正面</div>' +
+          renderFile(card.front, '身份证正面') +
+        '</div>' +
+        '<div class="kyc-idcard-sub-card">' +
+          '<div class="kyc-idcard-sub-label">📌 背面</div>' +
+          renderFile(card.back, '身份证背面') +
+        '</div>' +
+      '</div>';
     } catch(e) {
-      html += '<div style="color:#ff5f5f;padding:12px;font-size:.85rem;">❌ 证件数据解析失败</div>';
+      bodyHtml += '<div class="kyc-img-err">❌ 证件数据解析失败</div>';
     }
   } else {
-    if (item.id_card_file) downloads.push({src: item.id_card_file, label: '身份证'});
-    html += renderFile(item.id_card_file);
+    bodyHtml += renderFile(item.id_card_file, '身份证');
   }
-  html += '</div>';
+  bodyHtml += '</div></div>';
   if (!item.reg_cert_file && !item.id_card_file) {
-    html += '<div style="color:var(--text3);text-align:center;padding:40px;grid-column:1/-1;">暂无证件文件</div>';
+    bodyHtml = '<div class="kyc-no-files">暂无证件文件</div>';
   }
-  html += '</div>'; // 关闭 grid
-
-  // ── 三个下载按钮放在两个大框下方同一水平线 ──
+  bodyHtml += '</div>';
+  // 底部下载按钮行
+  let downloadHtml = '';
   if (downloads.length) {
-    html += '<div style="display:flex;gap:16px;justify-content:center;margin-top:20px;">' +
-      downloads.map(d => '<a href="' + d.src + '" download style="padding:8px 22px;background:linear-gradient(135deg,#7eb8f7,#a78bfa,#e879f9);color:#fff;border-radius:8px;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-weight:500;padding:9px 24px;transition:opacity .2s;">⬇ 下载' + d.label + '</a>').join('') +
-      '</div>';
+    downloadHtml = '<div class="kyc-preview-downloads">' +
+      downloads.map(d => '<a class="kyc-dl-btn" href="' + d.src + '" download>⬇ 下载' + d.label + '</a>').join('') +
+    '</div>';
   }
-  // 使用独立大弹窗（alertModal 只有420px太窄）
+  // ── 弹窗（固定大小，内部 body 滚动，不出现整窗滚动条） ──
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
-  overlay.onclick = function(e) { if (e.target === overlay) { document.body.removeChild(overlay); } };
-  const modal = document.createElement('div');
-  modal.style.cssText = 'background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(0,242,254,.2);border-radius:16px;padding:28px;max-width:780px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.4);max-height:85vh;overflow-y:auto;';
-  modal.innerHTML = '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">' +
-    '<div style="font-size:32px;line-height:1;">📎</div>' +
-    '<h3 style="margin:0;color:#ffb347;font-size:18px;font-weight:700;">证件预览</h3></div>' +
-    html +
-    '<div style="text-align:center;margin-top:20px;"><button onclick="document.body.removeChild(this.closest(\'#kycDocOverlay\'))" style="background:linear-gradient(135deg,#00f2fe,#4facfe);color:#fff;padding:10px 28px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;border:none;">确定</button></div>';
+  overlay.className = 'kyc-preview-overlay';
   overlay.id = 'kycDocOverlay';
+  overlay.onclick = function(e) { if (e.target === overlay) document.body.removeChild(overlay); };
+  const modal = document.createElement('div');
+  modal.className = 'kyc-preview-modal';
+  modal.innerHTML =
+    '<div class="kyc-preview-header">' +
+      '<div class="kyc-preview-header-icon">📎</div>' +
+      '<h3 class="kyc-preview-header-title">证件预览</h3>' +
+    '</div>' +
+    '<div class="kyc-preview-body">' + bodyHtml + '</div>' +
+    downloadHtml +
+    '<div class="kyc-preview-footer">' +
+      '<button class="kyc-preview-confirm" onclick="document.body.removeChild(this.closest(\'#kycDocOverlay\'))">确定</button>' +
+    '</div>';
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 }
