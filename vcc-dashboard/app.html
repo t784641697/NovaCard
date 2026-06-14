@@ -4769,7 +4769,7 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   overlay.innerHTML = `
     <div id="utModal" style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(139,92,246,.25);border-radius:16px;width:960px;height:720px;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px);display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.5);overflow:hidden;">
       <!-- 头部 -->
-      <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
         <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#e879f9);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:1.05rem;flex-shrink:0;">${esc2((userName||userEmail||'?').toString().slice(0,1).toUpperCase())}</div>
         <div style="flex:1;min-width:200px;">
           <div style="color:#fff;font-size:1.05rem;font-weight:600;">${esc2(userName || userEmail || '用户')} <span style="color:var(--text3);font-size:.82rem;font-weight:400;margin-left:6px;">#${userId}</span></div>
@@ -4781,7 +4781,7 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
         </div>
       </div>
       <!-- 筛选区 -->
-      <div style="padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.015);">
+      <div style="padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.015);">
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="color:var(--text3);font-size:.78rem;">📅 时间范围</span>
           <div id="utDrWrap" style="display:inline-flex;"></div>
@@ -4801,11 +4801,11 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
         <div style="margin-left:auto;color:var(--text3);font-size:.78rem;" id="utTotalText">总 0 条</div>
       </div>
       <!-- 摘要卡片 -->
-      <div id="utSummary" style="padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
-      <!-- 流水表格（body 内部固定 8 条高度，外部滚动） -->
-      <div id="utBody" style="flex:0 0 410px;overflow-y:auto;min-height:0;padding:0 24px;"></div>
+      <div id="utSummary" style="padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
+      <!-- 流水表格（body 内部固定 9 条高度，外部滚动） -->
+      <div id="utBody" style="flex:0 0 444px;overflow-y:auto;min-height:0;padding:0 24px;"></div>
       <!-- 分页 -->
-      <div id="utPager" style="padding:14px 24px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.15);"></div>
+      <div id="utPager" style="padding:16px 24px 18px 24px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.2);box-shadow:inset 0 6px 8px -8px rgba(0,0,0,.4);"></div>
     </div>
   `;
   // 注入本弹窗专用样式（仅注入一次）
@@ -4999,7 +4999,7 @@ async function loadUserTransactions() {
     const totalPages = Math.max(1, Math.ceil((d.total||0)/d.pageSize));
     pager.innerHTML = `
       <div style="color:var(--text3);font-size:.78rem;">共 ${d.total} 条 · 每页 ${d.pageSize} 条</div>
-      <div style="display:flex;gap:6px;align-items:center;">
+      <div style="display:flex;gap:10px;align-items:center;">
         <button class="ut-pager-btn" id="utPrev" ${d.page<=1?'disabled':''}>‹ 上一页</button>
         <span style="color:var(--text2);font-size:.78rem;padding:0 8px;">${d.page} / ${totalPages}</span>
         <button class="ut-pager-btn" id="utNext" ${d.page>=totalPages?'disabled':''}>下一页 ›</button>
