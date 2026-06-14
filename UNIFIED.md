@@ -483,3 +483,106 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 - **PDF 数据缓存**：`window._kycPdfCache['pdf_1']` 等键存储 data URL，按钮回调时读取
 
 **统一按钮样式**：渐变 `linear-gradient(135deg, #7eb8f7, #a78bfa, #e879f9)` + 白色文字 + hover 阴影提升
+
+
+---
+
+## 11. 管理员查看用户消费明细
+
+> 应对用户投诉"消费金额不对"，管理员可一键查看某用户**所有卡的所有刷卡流水**。
+
+### 11.1 触发入口
+- **位置**：用户管理页（`renderAdminUsers`）行操作列
+- **按钮**：紫色 `🔍 查看消费` 按钮（`background: rgba(139,92,246,.12); color: #a78bfa;`）
+- **调用**：`openUserTransactionsModal(userId, userName, userEmail, cardCount)`
+
+### 11.2 后端接口
+
+| 项 | 值 |
+|---|---|
+| 路径 | `GET /api/admin/users/:id/transactions` |
+| 鉴权 | `adminMiddleware`（仅管理员）|
+| SQL | `SELECT ct.*, c.card_id FROM card_transactions ct JOIN cards c ON ct.card_id = c.card_id WHERE c.user_id = ? AND c.card_id IN (?,?,...) AND ...` |
+| 必传 | `userId`（路径参数）|
+| 可选 | `type`(Authorization/Settlement/Refund/Reversal), `start_date`, `end_date`, `page`, `page_size`, `format=csv` |
+| 返回 | `{user, cards, list, total, summary{by_type, by_card}}` |
+
+**返回结构**：
+```js
+{
+  user: { id, name, email },
+  cards: [{card_id, status}],
+  list: [{auth_id, card_id, type, status, auth_amount, settle_amount, merchant_name, create_time, ...}],
+  total: 107,
+  page: 1,
+  pageSize: 50,
+  summary: {
+    by_type: { Authorization: {count, sum_auth}, Settlement: {...}, Refund: {...}, Reversal: {...} },
+    by_card: [{card_id, count, sum_settle}]
+  }
+}
+```
+
+**CSV 导出**：`?format=csv` 返回 `Content-Type: text/csv` + `Content-Disposition: attachment`，UTF-8 BOM + 中文化表头（`时间, 卡号, 类型, 状态, 授权金额, 结算金额, 商家, Auth ID`）
+
+### 11.3 前端弹窗规范
+
+**固定尺寸**（**绝对禁止**再用 `flex:1` 自适应）：
+
+| 部位 | 尺寸 | 说明 |
+|---|---|---|
+| 弹窗 | `width:960px; min-height:720px; max-width:calc(100vw - 48px)` | **不要**加 `max-height:calc(100vh - 48px)`（会把弹窗压扁导致分页器被裁）|
+| overlay | `position:fixed; inset:0; display:flex; align-items:flex-start; padding:24px; overflow-y:auto; overflow-x:hidden;` | 弹窗溢出视口时整体可滚 |
+| 头 | padding 14px 24px | 头像 46×46 + 用户名/邮箱/卡数 + 关闭按钮 |
+| 筛选区 | padding 12px 24px | `background: rgba(255,255,255,.015)` |
+| 摘要区 | padding 12px 24px | `grid-template-columns: repeat(4, 1fr)` 4 摘要卡 |
+| 表格区 | `flex:0 0 448px; flex-shrink:0; overflow-y:auto; min-height:0; padding:0 24px;` | 装 9 条（行高 44px）+ 滚动条 |
+| 分页器 | padding 16px 24px 18px 24px | `border-top: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.2);` |
+
+**全状态文件**：`window._utState = { userId, page: 1, pageSize: 50, type: '', startDate: '', endDate: '' }`
+
+**关键函数**：
+- `openUserTransactionsModal(userId, userName, userEmail, cardCount)` — 打开弹窗 + 注入 DOM
+- `loadUserTransactions()` — 异步拉取 + 渲染表格 + 分页
+- `exportUserTransactionsCSV()` — 调 API 拿 CSV blob + `<a download>` 下载
+
+### 11.4 中文化映射
+
+| 数据库值 | 中文显示 |
+|---|---|
+| `Authorization` | 预授权 |
+| `Settlement` | 结算 |
+| `Refund` | 退款 |
+| `Reversal` | 撤销 |
+| `COMPLETE` | 已完成 |
+| `DECLINED` | 失败 |
+| `PENDING` | 清算中 |
+
+**CSS 标签颜色**（`.ut-tag-*`）：
+- Authorization: 青色 `#00f2fe`
+- Settlement: 绿色 `#00c758`
+- Refund: 橙色 `#ffaa00`
+- Reversal: 红色 `#f87171`
+
+### 11.5 ⚠️ 日期筛选避坑指南
+
+**Bug A — Date 对象序列化**：
+- ❌ `URLSearchParams` 默认会调 `String(date)` 输出 `Mon Jun 08 2026 ...`
+- ✅ **必须** `date.toISOString().slice(0, 10)` 转 `YYYY-MM-DD` 再传
+
+**Bug B — DateRangePicker 回调类型不一致**：
+- DateRangePicker `_confirm()` 实际传 `YYYY-MM-DD` **字符串**（不是 Date 对象）
+- 如果前端 `_utFmtDate()` 写的是 `d.getFullYear()`，**字符串会抛 TypeError**
+- ✅ **必须**做类型判断：`if (typeof d === 'string') return d.slice(0, 10); return d.toISOString().slice(0, 10);`
+
+**Bug C — onConfirm 自动触发查询**：
+- DateRangePicker 的 `onConfirm` 回调**不要**在内部调 `loadUserTransactions()`
+- ✅ 由用户**点"查询"按钮**才触发（与项目其他筛选区交互一致）
+
+### 11.6 演示数据规范
+
+为了演示和测试，user 2（`user@vcc.hub`）账号下保留：
+- 2 张测试卡：`card_demo_001`, `card_demo_002`
+- 107 条测试流水（覆盖 14 天 / 4 类型 / 3 状态 / 8 商家）
+
+**生产环境不要保留演示数据**。
