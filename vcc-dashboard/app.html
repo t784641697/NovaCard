@@ -4879,12 +4879,18 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   document.getElementById('utExportBtn').addEventListener('click', exportUserTransactionsCSV);
 
   // 工具：Date 对象 -> 'YYYY-MM-DD'（修复传给后端时被 String(Date) 序列化为 "Mon Jun 08 ..." 的 bug）
+  // 兼容 Date 对象 和 'YYYY-MM-DD' 字符串
+  // (DateRangePicker._confirm 实际传的是 ISO 字符串，不是 Date 对象)
   function _utFmtDate(d) {
     if (!d) return '';
-    var y = d.getFullYear();
-    var m = String(d.getMonth() + 1).padStart(2, '0');
-    var day = String(d.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + day;
+    if (typeof d === 'string') return d.slice(0, 10);
+    if (d instanceof Date) {
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+    return '';
   }
 
   // 初始化 DateRangePicker 组件（与卡片管理同款双月日历）
