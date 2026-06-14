@@ -4783,12 +4783,8 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
       <!-- 筛选区 -->
       <div style="padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.015);">
         <div style="display:flex;align-items:center;gap:6px;">
-          <span style="color:var(--text3);font-size:.78rem;">📅 起始</span>
-          <input id="utStart" type="date" value="${window._utState.startDate}" class="ut-input"/>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="color:var(--text3);font-size:.78rem;">→</span>
-          <input id="utEnd" type="date" value="${window._utState.endDate}" class="ut-input"/>
+          <span style="color:var(--text3);font-size:.78rem;">📅 时间范围</span>
+          <div id="utDrWrap" style="display:inline-flex;"></div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="color:var(--text3);font-size:.78rem;">🏷️ 类型</span>
@@ -4820,9 +4816,6 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
       .ut-input { height:38px;padding:0 14px;border:1px solid rgba(167,139,250,.2);border-radius:9px;background:rgba(0,0,0,.25);color:var(--text1);outline:none;font-size:.88rem;box-sizing:border-box;color-scheme:dark;font-family:inherit;transition:border-color .15s,box-shadow .15s; }
       .ut-input:focus { border-color:rgba(167,139,250,.5);box-shadow:0 0 0 3px rgba(167,139,250,.12); }
       .ut-input::placeholder { color:var(--text3); }
-      .ut-input[type="date"] { padding:0 12px; }
-      .ut-input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(.7);cursor:pointer;opacity:.7; }
-      .ut-input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity:1; }
       select.ut-input { padding-right:32px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23a78bfa' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer; }
       .ut-btn-primary { height:38px;padding:0 18px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(167,139,250,.25);display:inline-flex;align-items:center;gap:6px; }
       .ut-btn-primary:hover { opacity:.88;transform:translateY(-1px);box-shadow:0 4px 16px rgba(167,139,250,.3); }
@@ -4867,8 +4860,6 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
   document.getElementById('utCloseBtn').addEventListener('click', close);
   document.getElementById('utQueryBtn').addEventListener('click', () => {
-    window._utState.startDate = document.getElementById('utStart').value;
-    window._utState.endDate   = document.getElementById('utEnd').value;
     window._utState.type      = document.getElementById('utType').value;
     window._utState.page      = 1;
     loadUserTransactions();
@@ -4876,16 +4867,43 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   document.getElementById('utResetBtn').addEventListener('click', () => {
     const t = new Date();
     const a = new Date(Date.now() - 90 * 86400000);
-    document.getElementById('utStart').value = a.toISOString().slice(0,10);
-    document.getElementById('utEnd').value   = t.toISOString().slice(0,10);
+    const fmt = (d) => d.toISOString().slice(0,10);
+    if (window._utPicker) window._utPicker.setRange(fmt(a), fmt(t));
     document.getElementById('utType').value  = '';
-    window._utState.startDate = document.getElementById('utStart').value;
-    window._utState.endDate   = document.getElementById('utEnd').value;
+    window._utState.startDate = fmt(a);
+    window._utState.endDate   = fmt(t);
     window._utState.type      = '';
     window._utState.page      = 1;
     loadUserTransactions();
   });
   document.getElementById('utExportBtn').addEventListener('click', exportUserTransactionsCSV);
+
+  // 初始化 DateRangePicker 组件（与卡片管理同款双月日历）
+  if (window._utPicker) { try { window._utPicker = null; } catch(e){} }
+  window._utPicker = new DateRangePicker({
+    id: 'utDr',
+    container: '#utDrWrap',
+    placeholder: '选择开始日期 — 结束日期',
+    onConfirm: function(start, end) {
+      window._utState.startDate = start;
+      window._utState.endDate   = end;
+      window._utState.page      = 1;
+      loadUserTransactions();
+    },
+    onClear: function() {
+      window._utState.startDate = '';
+      window._utState.endDate   = '';
+      window._utState.page      = 1;
+      loadUserTransactions();
+    }
+  });
+  window._utPicker.init();
+  // 恢复默认范围（最近 90 天）
+  const ago = new Date(Date.now() - 90 * 86400000);
+  const fmt = (d) => d.toISOString().slice(0,10);
+  window._utPicker.setRange(fmt(ago), fmt(today));
+  window._utState.startDate = fmt(ago);
+  window._utState.endDate   = fmt(today);
 
   await loadUserTransactions();
 }
