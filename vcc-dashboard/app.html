@@ -491,12 +491,14 @@ select.form-control option{background:var(--bg3);}
 /* PDF 预览卡片（点击触发新窗口打开） */
 .kyc-pdf-card{width:100%;height:100%;min-height:100px;background:linear-gradient(135deg,rgba(126,184,247,.08),rgba(167,139,250,.08));border:1px solid rgba(126,184,247,.3);border-radius:8px;padding:14px 12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;position:relative;}
 .kyc-pdf-card:hover{background:linear-gradient(135deg,rgba(126,184,247,.14),rgba(167,139,250,.14));border-color:rgba(126,184,247,.5);transform:translateY(-1px);box-shadow:0 4px 12px rgba(126,184,247,.18);}
-.kyc-pdf-icon{font-size:2.6rem;line-height:1;flex-shrink:0;}
+.kyc-pdf-icon-emoji{font-size:2.4rem;line-height:1;flex-shrink:0;width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(126,184,247,.15),rgba(167,139,250,.15));border-radius:8px;}
+.kyc-pdf-thumb{width:48px;height:48px;flex-shrink:0;border-radius:8px;overflow:hidden;background:#0a0e1a;border:1px solid var(--border);}
+.kyc-pdf-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
 .kyc-pdf-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
 .kyc-pdf-name{font-size:.82rem;color:var(--text1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .kyc-pdf-size{font-size:.7rem;color:var(--text3);}
 .kyc-pdf-actions{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
-.kyc-pdf-btn{padding:5px 10px;font-size:.7rem;border-radius:5px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;transition:all .2s;font-weight:600;white-space:nowrap;}
+.kyc-pdf-btn{padding:6px 11px;font-size:.76rem;border-radius:6px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;transition:all .2s;font-weight:600;white-space:nowrap;min-width:60px;}
 .kyc-pdf-btn-view{background:linear-gradient(135deg,#7eb8f7,#a78bfa);color:#fff;}
 .kyc-pdf-btn-view:hover{box-shadow:0 2px 8px rgba(126,184,247,.4);transform:translateY(-1px);}
 .kyc-pdf-btn-dl{background:rgba(255,255,255,.08);color:var(--text2);border:1px solid var(--border);}
@@ -7138,35 +7140,34 @@ function kycPreviewDocs(id) {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / 1024 / 1024).toFixed(2) + ' MB';
   };
-  // ── 渲染文件：图片用 img 缩略图，PDF 用图标卡片（点击预览） ──
+  // ── 渲染文件：统一用卡片样式（图标 + 文件名 + 大小 + 操作按钮） ──
   let pdfIdx = 0;
   const renderFile = (src, label) => {
     if (!src) return '<div class="kyc-no-file">未上传</div>';
-    if (src.startsWith('data:image/')) {
-      return '<img class="kyc-img-preview" src="' + src + '" onerror="this.outerHTML=\'<div class=kyc-img-err>❌ 图片加载失败</div>\'" />';
-    }
-    if (src.startsWith('data:application/pdf') || /\.pdf$/i.test(label || '')) {
-      const key = 'pdf_' + (pdfIdx++);
-      window._kycPdfCache[key] = src;
-      return '<div class="kyc-pdf-card" onclick="openKycPdf(\'' + key + '\')" title="点击在新窗口预览">' +
-        '<div class="kyc-pdf-icon">📄</div>' +
-        '<div class="kyc-pdf-info">' +
-          '<div class="kyc-pdf-name">' + esc(label || 'PDF 文档') + '</div>' +
-          '<div class="kyc-pdf-size">' + fmtSize(src) + ' · 点击预览</div>' +
-        '</div>' +
-        '<div class="kyc-pdf-actions" onclick="event.stopPropagation();">' +
-          '<button class="kyc-pdf-btn kyc-pdf-btn-view" onclick="openKycPdf(\'' + key + '\')" title="在新窗口预览">⛶ 预览</button>' +
-          '<a class="kyc-pdf-btn kyc-pdf-btn-dl" href="' + src + '" download title="下载到本地" onclick="event.stopPropagation();">⬇</a>' +
-        '</div>' +
-      '</div>';
-    }
+    // ── 构造缓存 key（用于"新窗口预览"） ──
+    const key = 'file_' + (pdfIdx++);
+    window._kycPdfCache[key] = src;
+    // ── 判断文件类型 ──
+    const isPdf = src.startsWith('data:application/pdf') || /\.pdf$/i.test(label || '');
+    const isImg = src.startsWith('data:image/');
+    const fileName = isPdf ? (label + '.pdf') : (isImg ? (label + '.png') : (label + '.file'));
+    // ── 提取文件名缩写（用作 alt 标签） ──
+    const icon = isPdf ? '📄' : (isImg ? '🖼️' : '📎');
+    const typeLabel = isPdf ? 'PDF 文档' : (isImg ? '图片' : '附件');
+    // ── 图片缩略图（可选，在 icon 位置显示小图） ──
+    const iconHtml = isImg
+      ? '<div class="kyc-pdf-thumb"><img src="' + src + '" alt="" onerror="this.outerHTML=\'<div class=kyc-pdf-icon-emoji>🖼️</div>\'" /></div>'
+      : '<div class="kyc-pdf-icon-emoji">' + icon + '</div>';
     return '<div class="kyc-pdf-card">' +
-      '<div class="kyc-pdf-icon">📎</div>' +
+      iconHtml +
       '<div class="kyc-pdf-info">' +
-        '<div class="kyc-pdf-name">' + esc(label || '附件') + '</div>' +
-        '<div class="kyc-pdf-size">' + fmtSize(src) + '</div>' +
+        '<div class="kyc-pdf-name">' + esc(label || typeLabel) + '</div>' +
+        '<div class="kyc-pdf-size">' + typeLabel + ' · ' + fmtSize(src) + '</div>' +
       '</div>' +
-      '<a class="kyc-pdf-btn kyc-pdf-btn-dl" href="' + src + '" download>⬇</a>' +
+      '<div class="kyc-pdf-actions">' +
+        (isPdf ? '<button class="kyc-pdf-btn kyc-pdf-btn-view" onclick="openKycPdf(\'' + key + '\')" title="在新窗口预览">⛶ 预览</button>' : '') +
+        '<a class="kyc-pdf-btn kyc-pdf-btn-dl" href="' + src + '" download title="下载到本地" onclick="event.stopPropagation();">⬇ 下载</a>' +
+      '</div>' +
     '</div>';
   };
   // ── 收集下载列表（用于底部下载按钮行） ──
@@ -7214,13 +7215,6 @@ function kycPreviewDocs(id) {
     bodyHtml = '<div class="kyc-no-files">暂无证件文件</div>';
   }
   bodyHtml += '</div>';
-  // 底部下载按钮行
-  let downloadHtml = '';
-  if (downloads.length) {
-    downloadHtml = '<div class="kyc-preview-downloads">' +
-      downloads.map(d => '<a class="kyc-dl-btn" href="' + d.src + '" download>⬇ 下载' + d.label + '</a>').join('') +
-    '</div>';
-  }
   // ── 弹窗（固定大小，内部 body 滚动，不出现整窗滚动条） ──
   const overlay = document.createElement('div');
   overlay.className = 'kyc-preview-overlay';
@@ -7234,7 +7228,6 @@ function kycPreviewDocs(id) {
       '<h3 class="kyc-preview-header-title">证件预览</h3>' +
     '</div>' +
     '<div class="kyc-preview-body">' + bodyHtml + '</div>' +
-    downloadHtml +
     '<div class="kyc-preview-footer">' +
       '<button class="kyc-preview-confirm" onclick="document.body.removeChild(this.closest(\'#kycDocOverlay\'))">确定</button>' +
     '</div>';
