@@ -1316,14 +1316,17 @@ router.get('/users/:id/transactions', (req, res) => {
       LIMIT ?
     `).all(...params, ...cardIds, csvLimit);
     const header = ['时间', '卡号(后4)', '类型', '状态', '授权金额', '结算金额', '币种', '商家', 'Auth ID', '授权时间', '同步时间'];
+    // 类型 / 状态枚举中文化映射
+    const typeZh = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' };
+    const statusZh = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' };
     const lines = [header.join(',')];
     for (const r of csvRows) {
       const last4 = r.card_number ? String(r.card_number).slice(-4) : '';
       const cells = [
         esc_(r.create_time || ''),
         esc_(last4),
-        esc_(r.type || ''),
-        esc_(r.status || ''),
+        esc_(typeZh[r.type] || r.type || ''),
+        esc_(statusZh[r.status] || r.status || ''),
         r.auth_amount != null ? r.auth_amount : '',
         r.settle_amount != null ? r.settle_amount : '',
         esc_(r.auth_currency || 'USD'),
@@ -1375,8 +1378,10 @@ router.get('/users/:id/transactions', (req, res) => {
   `).all(...params, ...cardIds);
   const byTypeMap = {};
   let totalAuth = 0, totalSettle = 0, totalCount = 0;
+  const typeZh = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' };
+  const statusZh = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' };
   for (const r of byType) {
-    byTypeMap[r.type] = { count: r.cnt, auth_amount: r.auth_sum, settle_amount: r.settle_sum };
+    byTypeMap[r.type] = { label: typeZh[r.type] || r.type, count: r.cnt, auth_amount: r.auth_sum, settle_amount: r.settle_sum };
     totalAuth   += r.auth_sum;
     totalSettle += r.settle_sum;
     totalCount  += r.cnt;

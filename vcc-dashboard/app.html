@@ -4793,11 +4793,11 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="color:var(--text3);font-size:.78rem;">🏷️ 类型</span>
           <select id="utType" class="ut-input" style="cursor:pointer;">
-            <option value="">全部</option>
-            <option value="Authorization">Authorization 预授权</option>
-            <option value="Settlement">Settlement 结算</option>
-            <option value="Refund">Refund 退款</option>
-            <option value="Reversal">Reversal 撤销</option>
+            <option value="">全部类型</option>
+            <option value="Authorization">预授权 (Authorization)</option>
+            <option value="Settlement">结算 (Settlement)</option>
+            <option value="Refund">退款 (Refund)</option>
+            <option value="Reversal">撤销 (Reversal)</option>
           </select>
         </div>
         <button id="utQueryBtn" class="ut-query-btn">🔍 查询</button>
@@ -4933,13 +4933,15 @@ async function loadUserTransactions() {
       const typeClass = { Authorization: 'ut-amount-auth', Settlement: 'ut-amount-settle', Refund: 'ut-amount-refund', Reversal: 'ut-amount-reversal' }[t] || 'ut-amount-settle';
       const tagClass = { Authorization: 'ut-tag-Auth', Settlement: 'ut-tag-Settle', Refund: 'ut-tag-Refund', Reversal: 'ut-tag-Reversal' }[t] || '';
       const stClass  = { COMPLETE: 'ut-tag-COMPLETE', DECLINED: 'ut-tag-DECLINED', PENDING: 'ut-tag-PENDING' }[st] || '';
+      const typeLabel = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' }[t] || t || '—';
+      const statusLabel = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' }[st] || st || '—';
       const a = parseFloat(r.auth_amount   || 0);
       const b = parseFloat(r.settle_amount || 0);
       return `<tr>
         <td style="white-space:nowrap;color:var(--text2);font-size:.74rem;">${esc2((r.create_time||'').slice(0,19).replace('T',' '))}</td>
         <td><span class="ut-tag-card">•••• ${esc2(last4)}</span></td>
-        <td><span class="ut-tag ${tagClass}">${esc2(t)}</span></td>
-        <td><span class="ut-tag ${stClass}">${esc2(st || '—')}</span></td>
+        <td><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
+        <td><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
         <td class="${typeClass}" style="text-align:right;">${a ? a.toFixed(2) : '—'}</td>
         <td class="${typeClass}" style="text-align:right;">${b ? b.toFixed(2) : '—'}</td>
         <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.merchant_name||'')}">${esc2(r.merchant_name || '—')}</td>
