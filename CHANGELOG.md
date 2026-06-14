@@ -403,3 +403,41 @@
 ### 初始版本
 - 从 XiuXiu Card 迁移
 - 基础卡片管理平台功能
+
+## v1.0.41 | 2026-06-14 | 管理员查看用户消费明细
+
+
+**新增功能：用户管理 → 🔍 查看消费**
+
+
+- **后端**：`GET /api/admin/users/:id/transactions`（`admin.js` line 1253-1399）
+  - JOIN `cards + card_transactions` 跨表查询某用户所有卡的流水
+  - 支持 `type`/`start_date`/`end_date`/`page`/`page_size`/`format=csv` 参数
+  - 返回 `{user, cards, list, total, summary{by_type, by_card}}`
+  - CSV 导出（UTF-8 BOM + 中文化表头）
+- **前端**：用户管理行新增紫色 `🔍 查看消费` 按钮 → 弹出 960×720 固定宽高模态框
+  - 头部：用户头像 + 姓名/邮箱/卡数
+  - 4 摘要卡片：总笔数 / 授权总额 / 结算总额 / 退款总额
+  - 类型下拉：预授权 / 结算 / 退款 / 撤销
+  - 时间选择：复用项目自带的 DateRangePicker 组件（v2 多实例）
+  - 8 列表格：时间/卡号/类型/状态/授权金额/结算金额/商家/Auth ID
+  - 分页器：‹ 上一页 / 1/12 / 下一页 › + 总条数
+  - 导出 CSV 按钮（保留筛选条件）
+- **数据演示**：user 2（user@vcc.hub）插入 2 张测试卡 + 107 条测试流水覆盖 14 天 / 4 类型 / 3 状态
+
+### 修复
+
+- **日期筛选 Bug A**：`URLSearchParams` 把 `Date` 对象序列化为美式日期字符串（如 `Mon Jun 08 2026 ...`），后端 SQL 字符串字典序比较失效
+- **日期筛选 Bug B（真因）**：DateRangePicker `_confirm()` 实际传 `YYYY-MM-DD` 字符串，前端 `_utFmtDate('2026-06-12')` 调 `getFullYear()` 抛 TypeError，导致筛选条件没生效
+- **onConfirm 自动查询 Bug**：选完时间就触发查询，违反"点查询按钮才查"交互规范
+
+### 弹窗尺寸迭代
+
+| 版本 | 高度 | 表格 | 说明 |
+|---|---|---|---|
+| v1.0.41 初版 | max-height: 100vh-48 (弹性) | flex:1 (弹性) | 自适应布局 |
+| 迭代 1 | 720 (固定) | 410 (8 条) | 用户要求"固定" |
+| 迭代 2 | 720 (固定) + max-height | 444 (9 条) | 加 padding 减少补偿 |
+| 迭代 3 | 760 (固定) | 488 (10 条) | 解决"下一页被遮挡" |
+| 迭代 4 | 760 min-height (去 max-height) | 488 | 解决"笔记本视口压扁" |
+| 迭代 5 | **720 min-height** | **448 (9 条)** | 最终版（用户确认）|
