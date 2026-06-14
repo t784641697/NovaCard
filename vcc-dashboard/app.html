@@ -5882,10 +5882,10 @@ async function renderCardReviewPage() {
       .cr-btn-batch-clear:hover { border-color: rgba(255,255,255,0.2); color: var(--text2); }
       .cr-table-wrap { background: #0d1322; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
       .cr-table { width: 100%; border-collapse: collapse; }
-      .cr-table thead th { text-align: left; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text3); font-size: .78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+      .cr-table thead th { text-align: left; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text3); font-size: .76rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
       .cr-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
       .cr-table tbody tr:hover { background: rgba(255,255,255,0.02); }
-      .cr-table tbody td { padding: 14px 16px; vertical-align: middle; }
+      .cr-table tbody td { padding: 12px 14px; vertical-align: middle; }
       .cr-table .col-check { width: 44px; text-align: center; }
       .cr-table .col-id { width: 60px; color: var(--text3); font-size: .8rem; }
       .cr-table .col-applicant { min-width: 160px; }
@@ -6933,7 +6933,7 @@ async function renderKycReviewPage() {
       .cr-table .col-id { width: 60px; color: var(--text3); font-size: .8rem; }
       .cr-table .col-status { width: 110px; }
       .cr-table .col-time { width: 140px; }
-      .cr-table .col-action { width: 140px; }
+      .cr-table .col-action { width: 160px; }
       .cr-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: .8rem; font-weight: 500; }
       .cr-tag-pending { background: rgba(255,170,0,0.1); color: #ffaa00; }
       .cr-tag-approved { background: rgba(0,199,88,0.1); color: #00c758; }
@@ -6941,18 +6941,25 @@ async function renderKycReviewPage() {
       .cr-empty { text-align: center; padding: 80px 40px; }
       .cr-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
       .cr-empty-text { color: var(--text3); font-size: .95rem; }
-      .cr-applicant-name { font-size: .88rem; font-weight: 500; color: var(--text1); }
-      .cr-applicant-email { font-size: .78rem; color: var(--text3); margin-top: 3px; }
-      .kyc-aux-info { font-size: .78rem; color: var(--text3); margin-top: 3px; }
+      /* 单元格主行（统一字号/行高，让单行与多行单元格视觉一致） */
+      .cr-cell-main { font-size: .82rem; font-weight: 500; color: var(--text1); line-height: 1.5; }
+      .cr-applicant-name { font-size: .82rem; font-weight: 500; color: var(--text1); line-height: 1.5; }
+      .cr-applicant-email { font-size: .72rem; color: var(--text3); margin-top: 2px; line-height: 1.4; }
+      .kyc-aux-info { font-size: .72rem; color: var(--text3); margin-top: 2px; line-height: 1.4; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .kyc-detail-link { font-size: .78rem; color: #8fa0c7; cursor: pointer; transition: color .2s; border-bottom: 1px dashed rgba(143,160,199,.3); }
       .kyc-detail-link:hover { color: #00f2fe; border-bottom-color: #00f2fe; }
-      .kyc-reject-reason { font-size: .78rem; color: #ff5f5f; margin-top: 3px; max-width: 200px; line-height: 1.4; }
+      .kyc-reject-reason { font-size: .72rem; color: #ff5f5f; margin-top: 2px; max-width: 100px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .kyc-status-text { font-size: .78rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; display: inline-block; }
       .kyc-status-pass { color: var(--green); background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.25); }
       .kyc-status-reject { color: var(--red); background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); }
-      .kyc-col-name { min-width: 130px; }
-      .kyc-col-company { min-width: 140px; }
-      .kyc-col-contact { min-width: 120px; }
+      .kyc-col-name { min-width: 140px; }
+      .kyc-col-company { min-width: 130px; max-width: 180px; }
+      .kyc-col-country { min-width: 90px; }
+      .kyc-col-contact { min-width: 110px; }
+      .kyc-col-contact2 { min-width: 110px; }
+      .kyc-col-cert { min-width: 90px; text-align: center; }
+      /* 操作列按钮更紧凑，确保在一行内可放下 */
+      .col-action .btn-sm { padding: 4px 10px; font-size: .76rem; }
     </style>
 
     <div class="cr-container">
@@ -7058,10 +7065,10 @@ async function kycLoad() {
       `<th class="col-id">ID</th>` +
       `<th class="kyc-col-name">申请人</th>` +
       `<th class="kyc-col-company">企业名称</th>` +
-      `<th>国家</th>` +
+      `<th class="kyc-col-country">国家</th>` +
       `<th class="kyc-col-contact">法人代表</th>` +
-      `<th>法人证件</th>` +
-      `<th>联系人</th>` +
+      `<th class="kyc-col-cert">法人证件</th>` +
+      `<th class="kyc-col-contact2">联系人</th>` +
       `<th class="col-status">状态</th>` +
       `<th class="col-time">提交时间</th>` +
       `<th class="col-action">操作</th>` +
@@ -7071,16 +7078,24 @@ async function kycLoad() {
         const st = statusMap[a.status] || a.status;
         const sc = statusClass[a.status] || "";
         const dt = (a.created_at || "").replace("T", " ").slice(0, 16);
-        const legalInfo = (a.legal_person_name || "-") + (a.legal_person_id ? '<div class="kyc-aux-info">' + esc(a.legal_person_id) + '</div>' : '');
-        const contactInfo = (a.contact_name || "-") + (a.contact_phone ? '<div class="kyc-aux-info">' + esc(a.contact_phone) + '</div>' : '');
+
+        // 辅助行：仅当主信息与辅助信息**不同时**才显示（避免重复占用纵向空间）
+        const auxLine = (main, aux) => (aux && String(aux).trim() && String(aux).trim() !== String(main || '').trim())
+          ? '<div class="kyc-aux-info">' + esc(aux) + '</div>' : '';
+        const applicantHtml = '<div class="cr-applicant-name">' + esc(a.user_name || "-") + '</div>' + auxLine(a.user_name, a.email);
+        const legalHtml = '<div class="cr-cell-main">' + esc(a.legal_person_name || "-") + '</div>' + auxLine(a.legal_person_name, a.legal_person_id);
+        const contactHtml = '<div class="cr-cell-main">' + esc(a.contact_name || "-") + '</div>' + auxLine(a.contact_name, a.contact_phone);
+        const companyHtml = '<div class="cr-cell-main">' + esc(a.company_name || "-") + '</div>' + (a.remark ? '<div class="kyc-aux-info" title="' + esc(a.remark) + '">备注: ' + esc(a.remark) + '</div>' : '');
+        const countryHtml = '<div class="cr-cell-main">' + esc(a.country || "-") + '</div>';
+
         return `<tr>` +
           `<td class="col-id">#${a.id}</td>` +
-          `<td class="kyc-col-name"><div class="cr-applicant-name">${esc(a.user_name || "-")}</div><div class="cr-applicant-email">${esc(a.email || "")}</div></td>` +
-          `<td class="kyc-col-company">${esc(a.company_name || "-")}${a.remark ? '<div class="kyc-aux-info">备注: ' + esc(a.remark) + '</div>' : ''}</td>` +
-          `<td>${esc(a.country || "-")}</td>` +
-          `<td class="kyc-col-contact">${legalInfo}</td>` +
+          `<td class="kyc-col-name">${applicantHtml}</td>` +
+          `<td class="kyc-col-company">${companyHtml}</td>` +
+          `<td class="kyc-col-country">${countryHtml}</td>` +
+          `<td class="kyc-col-contact">${legalHtml}</td>` +
           `<td class="kyc-col-cert">${a.legal_person_name ? '<span class="kyc-detail-link" onclick="kycPreviewDocs(' + a.id + ')">📎 查看证件</span>' : '-'}</td>` +
-          `<td>${contactInfo}</td>` +
+          `<td class="kyc-col-contact2">${contactHtml}</td>` +
           `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? '<div class="kyc-reject-reason">原因: ' + esc(a.reject_reason) + '</div>' : ''}</td>` +
           `<td class="col-time">${dt}</td>` +
           `<td class="col-action">` +
