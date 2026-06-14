@@ -1,4 +1,17 @@
 
+## v1.0.39 | 2026-06-14 | KYC审核页按钮与字体统一
+
+
+**信息字号统一 + 按钮改用项目标准 `.btn-sm btn-success/danger`**
+
+
+- **按钮统一**：管理员 KYC 审核页的"通过 / 拒绝"按钮从自定义的 `kyc-btn-action kyc-btn-pass/reject`（自定义绿/红硬色）改为项目标准的 `btn btn-sm btn-success/danger`（与其他模块一致：淡绿/淡红背景 + `.btn-sm` 25px 高度）
+- **信息字号统一**：所有 KYC 申请记录的展示字段（公司名、国家、联系人邮箱、备注、注册时间等）统一为 `0.82rem`，与其他模块字号保持一致
+- **辅助文字降级**：邮箱/辅助信息 → 0.78rem text3；拒绝原因 → 0.75rem text3；状态文字 → 0.78rem
+- **新增 CSS 类**：`kyc-aux-info` / `kyc-reject-reason` / `kyc-status-text` / `kyc-status-pass` / `kyc-status-reject` / `kyc-detail-link`
+- **列宽调整**：`.cr-col-action` 从 140px → 150px（容纳两个 .btn-sm 按钮）
+
+
 ## v1.0.38 | 2026-06-14 | KYC预览弹窗精简
 
 **移除底部3个下载按钮 + 统一企业证书/身份证卡片样式**
