@@ -4878,6 +4878,15 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   });
   document.getElementById('utExportBtn').addEventListener('click', exportUserTransactionsCSV);
 
+  // 工具：Date 对象 -> 'YYYY-MM-DD'（修复传给后端时被 String(Date) 序列化为 "Mon Jun 08 ..." 的 bug）
+  function _utFmtDate(d) {
+    if (!d) return '';
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
   // 初始化 DateRangePicker 组件（与卡片管理同款双月日历）
   if (window._utPicker) { try { window._utPicker = null; } catch(e){} }
   window._utPicker = new DateRangePicker({
@@ -4885,8 +4894,8 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
     container: '#utDrWrap',
     placeholder: '选择开始日期 — 结束日期',
     onConfirm: function(start, end) {
-      window._utState.startDate = start;
-      window._utState.endDate   = end;
+      window._utState.startDate = _utFmtDate(start);
+      window._utState.endDate   = _utFmtDate(end);
       window._utState.page      = 1;
       loadUserTransactions();
     },
