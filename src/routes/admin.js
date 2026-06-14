@@ -1267,17 +1267,9 @@ router.get('/users/:id/transactions', (req, res) => {
   const limit  = Math.min(parseInt(page_size) || 50, 500);
   const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limit;
 
-  // 条件：基于该用户的卡
-  const conds = [`c.user_id = ?`];
-  const params = [userId];
-  if (type)       { conds.push('ct.type = ?');            params.push(type); }
-  if (start_date) { conds.push('ct.create_time >= ?');    params.push(start_date); }
-  if (end_date)   { conds.push('ct.create_time <= ?');    params.push(end_date + ' 23:59:59'); }
-  const where = ' WHERE ' + conds.join(' AND ');
-
   // 该用户的卡
   const userCards = db.prepare(`
-    SELECT id, card_id, card_number, status, available_amount, product_code
+    SELECT id, card_id, card_number, status, available_amount, product_code, label
     FROM cards WHERE user_id = ? ORDER BY created_at DESC
   `).all(userId);
   const cardIds = userCards.map(c => c.card_id);
@@ -1299,9 +1291,14 @@ router.get('/users/:id/transactions', (req, res) => {
     });
   }
 
-  // 补一个 card_id in (...) 条件
-  const cardConds = conds.slice();
-  cardConds[0] = `c.user_id = ? AND c.card_id IN (${cardIds.map(() => '?').join(',')})`;
+  // 条件：基于该用户的卡（去掉 c.user_id = ?，改用直接值绑定，避免与 cardIds 参数错位）
+  const params = [];
+  const cardConds = [];
+  cardConds.push(`c.user_id = ${userId}`);
+  if (type)       { cardConds.push('ct.type = ?');            params.push(type); }
+  if (start_date) { cardConds.push('ct.create_time >= ?');    params.push(start_date); }
+  if (end_date)   { cardConds.push('ct.create_time <= ?');    params.push(end_date + ' 23:59:59'); }
+  cardConds.push(`c.card_id IN (${cardIds.map(() => '?').join(',')})`);
   const cardWhere = ' WHERE ' + cardConds.join(' AND ');
 
   // CSV 导出（不限制分页，最多 5000 条）
