@@ -1244,6 +1244,189 @@ router.get('/users', (req, res) => {
   });
 });
 
+/**
+ * GET /api/admin/users/:id/transactions
+ *   查询某用户所有卡的刷卡流水（来自 vmcardio 上游 card_transactions）
+ *   Query:
+ *     type        Authorization / Settlement / Refund / Reversal
+ *     start_date  YYYY-MM-DD
+ *     end_date    YYYY-MM-DD
+ *     page        默认 1
+ *     page_size   默认 50，最大 500
+ *     format=csv  直接返回 CSV 下载
+ */
+router.get('/users/:id/transactions', (req, res) => {
+  const userId = parseInt(req.params.id);
+  if (!userId) return res.status(400).json({ code: 400, msg: '无效的用户ID' });
+
+  // 校验用户存在
+  const user = db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ code: 404, msg: '用户不存在' });
+
+  const { type, start_date, end_date, page = 1, page_size = 50, format } = req.query;
+  const limit  = Math.min(parseInt(page_size) || 50, 500);
+  const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limit;
+
+  // 条件：基于该用户的卡
+  const conds = [`c.user_id = ?`];
+  const params = [userId];
+  if (type)       { conds.push('ct.type = ?');            params.push(type); }
+  if (start_date) { conds.push('ct.create_time >= ?');    params.push(start_date); }
+  if (end_date)   { conds.push('ct.create_time <= ?');    params.push(end_date + ' 23:59:59'); }
+  const where = ' WHERE ' + conds.join(' AND ');
+
+  // 该用户的卡
+  const userCards = db.prepare(`
+    SELECT id, card_id, card_number, status, available_amount, product_code
+    FROM cards WHERE user_id = ? ORDER BY created_at DESC
+  `).all(userId);
+  const cardIds = userCards.map(c => c.card_id);
+  // 该用户有 0 张卡时直接返回空
+  if (cardIds.length === 0) {
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="transactions_${userId}_empty.csv"`);
+      return res.send('该用户没有卡片\n');
+    }
+    return res.json({
+      code: 0, msg: 'ok',
+      data: {
+        user: { id: user.id, email: user.email, name: user.name },
+        cards: [],
+        list: [], total: 0, page: 1, pageSize: limit,
+        summary: { total_count: 0, total_auth: 0, total_settle: 0, by_type: {}, by_card: [] }
+      }
+    });
+  }
+
+  // 补一个 card_id in (...) 条件
+  const cardConds = conds.slice();
+  cardConds[0] = `c.user_id = ? AND c.card_id IN (${cardIds.map(() => '?').join(',')})`;
+  const cardWhere = ' WHERE ' + cardConds.join(' AND ');
+
+  // CSV 导出（不限制分页，最多 5000 条）
+  if (format === 'csv') {
+    const csvLimit  = 5000;
+    const csvRows = db.prepare(`
+      SELECT ct.auth_id, ct.card_id, ct.type, ct.status,
+             ct.auth_amount, ct.settle_amount, ct.auth_currency, ct.settle_currency,
+             ct.merchant_name, ct.create_time, ct.auth_time, ct.sync_time,
+             c.card_number
+      FROM card_transactions ct
+      JOIN cards c ON c.card_id = ct.card_id
+      ${cardWhere}
+      ORDER BY ct.create_time DESC
+      LIMIT ?
+    `).all(...params, ...cardIds, csvLimit);
+    const header = ['时间', '卡号(后4)', '类型', '状态', '授权金额', '结算金额', '币种', '商家', 'Auth ID', '授权时间', '同步时间'];
+    const lines = [header.join(',')];
+    for (const r of csvRows) {
+      const last4 = r.card_number ? String(r.card_number).slice(-4) : '';
+      const cells = [
+        esc_(r.create_time || ''),
+        esc_(last4),
+        esc_(r.type || ''),
+        esc_(r.status || ''),
+        r.auth_amount != null ? r.auth_amount : '',
+        r.settle_amount != null ? r.settle_amount : '',
+        esc_(r.auth_currency || 'USD'),
+        esc_(r.merchant_name || ''),
+        esc_(r.auth_id || ''),
+        esc_(r.auth_time || ''),
+        esc_(r.sync_time || '')
+      ];
+      lines.push(cells.join(','));
+    }
+    // 加 BOM 让 Excel 正确识别 UTF-8
+    const csv = '\ufeff' + lines.join('\n');
+    const fname = `transactions_${userId}_${(start_date||'all')}_${(end_date||'all')}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    return res.send(csv);
+  }
+
+  // 分页明细
+  const rows = db.prepare(`
+    SELECT ct.id, ct.auth_id, ct.card_id, ct.type, ct.status,
+           ct.auth_amount, ct.settle_amount, ct.auth_currency, ct.settle_currency,
+           ct.merchant_name, ct.create_time, ct.auth_time, ct.sync_time,
+           c.card_number, c.product_code, c.label
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${cardWhere}
+    ORDER BY ct.create_time DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, ...cardIds, limit, offset);
+
+  // 总数
+  const totalRow = db.prepare(`
+    SELECT COUNT(*) as total
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${cardWhere}
+  `).get(...params, ...cardIds);
+
+  // Summary：按类型
+  const byType = db.prepare(`
+    SELECT ct.type, COUNT(*) as cnt,
+           COALESCE(SUM(ct.auth_amount),0)   as auth_sum,
+           COALESCE(SUM(ct.settle_amount),0) as settle_sum
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${cardWhere}
+    GROUP BY ct.type
+  `).all(...params, ...cardIds);
+  const byTypeMap = {};
+  let totalAuth = 0, totalSettle = 0, totalCount = 0;
+  for (const r of byType) {
+    byTypeMap[r.type] = { count: r.cnt, auth_amount: r.auth_sum, settle_amount: r.settle_sum };
+    totalAuth   += r.auth_sum;
+    totalSettle += r.settle_sum;
+    totalCount  += r.cnt;
+  }
+
+  // Summary：按卡
+  const byCard = db.prepare(`
+    SELECT ct.card_id, c.card_number, c.label,
+           COUNT(*) as cnt,
+           COALESCE(SUM(ct.auth_amount),0)   as auth_sum,
+           COALESCE(SUM(ct.settle_amount),0) as settle_sum
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${cardWhere}
+    GROUP BY ct.card_id
+    ORDER BY cnt DESC
+  `).all(...params, ...cardIds);
+
+  res.json({
+    code: 0, msg: 'ok',
+    data: {
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      cards: userCards,
+      list: rows,
+      total: totalRow.total,
+      page: parseInt(page),
+      pageSize: limit,
+      summary: {
+        total_count:  totalCount,
+        total_auth:   totalAuth,
+        total_settle: totalSettle,
+        by_type: byTypeMap,
+        by_card: byCard
+      }
+    }
+  });
+});
+
+// 简单 CSV 字段转义
+function esc_(v) {
+  const s = String(v == null ? '' : v);
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
 // ── 开卡申请管理 ────────────────────────────────────────────────────────────
 /**
  * GET  /api/admin/card-applications         — 查询所有开卡申请（支持 ?status= 过滤）
