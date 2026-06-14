@@ -4767,7 +4767,7 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   overlay.id = 'utOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:24px;overflow:auto;';
   overlay.innerHTML = `
-    <div id="utModal" style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(139,92,246,.25);border-radius:16px;width:100%;max-width:1180px;display:flex;flex-direction:column;max-height:calc(100vh - 48px);box-shadow:0 24px 80px rgba(0,0,0,.5);overflow:hidden;">
+    <div id="utModal" style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(139,92,246,.25);border-radius:16px;width:960px;height:720px;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px);display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.5);overflow:hidden;">
       <!-- 头部 -->
       <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
         <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#e879f9);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:1.05rem;flex-shrink:0;">${esc2((userName||userEmail||'?').toString().slice(0,1).toUpperCase())}</div>
@@ -4802,8 +4802,8 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
       </div>
       <!-- 摘要卡片 -->
       <div id="utSummary" style="padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
-      <!-- 流水表格（body 内部滚动） -->
-      <div id="utBody" style="flex:1;overflow-y:auto;min-height:0;padding:0 24px;"></div>
+      <!-- 流水表格（body 内部固定 8 条高度，外部滚动） -->
+      <div id="utBody" style="flex:0 0 410px;overflow-y:auto;min-height:0;padding:0 24px;"></div>
       <!-- 分页 -->
       <div id="utPager" style="padding:14px 24px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.15);"></div>
     </div>
