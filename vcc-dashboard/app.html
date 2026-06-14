@@ -6941,15 +6941,15 @@ async function renderKycReviewPage() {
       .cr-empty { text-align: center; padding: 80px 40px; }
       .cr-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
       .cr-empty-text { color: var(--text3); font-size: .95rem; }
-      .cr-applicant-name { font-size: .9rem; font-weight: 500; }
+      .cr-applicant-name { font-size: .88rem; font-weight: 500; color: var(--text1); }
       .cr-applicant-email { font-size: .78rem; color: var(--text3); margin-top: 3px; }
-      .kyc-btn-action { padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .8rem; font-weight: 500; border: none; transition: all 0.2s; }
-      .kyc-btn-pass { background: rgba(0,199,88,0.1); color: #00c758; }
-      .kyc-btn-pass:hover { background: rgba(0,199,88,0.2); }
-      .kyc-btn-reject { background: rgba(255,95,95,0.1); color: #ff5f5f; }
-      .kyc-btn-reject:hover { background: rgba(255,95,95,0.2); }
-      .kyc-detail-link { color: #8fa0c7; font-size: .78rem; cursor: pointer; text-decoration: none; border-bottom: 1px dashed rgba(143,160,199,0.3); transition: color .2s; }
+      .kyc-aux-info { font-size: .78rem; color: var(--text3); margin-top: 3px; }
+      .kyc-detail-link { font-size: .78rem; color: #8fa0c7; cursor: pointer; transition: color .2s; border-bottom: 1px dashed rgba(143,160,199,.3); }
       .kyc-detail-link:hover { color: #00f2fe; border-bottom-color: #00f2fe; }
+      .kyc-reject-reason { font-size: .78rem; color: #ff5f5f; margin-top: 3px; max-width: 200px; line-height: 1.4; }
+      .kyc-status-text { font-size: .78rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; display: inline-block; }
+      .kyc-status-pass { color: var(--green); background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.25); }
+      .kyc-status-reject { color: var(--red); background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); }
       .kyc-col-name { min-width: 130px; }
       .kyc-col-company { min-width: 140px; }
       .kyc-col-contact { min-width: 120px; }
@@ -7071,24 +7071,24 @@ async function kycLoad() {
         const st = statusMap[a.status] || a.status;
         const sc = statusClass[a.status] || "";
         const dt = (a.created_at || "").replace("T", " ").slice(0, 16);
-        const legalInfo = (a.legal_person_name || "-") + (a.legal_person_id ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + esc(a.legal_person_id) + '</div>' : '');
-        const contactInfo = (a.contact_name || "-") + (a.contact_phone ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">' + esc(a.contact_phone) + '</div>' : '');
+        const legalInfo = (a.legal_person_name || "-") + (a.legal_person_id ? '<div class="kyc-aux-info">' + esc(a.legal_person_id) + '</div>' : '');
+        const contactInfo = (a.contact_name || "-") + (a.contact_phone ? '<div class="kyc-aux-info">' + esc(a.contact_phone) + '</div>' : '');
         return `<tr>` +
           `<td class="col-id">#${a.id}</td>` +
           `<td class="kyc-col-name"><div class="cr-applicant-name">${esc(a.user_name || "-")}</div><div class="cr-applicant-email">${esc(a.email || "")}</div></td>` +
-          `<td class="kyc-col-company">${esc(a.company_name || "-")}${a.remark ? '<div style="font-size:.75rem;color:var(--text3);margin-top:2px;">备注: ' + esc(a.remark) + '</div>' : ''}</td>` +
+          `<td class="kyc-col-company">${esc(a.company_name || "-")}${a.remark ? '<div class="kyc-aux-info">备注: ' + esc(a.remark) + '</div>' : ''}</td>` +
           `<td>${esc(a.country || "-")}</td>` +
           `<td class="kyc-col-contact">${legalInfo}</td>` +
-          `<td style="font-size:.8rem;">${a.legal_person_name ? '<span class="kyc-detail-link" onclick="kycPreviewDocs(' + a.id + ')">📎 查看证件</span>' : '-'}</td>` +
+          `<td class="kyc-col-cert">${a.legal_person_name ? '<span class="kyc-detail-link" onclick="kycPreviewDocs(' + a.id + ')">📎 查看证件</span>' : '-'}</td>` +
           `<td>${contactInfo}</td>` +
-          `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? '<div style="font-size:.75rem;color:#ff5f5f;margin-top:4px">原因: ' + esc(a.reject_reason) + '</div>' : ''}</td>` +
+          `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? '<div class="kyc-reject-reason">原因: ' + esc(a.reject_reason) + '</div>' : ''}</td>` +
           `<td class="col-time">${dt}</td>` +
           `<td class="col-action">` +
             (isPending ?
-              '<button class="kyc-btn-action kyc-btn-pass" onclick="approveKyc(' + a.id + ')">✅ 通过</button>' +
-              '<button class="kyc-btn-action kyc-btn-reject" onclick="rejectKyc(' + a.id + ')" style="margin-left:4px;">❌ 拒绝</button>' :
-              st === '已通过' ? '<span style="color:#00c758;font-size:.85rem;">✅ 已通过</span>' :
-                '<span style="color:#ff5f5f;font-size:.85rem;">❌ 已拒绝</span>') +
+              '<button class="btn btn-sm btn-success" onclick="approveKyc(' + a.id + ')">✓ 通过</button>' +
+              '<button class="btn btn-sm btn-danger" onclick="rejectKyc(' + a.id + ')" style="margin-left:6px;">✕ 拒绝</button>' :
+              st === '已通过' ? '<span class="kyc-status-text kyc-status-pass">✓ 已通过</span>' :
+                '<span class="kyc-status-text kyc-status-reject">✕ 已拒绝</span>') +
           `</td>` +
         `</tr>`;
       }).join('') +
