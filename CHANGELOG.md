@@ -1,4 +1,22 @@
 
+## v1.0.40 | 2026-06-14 | KYC审核页表格对齐优化
+
+
+**消除重复行 + 调整列宽 + 紧凑按钮**
+
+
+- **去重逻辑**：申请人 / 法人代表 / 联系人 三列增加 `auxLine()` 辅助行判断：仅当辅助信息（邮箱/证件号/电话）与主信息**不同时**才显示第二行，避免相同内容重复占用纵向空间
+- **统一单元格样式**：新增 `.cr-cell-main` 主行样式（font-size .82rem, line-height 1.5, color text1），与 `.cr-applicant-name` 保持一致
+- **辅助行优化**：`.kyc-aux-info` 字号 .78→.72rem，margin-top 3→2px，max-width 180px 省略号截断（备注/拒绝原因）
+- **列宽重新分配**：
+  - `.col-action` 140→160px + 按钮 padding 4px 10px / font .76rem（确保两个按钮一行紧凑放下，不再垂直堆叠）
+  - `.kyc-col-name` 130→140px
+  - `.kyc-col-company` 加 max-width 180px
+  - 新增 `.kyc-col-country` 90px / `.kyc-col-cert` 90px 居中 / `.kyc-col-contact2` 110px
+- **表格内边距**：14px 16px → 12px 14px，更紧凑
+- **表头统一 class**：国家 / 法人证件 / 联系人 加上对应列 class，避免宽度分配不均
+
+
 ## v1.0.39 | 2026-06-14 | KYC审核页按钮与字体统一
 
 
