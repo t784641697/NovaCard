@@ -1244,6 +1244,116 @@ router.get('/users', (req, res) => {
   });
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// 消费明细（按 cardIds 列表）公共查询
+// ════════════════════════════════════════════════════════════════════════════
+// 复用于：/admin/users/:id/transactions、/admin/cards/:cardId/transactions
+
+const TYPE_ZH    = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' };
+const STATUS_ZH  = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' };
+
+/**
+ * 查流水（按 cardIds 列表）
+ * @param {string[]} cardIds
+ * @param {{type?:string,start_date?:string,end_date?:string,page?:number,page_size?:number}} opts
+ * @returns {Object} { rows, total, byTypeMap, byCard, totalAuth, totalSettle, totalCount, page, pageSize }
+ */
+function fetchCardTransactions(cardIds, opts = {}) {
+  const { type, start_date, end_date, page = 1, page_size = 50 } = opts;
+  const limit  = Math.min(parseInt(page_size) || 50, 500);
+  const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limit;
+
+  // 动态条件
+  const params = [];
+  const conds = [];
+  if (type)       { conds.push('ct.type = ?');           params.push(type); }
+  if (start_date) { conds.push('ct.create_time >= ?');   params.push(start_date); }
+  if (end_date)   { conds.push('ct.create_time <= ?');   params.push(end_date + ' 23:59:59'); }
+  conds.push(`c.card_id IN (${cardIds.map(() => '?').join(',')})`);
+  const where = ' WHERE ' + conds.join(' AND ');
+
+  // 分页明细
+  const rows = db.prepare(`
+    SELECT ct.id, ct.auth_id, ct.card_id, ct.type, ct.status,
+           ct.auth_amount, ct.settle_amount, ct.auth_currency, ct.settle_currency,
+           ct.merchant_name, ct.create_time, ct.auth_time, ct.sync_time,
+           c.card_number, c.product_code, c.label
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${where}
+    ORDER BY ct.create_time DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, ...cardIds, limit, offset);
+
+  // 总数
+  const total = db.prepare(`
+    SELECT COUNT(*) as cnt
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${where}
+  `).get(...params, ...cardIds).cnt;
+
+  // Summary：按类型
+  const byTypeRows = db.prepare(`
+    SELECT ct.type, COUNT(*) as cnt,
+           COALESCE(SUM(ct.auth_amount),0)   as auth_sum,
+           COALESCE(SUM(ct.settle_amount),0) as settle_sum
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${where}
+    GROUP BY ct.type
+  `).all(...params, ...cardIds);
+
+  const byTypeMap = {};
+  let totalAuth = 0, totalSettle = 0, totalCount = 0;
+  for (const r of byTypeRows) {
+    byTypeMap[r.type] = { label: TYPE_ZH[r.type] || r.type, count: r.cnt, auth_amount: r.auth_sum, settle_amount: r.settle_sum };
+    totalAuth   += r.auth_sum;
+    totalSettle += r.settle_sum;
+    totalCount  += r.cnt;
+  }
+
+  // Summary：按卡（只在多卡场景下有意义，但单卡也返回以保持结构一致）
+  const byCard = db.prepare(`
+    SELECT ct.card_id, c.card_number, c.label,
+           COUNT(*) as cnt,
+           COALESCE(SUM(ct.auth_amount),0)   as auth_sum,
+           COALESCE(SUM(ct.settle_amount),0) as settle_sum
+    FROM card_transactions ct
+    JOIN cards c ON c.card_id = ct.card_id
+    ${where}
+    GROUP BY ct.card_id
+    ORDER BY cnt DESC
+  `).all(...params, ...cardIds);
+
+  return { rows, total, byTypeMap, byCard, totalAuth, totalSettle, totalCount, page: parseInt(page), pageSize: limit };
+}
+
+/**
+ * 构造 CSV 字符串
+ */
+function buildTransactionsCSV(rows) {
+  const header = ['时间', '卡片ID', '类型', '状态', '授权金额', '结算金额', '币种', '商家', 'Auth ID', '授权时间', '同步时间'];
+  const lines = [header.join(',')];
+  for (const r of rows) {
+    const cells = [
+      esc_(r.create_time || ''),
+      esc_(r.card_id || ''),
+      esc_(TYPE_ZH[r.type] || r.type || ''),
+      esc_(STATUS_ZH[r.status] || r.status || ''),
+      r.auth_amount != null ? r.auth_amount : '',
+      r.settle_amount != null ? r.settle_amount : '',
+      esc_(r.auth_currency || 'USD'),
+      esc_(r.merchant_name || ''),
+      esc_(r.auth_id || ''),
+      esc_(r.auth_time || ''),
+      esc_(r.sync_time || '')
+    ];
+    lines.push(cells.join(','));
+  }
+  return '\ufeff' + lines.join('\n');
+}
+
 /**
  * GET /api/admin/users/:id/transactions
  *   查询某用户所有卡的刷卡流水（来自 vmcardio 上游 card_transactions）
@@ -1285,135 +1395,100 @@ router.get('/users/:id/transactions', (req, res) => {
       data: {
         user: { id: user.id, email: user.email, name: user.name },
         cards: [],
-        list: [], total: 0, page: 1, pageSize: limit,
+        list: [], total: 0, page: 1, pageSize: 50,
         summary: { total_count: 0, total_auth: 0, total_settle: 0, by_type: {}, by_card: [] }
       }
     });
   }
 
-  // 条件：基于该用户的卡（去掉 c.user_id = ?，改用直接值绑定，避免与 cardIds 参数错位）
-  const params = [];
-  const cardConds = [];
-  cardConds.push(`c.user_id = ${userId}`);
-  if (type)       { cardConds.push('ct.type = ?');            params.push(type); }
-  if (start_date) { cardConds.push('ct.create_time >= ?');    params.push(start_date); }
-  if (end_date)   { cardConds.push('ct.create_time <= ?');    params.push(end_date + ' 23:59:59'); }
-  cardConds.push(`c.card_id IN (${cardIds.map(() => '?').join(',')})`);
-  const cardWhere = ' WHERE ' + cardConds.join(' AND ');
-
-  // CSV 导出（不限制分页，最多 5000 条）
+  // CSV 导出（最多 5000 条）
   if (format === 'csv') {
-    const csvLimit  = 5000;
-    const csvRows = db.prepare(`
-      SELECT ct.auth_id, ct.card_id, ct.type, ct.status,
-             ct.auth_amount, ct.settle_amount, ct.auth_currency, ct.settle_currency,
-             ct.merchant_name, ct.create_time, ct.auth_time, ct.sync_time,
-             c.card_id
-      FROM card_transactions ct
-      JOIN cards c ON c.card_id = ct.card_id
-      ${cardWhere}
-      ORDER BY ct.create_time DESC
-      LIMIT ?
-    `).all(...params, ...cardIds, csvLimit);
-    const header = ['时间', '卡片ID', '类型', '状态', '授权金额', '结算金额', '币种', '商家', 'Auth ID', '授权时间', '同步时间'];
-    // 类型 / 状态枚举中文化映射
-    const typeZh = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' };
-    const statusZh = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' };
-    const lines = [header.join(',')];
-    for (const r of csvRows) {
-      const cells = [
-        esc_(r.create_time || ''),
-        esc_(r.card_id || ''),
-        esc_(typeZh[r.type] || r.type || ''),
-        esc_(statusZh[r.status] || r.status || ''),
-        r.auth_amount != null ? r.auth_amount : '',
-        r.settle_amount != null ? r.settle_amount : '',
-        esc_(r.auth_currency || 'USD'),
-        esc_(r.merchant_name || ''),
-        esc_(r.auth_id || ''),
-        esc_(r.auth_time || ''),
-        esc_(r.sync_time || '')
-      ];
-      lines.push(cells.join(','));
-    }
-    // 加 BOM 让 Excel 正确识别 UTF-8
-    const csv = '\ufeff' + lines.join('\n');
+    const csvAll = fetchCardTransactions(cardIds, { type, start_date, end_date, page: 1, page_size: 5000 });
+    const csv = buildTransactionsCSV(csvAll.rows);
     const fname = `transactions_${userId}_${(start_date||'all')}_${(end_date||'all')}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
     return res.send(csv);
   }
 
-  // 分页明细
-  const rows = db.prepare(`
-    SELECT ct.id, ct.auth_id, ct.card_id, ct.type, ct.status,
-           ct.auth_amount, ct.settle_amount, ct.auth_currency, ct.settle_currency,
-           ct.merchant_name, ct.create_time, ct.auth_time, ct.sync_time,
-           c.card_number, c.product_code, c.label
-    FROM card_transactions ct
-    JOIN cards c ON c.card_id = ct.card_id
-    ${cardWhere}
-    ORDER BY ct.create_time DESC
-    LIMIT ? OFFSET ?
-  `).all(...params, ...cardIds, limit, offset);
-
-  // 总数
-  const totalRow = db.prepare(`
-    SELECT COUNT(*) as total
-    FROM card_transactions ct
-    JOIN cards c ON c.card_id = ct.card_id
-    ${cardWhere}
-  `).get(...params, ...cardIds);
-
-  // Summary：按类型
-  const byType = db.prepare(`
-    SELECT ct.type, COUNT(*) as cnt,
-           COALESCE(SUM(ct.auth_amount),0)   as auth_sum,
-           COALESCE(SUM(ct.settle_amount),0) as settle_sum
-    FROM card_transactions ct
-    JOIN cards c ON c.card_id = ct.card_id
-    ${cardWhere}
-    GROUP BY ct.type
-  `).all(...params, ...cardIds);
-  const byTypeMap = {};
-  let totalAuth = 0, totalSettle = 0, totalCount = 0;
-  const typeZh = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' };
-  const statusZh = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' };
-  for (const r of byType) {
-    byTypeMap[r.type] = { label: typeZh[r.type] || r.type, count: r.cnt, auth_amount: r.auth_sum, settle_amount: r.settle_sum };
-    totalAuth   += r.auth_sum;
-    totalSettle += r.settle_sum;
-    totalCount  += r.cnt;
-  }
-
-  // Summary：按卡
-  const byCard = db.prepare(`
-    SELECT ct.card_id, c.card_number, c.label,
-           COUNT(*) as cnt,
-           COALESCE(SUM(ct.auth_amount),0)   as auth_sum,
-           COALESCE(SUM(ct.settle_amount),0) as settle_sum
-    FROM card_transactions ct
-    JOIN cards c ON c.card_id = ct.card_id
-    ${cardWhere}
-    GROUP BY ct.card_id
-    ORDER BY cnt DESC
-  `).all(...params, ...cardIds);
+  // 分页 + Summary（走公共函数）
+  const data = fetchCardTransactions(cardIds, { type, start_date, end_date, page, page_size });
 
   res.json({
     code: 0, msg: 'ok',
     data: {
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
       cards: userCards,
-      list: rows,
-      total: totalRow.total,
-      page: parseInt(page),
-      pageSize: limit,
+      list: data.rows,
+      total: data.total,
+      page: data.page,
+      pageSize: data.pageSize,
       summary: {
-        total_count:  totalCount,
-        total_auth:   totalAuth,
-        total_settle: totalSettle,
-        by_type: byTypeMap,
-        by_card: byCard
+        total_count:  data.totalCount,
+        total_auth:   data.totalAuth,
+        total_settle: data.totalSettle,
+        by_type: data.byTypeMap,
+        by_card: data.byCard
+      }
+    }
+  });
+});
+
+/**
+ * GET /api/admin/cards/:cardId/transactions
+ *   查询某张卡的刷卡流水（来自 vmcardio 上游 card_transactions）
+ *   复用 fetchCardTransactions + buildTransactionsCSV 公共函数
+ */
+router.get('/cards/:cardId/transactions', (req, res) => {
+  const cardId = req.params.cardId;
+  if (!cardId) return res.status(400).json({ code: 400, msg: '无效的卡片ID' });
+
+  // 校验卡片存在
+  const card = db.prepare(`
+    SELECT id, card_id, card_number, status, available_amount, product_code, label, user_id
+    FROM cards WHERE card_id = ?
+  `).get(cardId);
+  if (!card) return res.status(404).json({ code: 404, msg: '卡片不存在' });
+
+  // 查该卡所属用户（用于头部展示）
+  const owner = card.user_id
+    ? db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(card.user_id)
+    : null;
+
+  const { type, start_date, end_date, page = 1, page_size = 50, format } = req.query;
+
+  // CSV 导出
+  if (format === 'csv') {
+    const csvAll = fetchCardTransactions([cardId], { type, start_date, end_date, page: 1, page_size: 5000 });
+    const csv = buildTransactionsCSV(csvAll.rows);
+    const fname = `transactions_card_${cardId}_${(start_date||'all')}_${(end_date||'all')}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    return res.send(csv);
+  }
+
+  // 分页 + Summary
+  const data = fetchCardTransactions([cardId], { type, start_date, end_date, page, page_size });
+
+  res.json({
+    code: 0, msg: 'ok',
+    data: {
+      card: {
+        id: card.id, card_id: card.card_id, card_number: card.card_number,
+        status: card.status, available_amount: card.available_amount,
+        product_code: card.product_code, label: card.label
+      },
+      owner: owner ? { id: owner.id, email: owner.email, name: owner.name } : null,
+      list: data.rows,
+      total: data.total,
+      page: data.page,
+      pageSize: data.pageSize,
+      summary: {
+        total_count:  data.totalCount,
+        total_auth:   data.totalAuth,
+        total_settle: data.totalSettle,
+        by_type: data.byTypeMap,
+        by_card: data.byCard
       }
     }
   });
