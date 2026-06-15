@@ -4921,11 +4921,11 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
     }
   });
   window._utPicker.init();
-  // 恢复默认范围（最近 90 天）
-  const ago = new Date(Date.now() - 90 * 86400000);
+  // 默认本月 1 日 — 今天（与交易监控一致，方案B）
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
   const fmt = (d) => d.toISOString().slice(0,10);
-  window._utPicker.setRange(fmt(ago), fmt(today));
-  window._utState.startDate = fmt(ago);
+  window._utPicker.setRange(fmt(firstDay), fmt(today));
+  window._utState.startDate = fmt(firstDay);
   window._utState.endDate   = fmt(today);
 
   await loadUserTransactions();
