@@ -1435,6 +1435,36 @@ router.get('/users/:id/transactions', (req, res) => {
 });
 
 /**
+ * GET /api/admin/cards/:cardId/info
+ *   轻量级卡片信息（用于"按卡看消费"弹窗头部展示）
+ *   不调上游 SDK，仅查本地 DB
+ */
+router.get('/cards/:cardId/info', (req, res) => {
+  const cardId = req.params.cardId;
+  if (!cardId) return res.status(400).json({ code: 400, msg: '无效的卡片ID' });
+  const card = db.prepare(`
+    SELECT id, card_id, card_number, status, available_amount, product_code, label, user_id, currency
+    FROM cards WHERE card_id = ?
+  `).get(cardId);
+  if (!card) return res.status(404).json({ code: 404, msg: '卡片不存在' });
+  const owner = card.user_id
+    ? db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(card.user_id)
+    : null;
+  res.json({
+    code: 0, msg: 'ok',
+    data: {
+      card_id:          card.card_id,
+      card_number:      card.card_number,
+      brand:            card.product_code || card.label || 'CARD',
+      status:           card.status,
+      available_balance: card.available_amount,
+      currency:         card.currency || 'USD',
+      owner:            owner ? { id: owner.id, name: owner.name, email: owner.email } : null
+    }
+  });
+});
+
+/**
  * GET /api/admin/cards/:cardId/transactions
  *   查询某张卡的刷卡流水（来自 vmcardio 上游 card_transactions）
  *   复用 fetchCardTransactions + buildTransactionsCSV 公共函数
