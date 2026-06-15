@@ -8446,21 +8446,29 @@ async function loadTxMonitor() {
     var m = statsRes && statsRes.code === 0 ? (statsRes.data.metrics || {}) : {};
     var el = function(id) { return document.getElementById(id); };
     if (el('txStatCards'))    el('txStatCards').textContent = (m.card_issued || 0).toLocaleString();
-    if (el('txStatTx'))       el('txStatTx').textContent = (m.tx_count || 0).toLocaleString() + ' 笔';
+    // 上游卡交易笔数 = 授权 + 结算 + 失败 + 撤销 + 退款
+    var upstreamTxCount = (m.auth_count || 0) + (m.settle_count || 0) + (m.decline_count || 0) + (m.reversal_count || 0) + (m.refund_count || 0);
+    if (el('txStatTx'))       el('txStatTx').textContent = upstreamTxCount.toLocaleString() + ' 笔';
     if (el('txStatTopupCount'))  el('txStatTopupCount').textContent = (m.topup_count || 0).toLocaleString() + ' 笔';
     if (el('txStatTopupAmount')) el('txStatTopupAmount').textContent = '$' + (m.topup_amount || 0).toFixed(2);
-    // 上游拒卡消费数据未接入时，费率指标显示提示
-    var hasCardData = m.card_issued > 0 && m.tx_count > 0;
+    // 上游数据是否已接入：开卡量 > 0 且 上游交易笔数 > 0
+    var hasCardData = m.card_issued > 0 && upstreamTxCount > 0;
     function fmtRate(v) {
       if (!hasCardData) return '—';
       if (v == null) return 'N/A';
       return (v * 100).toFixed(1) + '%';
     }
+    // 入账率优先用上游 settlement_rate（auth→settle 的转化），无上游数据时回退用 topup/spend 推算
     if (el('txStatSettle')) {
-      var srLocal = (m.topup_amount || 0) > 0
-        ? (((m.topup_amount || 0) - (m.spend_amount || 0)) / m.topup_amount * 100).toFixed(1) + '%'
-        : '—';
-      el('txStatSettle').textContent = srLocal;
+      var sr;
+      if (m.settlement_rate != null) {
+        sr = (m.settlement_rate * 100).toFixed(1) + '%';
+      } else if ((m.topup_amount || 0) > 0) {
+        sr = (((m.topup_amount || 0) - (m.spend_amount || 0)) / m.topup_amount * 100).toFixed(1) + '%';
+      } else {
+        sr = '—';
+      }
+      el('txStatSettle').textContent = sr;
     }
     if (el('txStatFail'))     el('txStatFail').textContent = fmtRate(m.failure_rate);
     if (el('txStatReversal')) el('txStatReversal').textContent = fmtRate(m.reversal_rate);
