@@ -5010,18 +5010,13 @@ async function loadUserTransactions() {
     if (!r || r.code !== 0) { body.innerHTML = '<div class="ut-empty">❌ 加载失败: ' + esc2(r?.msg||'') + '</div>'; return; }
     const d = r.data;
 
-    // 摘要（card 模式无"按卡分布"概念，所以"涉及卡数"改为"所属用户 ID"）
+    // 摘要（4 张：总笔数/授权/结算/退款；"涉及卡数"已在头部"共 N 张卡"展示）
     const sum = d.summary || {};
-    const sum4 = s.mode === 'card' ? [
-      { label: '总笔数',  value: sum.total_count || 0, color: '#a78bfa' },
-      { label: '授权总额', value: '$' + parseFloat(sum.total_auth||0).toFixed(2),   color: '#00f2fe' },
-      { label: '结算总额', value: '$' + parseFloat(sum.total_settle||0).toFixed(2), color: '#00c758' },
-      { label: '退款总额', value: '$' + parseFloat(sum.total_refund||0).toFixed(2), color: '#ffaa00' },
-    ] : [
-      { label: '总笔数',  value: sum.total_count || 0, color: '#a78bfa' },
-      { label: '授权总额', value: '$' + parseFloat(sum.total_auth||0).toFixed(2),   color: '#00f2fe' },
-      { label: '结算总额', value: '$' + parseFloat(sum.total_settle||0).toFixed(2), color: '#00c758' },
-      { label: '涉及卡数', value: (d.cards||[]).length, color: '#ffaa00' },
+    const sum4 = [
+      { label: '总笔数',   value: sum.total_count || 0,                                color: '#a78bfa' },
+      { label: '授权总额', value: '$' + parseFloat(sum.total_auth||0).toFixed(2),      color: '#00f2fe' },
+      { label: '结算总额', value: '$' + parseFloat(sum.total_settle||0).toFixed(2),    color: '#00c758' },
+      { label: '退款总额', value: '$' + parseFloat(sum.total_refund||0).toFixed(2),    color: '#ffaa00' },
     ];
     sumEl.innerHTML = sum4.map(x => `<div class="ut-summary-card"><div class="ut-summary-label">${x.label}</div><div class="ut-summary-value" style="color:${x.color}">${x.value}</div></div>`).join('');
 
