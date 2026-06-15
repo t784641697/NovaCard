@@ -4814,10 +4814,16 @@ async function _openTxnModalShell({ mode, headerInfo }) {
     const u = headerInfo;
     const initial = ((u.userName || u.userEmail || 'U') + '').slice(0, 1).toUpperCase();
     headerLeftHtml =
-      `<div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#e879f9);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:1.05rem;flex-shrink:0;">${esc2(initial)}</div>` +
-      `<div style="flex:1;min-width:200px;">` +
-        `<div style="color:#fff;font-size:1.05rem;font-weight:600;">${esc2(u.userName || u.userEmail || '用户')} <span style="color:var(--text3);font-size:.82rem;font-weight:400;margin-left:6px;">#${u.userId}</span></div>` +
-        `<div style="color:var(--text3);font-size:.78rem;margin-top:2px;">${esc2(u.userEmail || '')} · 共 ${u.cardCount||0} 张卡</div>` +
+      `<div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#e879f9);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:1.2rem;flex-shrink:0;">${esc2(initial)}</div>` +
+      `<div style="flex:1;min-width:200px;display:flex;flex-direction:column;justify-content:center;gap:4px;">` +
+        `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">` +
+          `<span style="color:#fff;font-size:1.05rem;font-weight:600;">${esc2(u.userName || u.userEmail || '用户')}</span>` +
+          `<span style="color:var(--text2);background:rgba(167,139,250,.12);font-size:.7rem;font-weight:500;padding:2px 8px;border-radius:6px;letter-spacing:.3px;">#${u.userId}</span>` +
+        `</div>` +
+        `<div style="color:var(--text3);font-size:.78rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">` +
+          `<span>${esc2(u.userEmail || '')}</span><span style="opacity:.5;">·</span>` +
+          `<span>共 ${u.cardCount||0} 张卡</span>` +
+        `</div>` +
       `</div>`;
     titleText = `${u.userName || u.userEmail || '用户'} 的消费明细`;
   } else {
@@ -4826,11 +4832,22 @@ async function _openTxnModalShell({ mode, headerInfo }) {
     const statusZh = statusMap[c.status] || c.status || '-';
     const brandColor = c.brand === 'Mastercard' ? '#f87171' : c.brand === 'Visa' ? '#1a73e8' : c.brand === 'UnionPay' ? '#10b981' : '#a78bfa';
     const bal = (Number(c.available_balance) || 0).toFixed(2);
+    // 品牌缩写：G5554LC -> G5, VISA -> V, UnionPay -> UP, 其它取首字
+    const brandShort = (c.brand || 'CARD').length > 4 ? (c.brand || 'CARD').slice(0, 2).toUpperCase() : (c.brand || 'CARD');
+    const statusColor = c.status==='FROZEN' ? '#ff5f5f' : c.status==='CANCELED' ? '#9fa8ba' : c.status==='PENDING' ? '#fbbf24' : '#00c758';
+    const statusBg    = c.status==='FROZEN' ? 'rgba(255,95,95,.12)' : c.status==='CANCELED' ? 'rgba(159,168,186,.12)' : c.status==='PENDING' ? 'rgba(251,191,36,.12)' : 'rgba(0,199,88,.12)';
     headerLeftHtml =
-      `<div style="width:46px;height:46px;border-radius:11px;background:linear-gradient(135deg,${brandColor},#a78bfa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.72rem;flex-shrink:0;letter-spacing:.3px;">${esc2(c.brand || 'CARD')}</div>` +
-      `<div style="flex:1;min-width:200px;">` +
-        `<div style="color:#fff;font-size:1.05rem;font-weight:600;font-family:Menlo,Monaco,monospace;">${esc2(c.card_number || c.card_id || '卡片')} <span style="color:${c.status==='FROZEN'?'#ff5f5f':c.status==='CANCELED'?'#9fa8ba':'#00c758'};font-size:.72rem;font-weight:500;margin-left:6px;font-family:inherit;">${esc2(statusZh)}</span></div>` +
-        `<div style="color:var(--text3);font-size:.78rem;margin-top:2px;">${esc2(c.brand || '')} · 余额 $${bal} ${esc2(c.currency || 'USD')} · ${esc2(c.card_id || '')}</div>` +
+      `<div title="${esc2(c.brand || 'CARD')}" style="width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,${brandColor},#a78bfa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.85rem;flex-shrink:0;letter-spacing:.5px;">${esc2(brandShort)}</div>` +
+      `<div style="flex:1;min-width:200px;display:flex;flex-direction:column;justify-content:center;gap:4px;">` +
+        `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">` +
+          `<span style="color:#fff;font-size:1.05rem;font-weight:600;font-family:Menlo,Monaco,monospace;letter-spacing:.3px;">${esc2(c.card_number || c.card_id || '卡片')}</span>` +
+          `<span style="color:${statusColor};background:${statusBg};font-size:.7rem;font-weight:500;padding:2px 8px;border-radius:6px;letter-spacing:.3px;">${esc2(statusZh)}</span>` +
+        `</div>` +
+        `<div style="color:var(--text3);font-size:.78rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">` +
+          `<span>${esc2(c.brand || '')}</span><span style="opacity:.5;">·</span>` +
+          `<span>余额 $${bal} ${esc2(c.currency || 'USD')}</span><span style="opacity:.5;">·</span>` +
+          `<span style="font-family:Menlo,Monaco,monospace;">${esc2(c.card_id || '')}</span>` +
+        `</div>` +
       `</div>`;
     titleText = `卡片 ${c.card_number || c.card_id || ''} 的消费明细`;
   }
@@ -4844,15 +4861,13 @@ async function _openTxnModalShell({ mode, headerInfo }) {
   overlay.innerHTML =
     `<div id="utModal" style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(139,92,246,.25);border-radius:16px;width:960px;min-height:720px;max-width:calc(100vw - 48px);display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.5);overflow:hidden;margin:0 auto;">` +
       `<!-- 头部 -->` +
-      `<div style="padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">` +
+      `<div style="padding:18px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:18px;flex-wrap:wrap;">` +
         headerLeftHtml +
-        `<div style="display:flex;gap:8px;align-items:center;">` +
+        `<div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">` +
           `<button id="utExportBtn" class="ut-btn-primary">📥 导出 CSV</button>` +
           `<button id="utCloseBtn" class="ut-close-btn">✕</button>` +
         `</div>` +
       `</div>` +
-      `<!-- 标题 -->` +
-      `<div style="padding:4px 24px 4px;color:var(--text3);font-size:.78rem;letter-spacing:.3px;">${esc2(titleText)}</div>` +
       `<!-- 筛选区 -->` +
       `<div style="padding:10px 24px 12px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.015);">` +
         `<div style="display:flex;align-items:center;gap:6px;">` +
@@ -4889,12 +4904,12 @@ async function _openTxnModalShell({ mode, headerInfo }) {
       `.ut-input:focus { border-color:rgba(167,139,250,.5);box-shadow:0 0 0 3px rgba(167,139,250,.12); }` +
       `.ut-input::placeholder { color:var(--text3); }` +
       `select.ut-input { padding-right:32px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23a78bfa' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer; }` +
-      `.ut-btn-primary { height:38px;padding:0 18px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(167,139,250,.25);display:inline-flex;align-items:center;gap:6px; }` +
+      `.ut-btn-primary { height:38px;padding:0 16px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(167,139,250,.25);display:inline-flex;align-items:center;gap:6px;letter-spacing:.3px; }` +
       `.ut-btn-primary:hover { opacity:.88;transform:translateY(-1px);box-shadow:0 4px 16px rgba(167,139,250,.3); }` +
       `.ut-btn-primary:disabled { opacity:.5;cursor:not-allowed;transform:none; }` +
       `.ut-btn-secondary { height:38px;padding:0 18px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--text2);font-size:.85rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:6px; }` +
       `.ut-btn-secondary:hover { background:rgba(167,139,250,.08);color:var(--purple);border-color:rgba(167,139,250,.4); }` +
-      `.ut-close-btn { width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:transparent;color:var(--text2);cursor:pointer;font-size:1.05rem;display:flex;align-items:center;justify-content:center; }` +
+      `.ut-close-btn { width:38px;height:38px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:transparent;color:var(--text2);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s; }` +
       `.ut-close-btn:hover { background:rgba(255,95,95,.1);color:#ff5f5f;border-color:rgba(255,95,95,.25); }` +
       `.ut-summary-card { background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px 16px; }` +
       `.ut-summary-label { color:var(--text3);font-size:.72rem;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px; }` +
