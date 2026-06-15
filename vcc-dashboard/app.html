@@ -4194,7 +4194,7 @@ function renderCmList(cards) {
           </div>
         </div>
         <div class="cm-card-right">
-          ${_me?.role === 'admin' ? `<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal('${c.card_id}')">📊 流水</button>` : ''}
+          ${_me?.role === 'admin' ? `<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal('${c.card_id}')" title="查看消费明细">🧾 流水</button>` : ''}
           <div class="cm-bal">
             <div class="cm-bal-label">${balLabel}</div>
             <div class="${balValueClass}">$${balDisplay}</div>
