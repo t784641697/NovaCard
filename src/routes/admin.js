@@ -1443,7 +1443,7 @@ router.get('/cards/:cardId/info', (req, res) => {
   const cardId = req.params.cardId;
   if (!cardId) return res.status(400).json({ code: 400, msg: '无效的卡片ID' });
   const card = db.prepare(`
-    SELECT id, card_id, card_number, status, available_amount, product_code, label, user_id, currency
+    SELECT id, card_id, card_number, status, available_amount, product_code, label, user_id
     FROM cards WHERE card_id = ?
   `).get(cardId);
   if (!card) return res.status(404).json({ code: 404, msg: '卡片不存在' });
