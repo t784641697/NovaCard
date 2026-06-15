@@ -4875,7 +4875,7 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   document.getElementById('utResetBtn').addEventListener('click', () => {
     const t = new Date();
     const a = new Date(Date.now() - 90 * 86400000);
-    const fmt = (d) => d.toISOString().slice(0,10);
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if (window._utPicker) window._utPicker.setRange(fmt(a), fmt(t));
     document.getElementById('utType').value  = '';
     window._utState.startDate = fmt(a);
@@ -4923,7 +4923,7 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   window._utPicker.init();
   // 默认本月 1 日 — 今天（与交易监控一致，方案B）
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const fmt = (d) => d.toISOString().slice(0,10);
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   window._utPicker.setRange(fmt(firstDay), fmt(today));
   window._utState.startDate = fmt(firstDay);
   window._utState.endDate   = fmt(today);
