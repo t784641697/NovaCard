@@ -8451,8 +8451,8 @@ async function loadTxMonitor() {
     if (el('txStatTx'))       el('txStatTx').textContent = upstreamTxCount.toLocaleString() + ' 笔';
     if (el('txStatTopupCount'))  el('txStatTopupCount').textContent = (m.topup_count || 0).toLocaleString() + ' 笔';
     if (el('txStatTopupAmount')) el('txStatTopupAmount').textContent = '$' + (m.topup_amount || 0).toFixed(2);
-    // 上游数据是否已接入：开卡量 > 0 且 上游交易笔数 > 0
-    var hasCardData = m.card_issued > 0 && upstreamTxCount > 0;
+    // 上游数据是否已接入：上游交易笔数 > 0 即可（开卡量>0 太严格，时间范围内可能没开新卡但有历史卡的消费）
+    var hasCardData = upstreamTxCount > 0;
     function fmtRate(v) {
       if (!hasCardData) return '—';
       if (v == null) return 'N/A';
@@ -8491,8 +8491,10 @@ async function loadTxMonitor() {
           var fr = u.fail_rate != null ? (u.fail_rate * 100).toFixed(1) + '%' : '—';
           var rr = u.reversal_rate != null ? (u.reversal_rate * 100).toFixed(1) + '%' : '—';
           var rfr = u.refund_rate != null ? (u.refund_rate * 100).toFixed(1) + '%' : '—';
+          // 上游卡交易笔数（用 card_transactions.auth_count 而非 transactions.tx_count）
+          var upstreamTx = u.auth_count || 0;
           // 无卡片则上游费率标为 —（无上游数据）
-          if (u.card_count === 0 && u.tx_count === 0) {
+          if (u.card_count === 0 && upstreamTx === 0) {
             fr = '—'; rr = '—'; rfr = '—';
           }
           uhtml += '<div style="display:grid;grid-template-columns:40px 1fr repeat(7,100px);gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:.82rem;' + rowBg + '">' +
@@ -8501,7 +8503,7 @@ async function loadTxMonitor() {
             '<div style="text-align:center;color:var(--green);font-weight:600;">$' + (u.topup_total || 0).toFixed(2) + '</div>' +
             '<div style="text-align:center;"><span style="font-weight:600;color:var(--green);">' + (u.topup_count || 0) + '</span></div>' +
             '<div style="text-align:center;"><span style="font-weight:600;color:var(--cyan);">' + (u.card_count || 0) + '</span></div>' +
-            '<div style="text-align:center;"><span style="font-weight:600;color:var(--text1);">' + (u.tx_count || 0) + '</span></div>' +
+            '<div style="text-align:center;"><span style="font-weight:600;color:var(--text1);">' + upstreamTx + '</span></div>' +
             '<div style="text-align:center;color:var(--text3);">' + fr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + rr + '</div>' +
             '<div style="text-align:center;color:var(--text3);">' + rfr + '</div>' +
