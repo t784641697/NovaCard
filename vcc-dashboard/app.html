@@ -7573,7 +7573,7 @@ function kycPreviewDocs(id) {
         '<div class="kyc-pdf-size">' + typeLabel + ' · ' + fmtSize(src) + '</div>' +
       '</div>' +
       '<div class="kyc-pdf-actions">' +
-        (isPdf ? '<button class="kyc-pdf-btn kyc-pdf-btn-view" onclick="openKycPdf(\'' + key + '\')" title="在新窗口预览">⛶ 预览</button>' : '') +
+        (isPdf || isImg ? '<button class="kyc-pdf-btn kyc-pdf-btn-view" onclick="openKycPdf(\'' + key + '\')" title="在新窗口预览">⛶ 预览</button>' : '') +
         '<a class="kyc-pdf-btn kyc-pdf-btn-dl" href="' + src + '" download title="下载到本地" onclick="event.stopPropagation();">⬇ 下载</a>' +
       '</div>' +
     '</div>';
