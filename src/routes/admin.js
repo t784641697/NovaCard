@@ -1313,6 +1313,10 @@ function fetchCardTransactions(cardIds, opts = {}) {
     totalCount  += r.cnt;
   }
 
+  // 退款总额 = type='Refund' 的 settle_amount 合计（绝对值，便于展示）
+  const refundRow = byTypeMap['Refund'];
+  const totalRefund = refundRow ? Math.abs(refundRow.settle_amount || 0) : 0;
+
   // Summary：按卡（只在多卡场景下有意义，但单卡也返回以保持结构一致）
   const byCard = db.prepare(`
     SELECT ct.card_id, c.card_number, c.label,
@@ -1326,7 +1330,7 @@ function fetchCardTransactions(cardIds, opts = {}) {
     ORDER BY cnt DESC
   `).all(...params, ...cardIds);
 
-  return { rows, total, byTypeMap, byCard, totalAuth, totalSettle, totalCount, page: parseInt(page), pageSize: limit };
+  return { rows, total, byTypeMap, byCard, totalAuth, totalSettle, totalRefund, totalCount, page: parseInt(page), pageSize: limit };
 }
 
 /**
@@ -1396,7 +1400,7 @@ router.get('/users/:id/transactions', (req, res) => {
         user: { id: user.id, email: user.email, name: user.name },
         cards: [],
         list: [], total: 0, page: 1, pageSize: 50,
-        summary: { total_count: 0, total_auth: 0, total_settle: 0, by_type: {}, by_card: [] }
+        summary: { total_count: 0, total_auth: 0, total_settle: 0, total_refund: 0, by_type: {}, by_card: [] }
       }
     });
   }
@@ -1427,6 +1431,7 @@ router.get('/users/:id/transactions', (req, res) => {
         total_count:  data.totalCount,
         total_auth:   data.totalAuth,
         total_settle: data.totalSettle,
+        total_refund: data.totalRefund,
         by_type: data.byTypeMap,
         by_card: data.byCard
       }
@@ -1517,6 +1522,7 @@ router.get('/cards/:cardId/transactions', (req, res) => {
         total_count:  data.totalCount,
         total_auth:   data.totalAuth,
         total_settle: data.totalSettle,
+        total_refund: data.totalRefund,
         by_type: data.byTypeMap,
         by_card: data.byCard
       }
