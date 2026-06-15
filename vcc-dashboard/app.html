@@ -224,6 +224,8 @@ select.form-control option{background:var(--bg3);}
 .cm-btn-unfreeze:hover{background:rgba(52,211,153,.22);}
 .cm-btn-detail{background:rgba(79,143,255,.1);color:#4f8fff;border:1px solid rgba(79,143,255,.2);}
 .cm-btn-detail:hover{background:rgba(79,143,255,.22);}
+.cm-btn-txn{background:rgba(139,92,246,.1);color:#a78bfa;border:1px solid rgba(139,92,246,.25);padding:6px 10px;font-size:12px;white-space:nowrap;}
+.cm-btn-txn:hover{background:rgba(139,92,246,.22);}
 @media(max-width:640px){
   .cm-card{flex-direction:column;align-items:flex-start;}
   .cm-card-right{width:100%;justify-content:space-between;}
@@ -4192,6 +4194,7 @@ function renderCmList(cards) {
           </div>
         </div>
         <div class="cm-card-right">
+          ${_me?.role === 'admin' ? `<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal('${c.card_id}')">📊 流水</button>` : ''}
           <div class="cm-bal">
             <div class="cm-bal-label">${balLabel}</div>
             <div class="${balValueClass}">$${balDisplay}</div>
@@ -4761,104 +4764,156 @@ function esc2(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').repla
 
 async function openUserTransactionsModal(userId, userName, userEmail, cardCount) {
   if (_me?.role !== 'admin') return;
-  window._utState = { userId, page: 1, pageSize: 50, type: '', startDate: '', endDate: '' };
-  // 默认日期：最近 90 天
-  const today = new Date();
-  const ago90 = new Date(Date.now() - 90 * 86400000);
-  window._utState.endDate   = today.toISOString().slice(0, 10);
-  window._utState.startDate = ago90.toISOString().slice(0, 10);
+  return _openTxnModalShell({ mode: 'user', headerInfo: { userId, userName, userEmail, cardCount } });
+}
 
-  // 容器（modal 用 portal 方式挂到 body，避开 SPA 内容区样式影响）
+async function openCardTransactionsModal(cardId) {
+  if (_me?.role !== 'admin') return;
+  if (!cardId) return;
+  // 拉取卡片信息用于头部
+  const res = await apiGet('/admin/cards/' + encodeURIComponent(cardId) + '/info');
+  if (!res || res.code !== 0) {
+    showToast(res?.msg || '获取卡信息失败', 'error');
+    return;
+  }
+  return _openTxnModalShell({ mode: 'card', headerInfo: res.data });
+}
+
+async function _openTxnModalShell({ mode, headerInfo }) {
+  if (_me?.role !== 'admin') return;
+  // 状态初始化（按 mode 存不同 ID 字段）
+  const stateInit = { mode, page: 1, pageSize: 50, type: '', startDate: '', endDate: '' };
+  if (mode === 'user') {
+    stateInit.userId = headerInfo.userId;
+  } else {
+    stateInit.cardId = headerInfo.card_id;
+  }
+  window._utState = stateInit;
+
+  // 工具：本地 YYYY-MM-DD（避免 toISOString 时区偏移少 1 天）
+  const _utFmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const _utFmtDate = (d) => {
+    if (!d) return '';
+    if (typeof d === 'string') return d.slice(0, 10);
+    if (d instanceof Date) return _utFmt(d);
+    return '';
+  };
+
+  // 头部 HTML（根据 mode 渲染）
+  let headerLeftHtml = '';
+  let titleText = '';
+  if (mode === 'user') {
+    const u = headerInfo;
+    const initial = ((u.userName || u.userEmail || 'U') + '').slice(0, 1).toUpperCase();
+    headerLeftHtml =
+      `<div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#e879f9);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:1.05rem;flex-shrink:0;">${esc2(initial)}</div>` +
+      `<div style="flex:1;min-width:200px;">` +
+        `<div style="color:#fff;font-size:1.05rem;font-weight:600;">${esc2(u.userName || u.userEmail || '用户')} <span style="color:var(--text3);font-size:.82rem;font-weight:400;margin-left:6px;">#${u.userId}</span></div>` +
+        `<div style="color:var(--text3);font-size:.78rem;margin-top:2px;">${esc2(u.userEmail || '')} · 共 ${u.cardCount||0} 张卡</div>` +
+      `</div>`;
+    titleText = `${u.userName || u.userEmail || '用户'} 的消费明细`;
+  } else {
+    const c = headerInfo;
+    const statusMap = { NORMAL: '正常', FROZEN: '已冻结', CANCELED: '已注销', PENDING: '待激活', ACTIVE: '正常', SUSPENDED: '已暂停' };
+    const statusZh = statusMap[c.status] || c.status || '-';
+    const brandColor = c.brand === 'Mastercard' ? '#f87171' : c.brand === 'Visa' ? '#1a73e8' : c.brand === 'UnionPay' ? '#10b981' : '#a78bfa';
+    const bal = (Number(c.available_balance) || 0).toFixed(2);
+    headerLeftHtml =
+      `<div style="width:46px;height:46px;border-radius:11px;background:linear-gradient(135deg,${brandColor},#a78bfa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.72rem;flex-shrink:0;letter-spacing:.3px;">${esc2(c.brand || 'CARD')}</div>` +
+      `<div style="flex:1;min-width:200px;">` +
+        `<div style="color:#fff;font-size:1.05rem;font-weight:600;font-family:Menlo,Monaco,monospace;">${esc2(c.card_number || c.card_id || '卡片')} <span style="color:${c.status==='FROZEN'?'#ff5f5f':c.status==='CANCELED'?'#9fa8ba':'#00c758'};font-size:.72rem;font-weight:500;margin-left:6px;font-family:inherit;">${esc2(statusZh)}</span></div>` +
+        `<div style="color:var(--text3);font-size:.78rem;margin-top:2px;">${esc2(c.brand || '')} · 余额 $${bal} ${esc2(c.currency || 'USD')} · ${esc2(c.card_id || '')}</div>` +
+      `</div>`;
+    titleText = `卡片 ${c.card_number || c.card_id || ''} 的消费明细`;
+  }
+
+  // 容器（modal 用 portal 方式挂到 body）
   let overlay = document.getElementById('utOverlay');
   if (overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'utOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:24px;overflow-y:auto;overflow-x:hidden;';
-  overlay.innerHTML = `
-    <div id="utModal" style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(139,92,246,.25);border-radius:16px;width:960px;min-height:720px;max-width:calc(100vw - 48px);display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.5);overflow:hidden;margin:0 auto;">
-      <!-- 头部 -->
-      <div style="padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#e879f9);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:1.05rem;flex-shrink:0;">${esc2((userName||userEmail||'?').toString().slice(0,1).toUpperCase())}</div>
-        <div style="flex:1;min-width:200px;">
-          <div style="color:#fff;font-size:1.05rem;font-weight:600;">${esc2(userName || userEmail || '用户')} <span style="color:var(--text3);font-size:.82rem;font-weight:400;margin-left:6px;">#${userId}</span></div>
-          <div style="color:var(--text3);font-size:.78rem;margin-top:2px;">${esc2(userEmail || '')} · 共 ${cardCount||0} 张卡</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button id="utExportBtn" class="ut-btn-primary">📥 导出 CSV</button>
-          <button id="utCloseBtn" class="ut-close-btn">✕</button>
-        </div>
-      </div>
-      <!-- 筛选区 -->
-      <div style="padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.015);">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="color:var(--text3);font-size:.78rem;">📅 时间范围</span>
-          <div id="utDrWrap" style="display:inline-flex;"></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="color:var(--text3);font-size:.78rem;">🏷️ 类型</span>
-          <select id="utType" class="ut-input" style="cursor:pointer;">
-            <option value="">全部类型</option>
-            <option value="Authorization">预授权 (Authorization)</option>
-            <option value="Settlement">结算 (Settlement)</option>
-            <option value="Refund">退款 (Refund)</option>
-            <option value="Reversal">撤销 (Reversal)</option>
-          </select>
-        </div>
-        <button id="utQueryBtn" class="ut-btn-primary">🔍 查询</button>
-        <button id="utResetBtn" class="ut-btn-secondary">重置</button>
-        <div style="margin-left:auto;color:var(--text3);font-size:.78rem;" id="utTotalText">总 0 条</div>
-      </div>
-      <!-- 摘要卡片 -->
-      <div id="utSummary" style="padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
-      <!-- 流水表格（body 内部固定 9 条高度，外部滚动） -->
-      <div id="utBody" style="flex:0 0 448px;overflow-y:auto;min-height:0;padding:0 24px;flex-shrink:0;"></div>
-      <!-- 分页 -->
-      <div id="utPager" style="padding:16px 24px 18px 24px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.2);"></div>
-    </div>
-  `;
+  overlay.innerHTML =
+    `<div id="utModal" style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(139,92,246,.25);border-radius:16px;width:960px;min-height:720px;max-width:calc(100vw - 48px);display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.5);overflow:hidden;margin:0 auto;">` +
+      `<!-- 头部 -->` +
+      `<div style="padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">` +
+        headerLeftHtml +
+        `<div style="display:flex;gap:8px;align-items:center;">` +
+          `<button id="utExportBtn" class="ut-btn-primary">📥 导出 CSV</button>` +
+          `<button id="utCloseBtn" class="ut-close-btn">✕</button>` +
+        `</div>` +
+      `</div>` +
+      `<!-- 标题 -->` +
+      `<div style="padding:4px 24px 4px;color:var(--text3);font-size:.78rem;letter-spacing:.3px;">${esc2(titleText)}</div>` +
+      `<!-- 筛选区 -->` +
+      `<div style="padding:10px 24px 12px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.015);">` +
+        `<div style="display:flex;align-items:center;gap:6px;">` +
+          `<span style="color:var(--text3);font-size:.78rem;">📅 时间范围</span>` +
+          `<div id="utDrWrap" style="display:inline-flex;"></div>` +
+        `</div>` +
+        `<div style="display:flex;align-items:center;gap:6px;">` +
+          `<span style="color:var(--text3);font-size:.78rem;">🏷️ 类型</span>` +
+          `<select id="utType" class="ut-input" style="cursor:pointer;">` +
+            `<option value="">全部类型</option>` +
+            `<option value="Authorization">预授权 (Authorization)</option>` +
+            `<option value="Settlement">结算 (Settlement)</option>` +
+            `<option value="Refund">退款 (Refund)</option>` +
+            `<option value="Reversal">撤销 (Reversal)</option>` +
+          `</select>` +
+        `</div>` +
+        `<button id="utQueryBtn" class="ut-btn-primary">🔍 查询</button>` +
+        `<button id="utResetBtn" class="ut-btn-secondary">重置</button>` +
+        `<div style="margin-left:auto;color:var(--text3);font-size:.78rem;" id="utTotalText">总 0 条</div>` +
+      `</div>` +
+      `<!-- 摘要卡片 -->` +
+      `<div id="utSummary" style="padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>` +
+      `<!-- 流水表格 -->` +
+      `<div id="utBody" style="flex:0 0 448px;overflow-y:auto;min-height:0;padding:0 24px;flex-shrink:0;"></div>` +
+      `<!-- 分页 -->` +
+      `<div id="utPager" style="padding:16px 24px 18px 24px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.2);"></div>` +
+    `</div>`;
   // 注入本弹窗专用样式（仅注入一次）
   if (!document.getElementById('utStyles')) {
     const s = document.createElement('style');
     s.id = 'utStyles';
-    s.textContent = `
-      .ut-input { height:38px;padding:0 14px;border:1px solid rgba(167,139,250,.2);border-radius:9px;background:rgba(0,0,0,.25);color:var(--text1);outline:none;font-size:.88rem;box-sizing:border-box;color-scheme:dark;font-family:inherit;transition:border-color .15s,box-shadow .15s; }
-      .ut-input:focus { border-color:rgba(167,139,250,.5);box-shadow:0 0 0 3px rgba(167,139,250,.12); }
-      .ut-input::placeholder { color:var(--text3); }
-      select.ut-input { padding-right:32px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23a78bfa' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer; }
-      .ut-btn-primary { height:38px;padding:0 18px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(167,139,250,.25);display:inline-flex;align-items:center;gap:6px; }
-      .ut-btn-primary:hover { opacity:.88;transform:translateY(-1px);box-shadow:0 4px 16px rgba(167,139,250,.3); }
-      .ut-btn-primary:disabled { opacity:.5;cursor:not-allowed;transform:none; }
-      .ut-btn-secondary { height:38px;padding:0 18px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--text2);font-size:.85rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:6px; }
-      .ut-btn-secondary:hover { background:rgba(167,139,250,.08);color:var(--purple);border-color:rgba(167,139,250,.4); }
-      .ut-close-btn { width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:transparent;color:var(--text2);cursor:pointer;font-size:1.05rem;display:flex;align-items:center;justify-content:center; }
-      .ut-close-btn:hover { background:rgba(255,95,95,.1);color:#ff5f5f;border-color:rgba(255,95,95,.25); }
-      .ut-summary-card { background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px 16px; }
-      .ut-summary-label { color:var(--text3);font-size:.72rem;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px; }
-      .ut-summary-value { color:#fff;font-size:1.4rem;font-weight:700;line-height:1.1; }
-      .ut-table { width:100%;border-collapse:collapse; }
-      .ut-table th { position:sticky;top:0;background:#0d1322;color:var(--text3);font-size:.72rem;font-weight:500;padding:10px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;z-index:1; }
-      .ut-table td { padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text1);font-size:.78rem;vertical-align:middle; }
-      .ut-table tr:hover td { background:rgba(255,255,255,.02); }
-      .ut-tag { display:inline-block;padding:3px 9px;border-radius:5px;font-size:.72rem;font-weight:600;letter-spacing:.3px; }
-      .ut-tag-Auth { background:rgba(0,242,254,.1);color:#00f2fe; }
-      .ut-tag-Settle { background:rgba(0,199,88,.1);color:#00c758; }
-      .ut-tag-Refund { background:rgba(255,170,0,.1);color:#ffaa00; }
-      .ut-tag-Reversal { background:rgba(248,113,113,.1);color:#f87171; }
-      .ut-tag-COMPLETE { background:rgba(0,199,88,.1);color:#00c758; }
-      .ut-tag-DECLINED { background:rgba(248,113,113,.1);color:#f87171; }
-      .ut-tag-PENDING { background:rgba(255,170,0,.1);color:#ffaa00; }
-      .ut-tag-card { background:rgba(255,255,255,.05);color:var(--text2);font-family:Menlo,Monaco,monospace;font-size:.72rem;padding:3px 8px;border-radius:5px; }
-      .ut-amount-auth { color:#00f2fe;font-weight:600;font-family:Menlo,Monaco,monospace; }
-      .ut-amount-settle { color:#00c758;font-weight:600;font-family:Menlo,Monaco,monospace; }
-      .ut-amount-refund { color:#ffaa00;font-weight:600;font-family:Menlo,Monaco,monospace; }
-      .ut-amount-reversal { color:#f87171;font-weight:600;font-family:Menlo,Monaco,monospace; }
-      .ut-empty { text-align:center;padding:60px 20px;color:var(--text3); }
-      .ut-empty-icon { font-size:2.5rem;margin-bottom:12px;opacity:.6; }
-      .ut-pager-btn { padding:6px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text2);cursor:pointer;font-size:.78rem; }
-      .ut-pager-btn:hover:not(:disabled) { border-color:rgba(167,139,250,.3);color:#a78bfa; }
-      .ut-pager-btn:disabled { opacity:.35;cursor:not-allowed; }
-      .ut-bycard-item { display:flex;justify-content:space-between;padding:4px 0;font-size:.74rem;color:var(--text2); }
-    `;
+    s.textContent =
+      `.ut-input { height:38px;padding:0 14px;border:1px solid rgba(167,139,250,.2);border-radius:9px;background:rgba(0,0,0,.25);color:var(--text1);outline:none;font-size:.88rem;box-sizing:border-box;color-scheme:dark;font-family:inherit;transition:border-color .15s,box-shadow .15s; }` +
+      `.ut-input:focus { border-color:rgba(167,139,250,.5);box-shadow:0 0 0 3px rgba(167,139,250,.12); }` +
+      `.ut-input::placeholder { color:var(--text3); }` +
+      `select.ut-input { padding-right:32px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23a78bfa' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer; }` +
+      `.ut-btn-primary { height:38px;padding:0 18px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(167,139,250,.25);display:inline-flex;align-items:center;gap:6px; }` +
+      `.ut-btn-primary:hover { opacity:.88;transform:translateY(-1px);box-shadow:0 4px 16px rgba(167,139,250,.3); }` +
+      `.ut-btn-primary:disabled { opacity:.5;cursor:not-allowed;transform:none; }` +
+      `.ut-btn-secondary { height:38px;padding:0 18px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--text2);font-size:.85rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:6px; }` +
+      `.ut-btn-secondary:hover { background:rgba(167,139,250,.08);color:var(--purple);border-color:rgba(167,139,250,.4); }` +
+      `.ut-close-btn { width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:transparent;color:var(--text2);cursor:pointer;font-size:1.05rem;display:flex;align-items:center;justify-content:center; }` +
+      `.ut-close-btn:hover { background:rgba(255,95,95,.1);color:#ff5f5f;border-color:rgba(255,95,95,.25); }` +
+      `.ut-summary-card { background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px 16px; }` +
+      `.ut-summary-label { color:var(--text3);font-size:.72rem;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px; }` +
+      `.ut-summary-value { color:#fff;font-size:1.4rem;font-weight:700;line-height:1.1; }` +
+      `.ut-table { width:100%;border-collapse:collapse; }` +
+      `.ut-table th { position:sticky;top:0;background:#0d1322;color:var(--text3);font-size:.72rem;font-weight:500;padding:10px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;z-index:1; }` +
+      `.ut-table td { padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text1);font-size:.78rem;vertical-align:middle; }` +
+      `.ut-table tr:hover td { background:rgba(255,255,255,.02); }` +
+      `.ut-tag { display:inline-block;padding:3px 9px;border-radius:5px;font-size:.72rem;font-weight:600;letter-spacing:.3px; }` +
+      `.ut-tag-Auth { background:rgba(0,242,254,.1);color:#00f2fe; }` +
+      `.ut-tag-Settle { background:rgba(0,199,88,.1);color:#00c758; }` +
+      `.ut-tag-Refund { background:rgba(255,170,0,.1);color:#ffaa00; }` +
+      `.ut-tag-Reversal { background:rgba(248,113,113,.1);color:#f87171; }` +
+      `.ut-tag-COMPLETE { background:rgba(0,199,88,.1);color:#00c758; }` +
+      `.ut-tag-DECLINED { background:rgba(248,113,113,.1);color:#f87171; }` +
+      `.ut-tag-PENDING { background:rgba(255,170,0,.1);color:#ffaa00; }` +
+      `.ut-tag-card { background:rgba(255,255,255,.05);color:var(--text2);font-family:Menlo,Monaco,monospace;font-size:.72rem;padding:3px 8px;border-radius:5px; }` +
+      `.ut-amount-auth { color:#00f2fe;font-weight:600;font-family:Menlo,Monaco,monospace; }` +
+      `.ut-amount-settle { color:#00c758;font-weight:600;font-family:Menlo,Monaco,monospace; }` +
+      `.ut-amount-refund { color:#ffaa00;font-weight:600;font-family:Menlo,Monaco,monospace; }` +
+      `.ut-amount-reversal { color:#f87171;font-weight:600;font-family:Menlo,Monaco,monospace; }` +
+      `.ut-empty { text-align:center;padding:60px 20px;color:var(--text3); }` +
+      `.ut-empty-icon { font-size:2.5rem;margin-bottom:12px;opacity:.6; }` +
+      `.ut-pager-btn { padding:6px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text2);cursor:pointer;font-size:.78rem; }` +
+      `.ut-pager-btn:hover:not(:disabled) { border-color:rgba(167,139,250,.3);color:#a78bfa; }` +
+      `.ut-pager-btn:disabled { opacity:.35;cursor:not-allowed; }` +
+      `.ut-bycard-item { display:flex;justify-content:space-between;padding:4px 0;font-size:.74rem;color:var(--text2); }`;
     document.head.appendChild(s);
   }
   document.body.appendChild(overlay);
@@ -4873,33 +4928,18 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
     loadUserTransactions();
   });
   document.getElementById('utResetBtn').addEventListener('click', () => {
+    // 重置到本月 1 日 — 今天（与打开时一致）
     const t = new Date();
-    const a = new Date(Date.now() - 90 * 86400000);
-    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    if (window._utPicker) window._utPicker.setRange(fmt(a), fmt(t));
+    const f = new Date(t.getFullYear(), t.getMonth(), 1);
+    if (window._utPicker) window._utPicker.setRange(_utFmt(f), _utFmt(t));
     document.getElementById('utType').value  = '';
-    window._utState.startDate = fmt(a);
-    window._utState.endDate   = fmt(t);
+    window._utState.startDate = _utFmt(f);
+    window._utState.endDate   = _utFmt(t);
     window._utState.type      = '';
     window._utState.page      = 1;
     loadUserTransactions();
   });
   document.getElementById('utExportBtn').addEventListener('click', exportUserTransactionsCSV);
-
-  // 工具：Date 对象 -> 'YYYY-MM-DD'（修复传给后端时被 String(Date) 序列化为 "Mon Jun 08 ..." 的 bug）
-  // 兼容 Date 对象 和 'YYYY-MM-DD' 字符串
-  // (DateRangePicker._confirm 实际传的是 ISO 字符串，不是 Date 对象)
-  function _utFmtDate(d) {
-    if (!d) return '';
-    if (typeof d === 'string') return d.slice(0, 10);
-    if (d instanceof Date) {
-      var y = d.getFullYear();
-      var m = String(d.getMonth() + 1).padStart(2, '0');
-      var day = String(d.getDate()).padStart(2, '0');
-      return y + '-' + m + '-' + day;
-    }
-    return '';
-  }
 
   // 初始化 DateRangePicker 组件（与卡片管理同款双月日历）
   if (window._utPicker) { try { window._utPicker = null; } catch(e){} }
@@ -4914,7 +4954,6 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
       window._utState.page      = 1;
     },
     onClear: function() {
-      // 用户点击触发器右侧 ✕ 清空时，也只清状态，不自动查询
       window._utState.startDate = '';
       window._utState.endDate   = '';
       window._utState.page      = 1;
@@ -4922,18 +4961,22 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   });
   window._utPicker.init();
   // 默认本月 1 日 — 今天（与交易监控一致，方案B）
+  const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  window._utPicker.setRange(fmt(firstDay), fmt(today));
-  window._utState.startDate = fmt(firstDay);
-  window._utState.endDate   = fmt(today);
+  window._utPicker.setRange(_utFmt(firstDay), _utFmt(today));
+  window._utState.startDate = _utFmt(firstDay);
+  window._utState.endDate   = _utFmt(today);
 
   await loadUserTransactions();
 }
 
+
+
 async function loadUserTransactions() {
   const s = window._utState;
-  if (!s.userId) return;
+  if (!s) return;
+  if (s.mode === 'user' && !s.userId) return;
+  if (s.mode === 'card' && !s.cardId) return;
   const body  = document.getElementById('utBody');
   const pager = document.getElementById('utPager');
   const total = document.getElementById('utTotalText');
@@ -4948,26 +4991,38 @@ async function loadUserTransactions() {
   if (s.startDate)  qs.set('start_date', s.startDate);
   if (s.endDate)    qs.set('end_date',   s.endDate);
 
+  // 端点（按 mode 选 user 路由 或 card 路由）
+  const endpoint = s.mode === 'card'
+    ? `/admin/cards/${encodeURIComponent(s.cardId)}/transactions?` + qs.toString()
+    : `/admin/users/${s.userId}/transactions?` + qs.toString();
+  const subjectName = s.mode === 'card' ? '该卡片' : '该用户';
+
   try {
-    const r = await apiFetch(`/admin/users/${s.userId}/transactions?` + qs.toString());
-    if (!r || r.code !== 0) { body.innerHTML = '<div class="ut-empty">❌ 加载失败</div>'; return; }
+    const r = await apiFetch(endpoint);
+    if (!r || r.code !== 0) { body.innerHTML = '<div class="ut-empty">❌ 加载失败: ' + esc2(r?.msg||'') + '</div>'; return; }
     const d = r.data;
 
-    // 摘要
+    // 摘要（card 模式无"按卡分布"概念，所以"涉及卡数"改为"所属用户 ID"）
     const sum = d.summary || {};
-    sumEl.innerHTML = [
+    const sum4 = s.mode === 'card' ? [
+      { label: '总笔数',  value: sum.total_count || 0, color: '#a78bfa' },
+      { label: '授权总额', value: '$' + parseFloat(sum.total_auth||0).toFixed(2),   color: '#00f2fe' },
+      { label: '结算总额', value: '$' + parseFloat(sum.total_settle||0).toFixed(2), color: '#00c758' },
+      { label: '退款总额', value: '$' + parseFloat(sum.total_refund||0).toFixed(2), color: '#ffaa00' },
+    ] : [
       { label: '总笔数',  value: sum.total_count || 0, color: '#a78bfa' },
       { label: '授权总额', value: '$' + parseFloat(sum.total_auth||0).toFixed(2),   color: '#00f2fe' },
       { label: '结算总额', value: '$' + parseFloat(sum.total_settle||0).toFixed(2), color: '#00c758' },
       { label: '涉及卡数', value: (d.cards||[]).length, color: '#ffaa00' },
-    ].map(x => `<div class="ut-summary-card"><div class="ut-summary-label">${x.label}</div><div class="ut-summary-value" style="color:${x.color}">${x.value}</div></div>`).join('');
+    ];
+    sumEl.innerHTML = sum4.map(x => `<div class="ut-summary-card"><div class="ut-summary-label">${x.label}</div><div class="ut-summary-value" style="color:${x.color}">${x.value}</div></div>`).join('');
 
     // 顶部统计
     total.textContent = `共 ${d.total} 条 · 第 ${d.page} / ${Math.max(1, Math.ceil((d.total||0)/d.pageSize))} 页`;
 
     // 流水
     if (!d.list || !d.list.length) {
-      body.innerHTML = '<div class="ut-empty"><div class="ut-empty-icon">📭</div><div>该用户在此时间范围内没有刷卡记录</div></div>';
+      body.innerHTML = '<div class="ut-empty"><div class="ut-empty-icon">📭</div><div>' + esc2(subjectName) + '在此时间范围内没有刷卡记录</div></div>';
       pager.innerHTML = '';
       return;
     }
@@ -5025,7 +5080,9 @@ async function loadUserTransactions() {
 
 async function exportUserTransactionsCSV() {
   const s = window._utState;
-  if (!s.userId) return;
+  if (!s) return;
+  if (s.mode === 'user' && !s.userId) return;
+  if (s.mode === 'card' && !s.cardId) return;
   const btn = document.getElementById('utExportBtn');
   const oldText = btn.textContent;
   btn.textContent = '⏳ 导出中…';
@@ -5035,7 +5092,11 @@ async function exportUserTransactionsCSV() {
     if (s.type)      qs.set('type', s.type);
     if (s.startDate) qs.set('start_date', s.startDate);
     if (s.endDate)   qs.set('end_date',   s.endDate);
-    const path = `/admin/users/${s.userId}/transactions?` + qs.toString();
+    // 端点（按 mode 选 user 路由 或 card 路由）
+    const idForFile = s.mode === 'card' ? s.cardId : s.userId;
+    const path = (s.mode === 'card'
+      ? `/admin/cards/${encodeURIComponent(s.cardId)}/transactions?`
+      : `/admin/users/${s.userId}/transactions?`) + qs.toString();
     // 直接 fetch 拿原始响应（保留 CSV 文本 + Content-Disposition）
     const token = localStorage.getItem('vcc_token') || '';
     const url = API_BASE + path;
@@ -5045,7 +5106,7 @@ async function exportUserTransactionsCSV() {
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = `transactions_${s.userId}_${s.startDate||'all'}_${s.endDate||'all'}.csv`;
+    a.download = `transactions_${idForFile}_${s.startDate||'all'}_${s.endDate||'all'}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     toast('✅ CSV 已下载');
