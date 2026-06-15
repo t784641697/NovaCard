@@ -3591,6 +3591,14 @@ DateRangePicker.prototype._toggle = function(e) {
   });
   if (!isOpen) {
     t.classList.add('open');
+    // ⭐ 打开时同步可视月份：优先当月（避免用户选错"系统默认月份"）
+    // 1. 有已选区间且 _start 所在月 == 当月 → 显示当月
+    // 2. 有已选区间且 _start 所在月 != 当月 → 跳到当月（最新视角）
+    // 3. 无已选 → 跳到当月
+    var nowOpen = new Date();
+    self._leftYear = nowOpen.getFullYear();
+    self._leftMonth = nowOpen.getMonth();
+    self._renderCals();
     if (p) {
       p.style.display = 'block';
       // 检测是否超出屏幕右边界，若超出则右对齐
