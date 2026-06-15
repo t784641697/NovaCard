@@ -586,3 +586,48 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 - 107 条测试流水（覆盖 14 天 / 4 类型 / 3 状态 / 8 商家）
 
 **生产环境不要保留演示数据**。
+
+
+---
+
+## 12. 按卡查看消费明细
+
+> 卡片管理每行新增 `📊 流水` 按钮，从卡的维度查看该卡所有刷卡流水，复用用户维度弹窗。
+
+### 12.1 触发入口
+- **位置**：卡片管理页（`renderAdminCards`）`.cm-card-right` 内 `.cm-bal` 之前
+- **按钮**：紫色 `📊 流水` 按钮（`background: rgba(139,92,246,.12); color: #a78bfa;`）
+- **调用**：`openCardTransactionsModal(cardId)`
+
+### 12.2 后端接口
+
+| 项 | 值 |
+|---|---|
+| 路径 | `GET /api/admin/cards/:cardId/info` |
+| 用途 | 拉取卡片头部信息（轻量、仅查本地 DB）|
+| 返回 | `{card_id, card_number, product_code, label, brand, status, available_balance, currency, owner: {id, email, name}}` |
+| 路径 | `GET /api/admin/cards/:cardId/transactions` |
+| 用途 | 拉取该卡的刷卡流水（复用公共 `fetchCardTransactions`）|
+| 支持参数 | `type, start_date, end_date, page, page_size, format=csv` |
+| 返回 | `{card, owner, list, total, summary{by_type, by_card, total_count, total_auth, total_settle, total_refund}}` |
+
+### 12.3 前端弹窗复用模式
+
+- **底层**：`_openTxnModalShell({mode, headerInfo})` 负责弹窗 HTML + 事件 + DateRangePicker + load
+- **Entry 1**：`openUserTransactionsModal(userId, userName, userEmail, cardCount)` 调底层，mode='user'
+- **Entry 2**：`openCardTransactionsModal(cardId)` 拉 `/info` 后调底层，mode='card'
+
+### 12.4 ⚠️ cards 表 schema 注意
+
+| 字段 | 数据库列名 | 备注 |
+|---|---|---|
+| 余额 | `available_amount`（不是 `available_balance`）| SQL 千万别写错 |
+| 币种 | 无列 | 固定 `USD` |
+| 品牌 | 无列 | 用 `product_code` 推断（G5554LC/VC113=Mastercard）|
+
+### 12.5 双入口触发矩阵
+
+| 入口 | mode | 头部显示 | 默认范围 | 数据范围 |
+|---|---|---|---|---|
+| 用户管理 → 🔍 查看消费 | user | 头像 + 姓名/邮箱/卡数 | 本月 1 日—今天 | 该用户所有卡的所有流水 |
+| 卡片管理 → 📊 流水 | card | 品牌徽章 + 卡号 + 余额 + 状态 | 本月 1 日—今天 | 该卡的流水 |

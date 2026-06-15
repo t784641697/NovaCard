@@ -441,3 +441,21 @@
 | 迭代 3 | 760 (固定) | 488 (10 条) | 解决"下一页被遮挡" |
 | 迭代 4 | 760 min-height (去 max-height) | 488 | 解决"笔记本视口压扁" |
 | 迭代 5 | **720 min-height** | **448 (9 条)** | 最终版（用户确认）|
+
+
+## v1.0.42 | 2026-06-15 | 按卡查看消费明细
+
+
+**新增功能：卡片管理 → 📊 流水 按钮**
+
+- **后端**：
+  - `GET /api/admin/cards/:cardId/info` —— 轻量接口（仅查 cards + users 两表），用于弹窗头部
+  - `GET /api/admin/cards/:cardId/transactions` —— 复用公共 `fetchCardTransactions` 函数
+  - 原有 `/admin/users/:id/transactions` 改造为调公共函数（向后兼容）
+- **前端**：
+  - 卡片管理行 `.cm-bal` 之前新增紫色 `📊 流水` 按钮（仅管理员可见）
+  - 底层 `_openTxnModalShell({mode, headerInfo})` 抽象弹窗框架（HTML + 事件 + DateRangePicker + load + export）
+  - Entry 1：`openUserTransactionsModal(userId, ...)` mode='user'
+  - Entry 2：`openCardTransactionsModal(cardId)` mode='card'，先拉 /info 再调底层
+  - 弹窗宽度统一 960×720，复用 95% 代码
+- **数据库**：cards 表 schema 字段名修正（`available_amount` 而非 `available_balance`，无 `currency`/`brand` 列）
