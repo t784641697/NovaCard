@@ -631,3 +631,168 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 |---|---|---|---|---|
 | 用户管理 → 🔍 查看消费 | user | 头像 + 姓名/邮箱/卡数 | 本月 1 日—今天 | 该用户所有卡的所有流水 |
 | 卡片管理 → 📊 流水 | card | 品牌徽章 + 卡号 + 余额 + 状态 | 本月 1 日—今天 | 该卡的流水 |
+
+
+## 13. Vultr 新加坡生产服务器 + Cloudflare CDN
+
+### 13.1 整体架构（双层）
+
+```
+用户浏览器
+   │  HTTPS
+   ▼
+Cloudflare Free（CDN/SSL/防 DDoS/隐藏 IP）
+   │  HTTPS 443 (Origin Certificate)
+   ▼
+Vultr 新加坡服务器 (139.180.188.104)
+   │  Nginx 80/443 反代
+   ▼
+Node.js Express :5000
+   │
+   ▼
+SQLite (data/vcc.db) + vmcardio API
+```
+
+**关键优势**：
+- **隐藏真实 IP**：访客只看到 Cloudflare IP，Vultr `139.180.188.104` 不暴露
+- **DDoS 防护**：Cloudflare 免费基础防护
+- **SSL 卸载**：用户↔Cloudflare 是 Universal SSL，Cloudflare↔源站是 Origin SSL
+- **全球 CDN 加速**：Cloudflare 边缘节点缓存静态资源
+
+### 13.2 Vultr 服务器规范
+
+| 项 | 值 |
+|---|---|
+| 机房 | Singapore（新加坡）|
+| 配置 | 2C/4G/80G SSD/3TB 流量（共享 CPU）|
+| 价格 | $24/月 |
+| OS | Ubuntu 24.04 LTS x64 |
+| 默认用户 | `linuxuser`（**不是 ubuntu**）|
+| SSH | RSA 4096 OpenSSH 格式密钥对 |
+| 内核 | Linux 6.8（Ubuntu 24.04 默认）|
+
+**注意**：Vultr Ubuntu 24.04 镜像的默认用户名是 `linuxuser`（UID 1000），不是历史默认的 `ubuntu`。Reinstall 时 Vultr 注入的 SSH 公钥在 `root` 用户，需要手动 `cp /root/.ssh/authorized_keys /home/linuxuser/.ssh/`。
+
+### 13.3 域名管理（Namecheap）
+
+| 域名 | 注册商 | 价格 | 续费 |
+|---|---|---|---|
+| `nova-vcc.com` | Namecheap | $6.99 首年（NEWCOM679 优惠码 + ICANN $0.20）| $14.98/年（原价）|
+
+**WhoisGuard**：免费自动开启（保护域名所有者信息）  
+**Auto-Renew**：✅ 开启（避免忘记续费丢失）  
+**Email Forwarding**：✅ 开启（Namecheap 免费邮件转发到 `Taoliang.light@gmail.com`）
+
+### 13.4 Cloudflare 配置规范
+
+#### DNS 记录（必须开启 Proxied）
+
+| Type | Name | Content | Proxy | 备注 |
+|---|---|---|---|---|
+| A | `nova-vcc.com` | `139.180.188.104` | 🔶 **Proxied** | 根域名 |
+| CNAME | `www` | `nova-vcc.com` | 🔶 **Proxied** | www 二级 |
+| MX | `nova-vcc.com` | `eforward[1-5].registrar-servers.com` | ⚫ DNS only | Namecheap 邮件转发 |
+| TXT | `nova-vcc.com` | `v=spf1 include:spf.eforward....` | ⚫ DNS only | SPF 记录 |
+
+**⚠️ 重要**：根域名 A 记录和 www CNAME **必须**开启 🔶 橙色云朵（Proxied），否则 Cloudflare CDN/SSL 不生效，真实 IP 暴露。
+
+#### SSL/TLS 模式
+
+| 模式 | 用途 | 推荐度 |
+|---|---|---|
+| Flexible | 用户↔CF 是 HTTPS，CF↔源站是 HTTP | ⭐⭐ 不推荐 |
+| Full | 双向 HTTPS，接受自签名 | ⭐⭐⭐ |
+| **Full (Strict)** | 双向 HTTPS，验证源站证书 | ⭐⭐⭐⭐ **当前使用** |
+
+**当前使用**：Full (Strict) + Cloudflare Origin Certificate（CA 信任的专用证书）
+
+#### Origin Certificate
+
+| 字段 | 值 |
+|---|---|
+| 类型 | RSA 2048 |
+| 有效期 | 15 年（2026-06-16 → 2041-06-12）|
+| 覆盖域名 | `nova-vcc.com` + `*.nova-vcc.com` |
+| 私钥路径 | `/etc/ssl/cloudflare/origin-key.pem`（chmod 600）|
+| 证书路径 | `/etc/ssl/cloudflare/origin-cert.pem`（chmod 644）|
+| **⚠️ 警告** | 私钥只在创建时显示一次，**必须立即保存** |
+
+### 13.5 Nginx 配置规范
+
+**文件**：`/etc/nginx/sites-enabled/vcc-hub`
+
+**关键点**：
+- **必须**在 server 块前加 `set_real_ip_from` 引入 Cloudflare IP 段 + `real_ip_header CF-Connecting-IP;`，否则日志/限流拿不到访客真实 IP
+- **必须**监听 443 并配 SSL（Full (Strict) 模式要求）
+- 80 端口 301 重定向到 HTTPS（保持兼容性 + 防止 HTTP 访问）
+- `proxy_set_header X-Forwarded-Proto $scheme`（让 Express 知道真实协议）
+- `client_max_body_size 50M`（文件上传）
+- `proxy_read_timeout 86400`（24 小时，防长连接被切）
+
+**Cloudflare IP 段**（2026-06 最新，详见 [Cloudflare IPs](https://www.cloudflare.com/ips/)）：
+```
+103.21.244.0/22, 103.22.200.0/22, 103.31.4.0/22
+104.16.0.0/13, 104.24.0.0/14
+108.162.192.0/18, 131.0.72.0/22
+141.101.64.0/18, 162.158.0.0/15
+172.64.0.0/13, 173.245.48.0/20
+188.114.96.0/20, 190.93.240.0/20
+197.234.240.0/22, 198.41.128.0/17
+IPv6: 2400:cb00::/32, 2606:4700::/32, 2803:f800::/32
+      2405:b500::/32, 2405:8100::/32, 2a06:98c0::/29, 2c0f:f248::/32
+```
+
+### 13.6 UFW 防火墙规范
+
+```bash
+ufw default deny incoming
+ufw allow 22/tcp      # SSH
+ufw allow 80/tcp      # HTTP（Cloudflare 兜底）
+ufw allow 443/tcp     # HTTPS
+ufw allow 5000/tcp    # Node.js 直连（运维用，生产应禁外网）
+ufw enable
+```
+
+**生产环境 5000 端口建议**：仅 `127.0.0.1` 监听，外部通过 Nginx 443 访问。
+
+### 13.7 部署/部署命令
+
+```bash
+# SSH 登录
+ssh -i /workspace/projects/.ssh/vultr_new_key linuxuser@139.180.188.104
+
+# 拉取最新代码
+cd /opt/vcc-hub && git fetch origin && git reset --hard origin/main
+
+# 重启服务（PM2）
+pm2 restart vcc-hub
+# 或
+pm2 delete vcc-hub && pm2 start src/app.js --name vcc-hub --update-env && pm2 save
+
+# 重启 Nginx
+sudo systemctl restart nginx
+
+# 查看日志
+pm2 logs vcc-hub
+sudo tail -f /var/log/nginx/vcc-hub-access.log
+```
+
+### 13.8 旧生产服务器（已弃用）
+
+| 项 | 值 |
+|---|---|
+| 地址 | `http://43.135.26.36` |
+| 定位 | 腾讯云香港（**已停止对外服务**）|
+| 数据 | 保留在 `/opt/vcc-hub/data/vcc.db` 作为备份 |
+| 切换原则 | 新用户走 nova-vcc.com，老用户逐步迁移 |
+
+### 13.9 故障排查速查
+
+| 现象 | 根因 | 解决 |
+|---|---|---|
+| Cloudflare 521 | SSL 模式 = Full/Strict 但源站无 443 SSL | 改 Flexible，或给源站加 Origin Certificate |
+| Cloudflare 525 | SSL 握手失败 | 检查证书/私钥是否匹配 |
+| Cloudflare 502/504 | 源站 Node.js 挂了 | `pm2 status` + `pm2 restart vcc-hub` |
+| 浏览器显示"不安全" | Universal SSL 未签发完成 | 等 15-20 分钟，Cloudflare 自动签发 |
+| ERR_CONNECTION_TIMED_OUT | DNS 还没传播 | https://dnschecker.org/ 检查全球解析 |
+| `linuxuser` SSH 失败 | 公钥只注入到 root | `cp /root/.ssh/authorized_keys /home/linuxuser/.ssh/` |

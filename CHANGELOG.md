@@ -443,6 +443,62 @@
 | 迭代 5 | **720 min-height** | **448 (9 条)** | 最终版（用户确认）|
 
 
+## v1.0.43 | 2026-06-16 | 迁移到 Vultr 新加坡 + Cloudflare CDN
+
+**主站从原 `43.135.26.36`（腾讯云香港）迁到 Vultr 新加坡机房**
+
+### 新增基础设施
+
+- **Vultr 服务器**：新加坡机房，2C/4G/80G/3TB 流量，$24/月（共享 CPU）
+  - OS：Ubuntu 24.04 LTS x64
+  - IP：`139.180.188.104`
+  - 用户：`root` + `linuxuser`（Vultr 24.04 默认用户名，**不是 ubuntu**）
+  - SSH：RSA 4096 OpenSSH 格式密钥对 `vultr_new_key`（沙箱路径 `/workspace/projects/.ssh/vultr_new_key`）
+- **域名**：`nova-vcc.com`（Namecheap 首年 $6.79 + ICANN $0.20 = $6.99，用 `NEWCOM679` 优惠码）
+- **Cloudflare**：
+  - 账号：`Taoliang.light@gmail.com`
+  - 计划：Free
+  - Nameservers：`dalary.ns.cloudflare.com` / `ridge.ns.cloudflare.com`
+  - SSL/TLS 模式：Full (Strict)
+  - DNS：A `nova-vcc.com` → `139.180.188.104`（🔶 Proxied），CNAME `www` → `nova-vcc.com`（🔶 Proxied）
+  - **Origin Certificate**：RSA 2048，15 年有效期（`/etc/ssl/cloudflare/origin-cert.pem` + `origin-key.pem`）
+  - Universal SSL：浏览器侧证书，Cloudflare 自动签发
+
+### Nginx 改造
+
+- 配置文件：`/etc/nginx/sites-enabled/vcc-hub`
+- 监听：
+  - 80 端口（HTTP）→ 301 重定向到 HTTPS
+  - **443 端口（HTTPS）** — 新增！Origin SSL + 反代 `127.0.0.1:5000`
+- 关键配置：
+  - `set_real_ip_from` 引入 Cloudflare 全网段，读取真实访客 IP（`CF-Connecting-IP` header）
+  - `ssl_protocols TLSv1.2 TLSv1.3`，`ssl_session_cache shared:SSL:10m`
+  - `client_max_body_size 50M`（文件上传）
+  - `proxy_read_timeout 86400`（长连接）
+
+### UFW 防火墙
+
+- `22/tcp`（SSH）、`80/tcp`（HTTP）、`443/tcp`（HTTPS）、`5000/tcp`（Node 直连）全 ALLOW
+- 默认 deny incoming
+
+### 部署关键坑
+
+- **坑 1**：Vultr 22.04 已下架，换 24.04
+- **坑 2**：PEM 格式公钥被 Vultr 拒绝（"Keys should be in authorized_keys format"），改用 OpenSSH 格式
+- **坑 3**：Vultr 24.04 默认用户名是 `linuxuser` 不是 `ubuntu`，Reinstall 时公钥注入到 root，需手动复制到 `linuxuser` 的 `~/.ssh/authorized_keys`
+- **坑 4**：Cloudflare 默认 SSL Flexible 模式 + Vultr 无 443 SSL → 报 521。改为 Full (Strict) + 配 Origin Certificate 解决
+- **坑 5**：沙箱连不上 Vultr 22 端口（Vultr 屏蔽大陆 IP），Reinstall 后 IP 重评 22 端口恢复
+
+### 上游 API 验证
+
+- 调通 vmcardio Merchant API：商户余额 **$102.69 USD**（比原生产 $31 多）
+
+### 访问地址
+
+- ✅ `https://nova-vcc.com/`（推荐，CDN 加速 + 隐藏真实 IP）
+- ⚠️ `http://139.180.188.104/`（备用，无 HTTPS，会报 Cross-Origin-Opener-Policy 警告）
+
+
 ## v1.0.42 | 2026-06-15 | 按卡查看消费明细
 
 
