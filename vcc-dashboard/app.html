@@ -371,7 +371,7 @@ select.form-control option{background:var(--bg3);}
 .nav-sub .nav-item{padding:7px 10px;font-size:.83rem;}
 
 .sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;}
-.user-chip{display:flex;align-items:center;gap:10px;}
+.user-chip{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 .user-avatar{
   width:34px;height:34px;border-radius:50%;
   background:var(--grad);display:flex;align-items:center;justify-content:center;
@@ -1377,7 +1377,7 @@ select.form-control option{background:var(--bg3);}
     </div>
 
     <div class="sidebar-bottom" style="flex-shrink:0;">
-      <div class="user-chip">
+      <div class="user-chip" title="查看账户信息" onclick="showAccountInfo()" style="cursor:pointer;padding:6px 8px;border-radius:10px;transition:background .15s;" onmouseover="this.style.background='rgba(126,184,247,.08)'" onmouseout="this.style.background='transparent'">
         <div class="user-avatar" id="sidebarAvatar">U</div>
         <div>
           <div class="user-name" id="sidebarName">用户</div>
@@ -1385,7 +1385,6 @@ select.form-control option{background:var(--bg3);}
         </div>
         </div>
       <div style="display:flex;gap:4px;margin-left:auto;">
-        <button class="logout-btn" title="查看账户信息" onclick="showAccountInfo()" style="font-size:1rem;">ⓘ</button>
         <button class="logout-btn" title="退出登录" onclick="doLogout()">⏏</button>
       </div>
     </div>
@@ -2030,7 +2029,7 @@ function enterDash() {
   }, 800);
 }
 
-// ── 账户信息弹窗（点击左下角 ⓘ 按钮）────────────────────────────────────
+// ── 账户信息弹窗（点击左下角头像）──────────────────────────────────────
 function showAccountInfo() {
   const me = _me || {};
   const ensureCompany = (cb) => {
@@ -2044,50 +2043,66 @@ function showAccountInfo() {
     const email = me.email || null;
     const userName = me.name || '—';
     const companyName = me.role === 'admin' ? 'NovaCard 平台运营方' : (me.company_name || null);
+    const isAdmin = me.role === 'admin';
 
-    const rowHtml = (icon, iconBg, label, value, isMuted) => `
-      <div class="ai-row">
-        <div class="ai-label">
-          <span class="icn" style="background:${iconBg};">${icon}</span>
-          ${esc(label)}
+    // SVG icons (1.8 stroke, currentColor) - 与项目风格统一
+    const ico = {
+      mail: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>',
+      user: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+      biz:  '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>'
+    };
+    const accent = 'linear-gradient(135deg,#7eb8f7 0%,#a78bfa 100%)';
+
+    const rowHtml = (iconSvg, label, value, isMuted) => `
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;padding:14px 16px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:12px;transition:all .15s;">
+        <div style="width:36px;height:36px;border-radius:10px;background:${accent};display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px rgba(126,184,247,.18);">${iconSvg}</div>
+        <div style="min-width:0;">
+          <div style="font-size:.7rem;color:#6b7280;letter-spacing:.8px;text-transform:uppercase;font-weight:600;margin-bottom:3px;">${esc(label)}</div>
+          <div style="font-size:.95rem;color:${isMuted ? '#6b7280' : '#e5e7eb'};font-weight:${isMuted ? '400' : '600'};${isMuted ? 'font-style:italic;' : ''}word-break:break-all;line-height:1.3;">${esc(value || '—')}</div>
         </div>
-        <div class="ai-value${isMuted ? ' muted' : ''}">${esc(value || '—')}</div>
       </div>`;
 
     const overlay = document.createElement('div');
     overlay.id = 'accountInfoOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;';
+    overlay.onclick = (e) => { if (e.target === overlay) document.getElementById('accountInfoOverlay').remove(); };
     overlay.innerHTML = `
-      <div style="background:linear-gradient(160deg, #1a1d29 0%, #0f1117 100%);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:28px;max-width:460px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:popIn .25s cubic-bezier(.34,1.56,.64,1);">
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
-          <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(102,126,234,.3);">👤</div>
+      <div style="background:linear-gradient(160deg,#1a1d29 0%,#0f1117 100%);border:1px solid rgba(126,184,247,.18);border-radius:18px;padding:32px 30px 24px;max-width:440px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04) inset;animation:popIn .25s cubic-bezier(.34,1.56,.64,1);">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;">
+          <div style="width:52px;height:52px;border-radius:14px;background:${accent};display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;box-shadow:0 6px 18px rgba(126,184,247,.3);">${esc((userName||'?').charAt(0).toUpperCase())}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:1.1rem;font-weight:700;color:#e5e7eb;margin-bottom:2px;">账户信息</div>
-            <div style="font-size:.78rem;color:#6b7280;">用户 ID #${me.id || '?'} · ${me.role === 'admin' ? '管理员' : '普通用户'}</div>
+            <div style="font-size:1.18rem;font-weight:700;color:#e5e7eb;line-height:1.2;margin-bottom:6px;">${esc(userName)}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:.72rem;color:#9ca3af;letter-spacing:.4px;">ID #${me.id || '?'}</span>
+              <span style="font-size:.7rem;padding:2px 8px;background:${isAdmin ? 'rgba(239,68,68,.12)' : 'rgba(126,184,247,.12)'};color:${isAdmin ? '#f87171' : '#7eb8f7'};border:1px solid ${isAdmin ? 'rgba(239,68,68,.22)' : 'rgba(126,184,247,.22)'};border-radius:6px;font-weight:600;letter-spacing:.3px;">${isAdmin ? '管理员' : '普通用户'}</span>
+            </div>
           </div>
-          <button onclick="document.getElementById('accountInfoOverlay').remove()" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#9ca3af;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:all .15s;" onmouseover="this.style.background='rgba(239,68,68,.1)';this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,.04)';this.style.color='#9ca3af';">✕</button>
+          <button onclick="document.getElementById('accountInfoOverlay').remove()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#9ca3af;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;" onmouseover="this.style.background='rgba(239,68,68,.12)';this.style.color='#ef4444';this.style.borderColor='rgba(239,68,68,.3)';" onmouseout="this.style.background='rgba(255,255,255,.04)';this.style.color='#9ca3af';this.style.borderColor='rgba(255,255,255,.08)';">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
-        <div style="margin-bottom:18px;">
-          ${rowHtml('📧', 'rgba(96,165,250,.12)', '注册邮箱', email, !email)}
-          ${rowHtml('👤', 'rgba(167,139,250,.12)', '用户名', userName, false)}
-          ${rowHtml('🏢', 'rgba(74,222,128,.12)', '企业名称', companyName, !companyName)}
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
+          ${rowHtml(ico.mail, '注册邮箱', email, !email)}
+          ${rowHtml(ico.user, '用户名', userName, false)}
+          ${rowHtml(ico.biz,  '企业名称', companyName, !companyName)}
         </div>
 
-        ${companyName ? '' : `
-        <div style="padding:10px 12px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:.78rem;color:#fbbf24;line-height:1.5;">
-          💡 ${me.role === 'admin' ? '管理员账户不显示企业认证信息' : '完成企业认证后，企业名称会自动显示在这里。'}
-        </div>`}
+        ${!companyName && !isAdmin ? `
+        <div style="padding:10px 14px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.18);border-radius:10px;font-size:.78rem;color:#7eb8f7;line-height:1.5;margin-bottom:16px;display:flex;align-items:flex-start;gap:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>完成企业认证后，企业名称会自动显示在这里。</span>
+        </div>` : ''}
 
-        <div style="display:flex;gap:8px;margin-top:18px;">
-          ${me.role !== 'admin' && !me.company_name ? `<button onclick="document.getElementById('accountInfoOverlay').remove();gotoPage('kyc');" style="flex:1;padding:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;box-shadow:0 4px 12px rgba(102,126,234,.3);">立即去认证</button>` : ''}
-          <button onclick="document.getElementById('accountInfoOverlay').remove()" style="flex:1;padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#e5e7eb;border-radius:10px;font-weight:500;cursor:pointer;font-size:.88rem;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,.08)';" onmouseout="this.style.background='rgba(255,255,255,.04)';">关闭</button>
+        <div style="display:flex;gap:10px;">
+          ${!companyName && !isAdmin ? `<button onclick="document.getElementById('accountInfoOverlay').remove();gotoPage('kyc');" style="flex:1;padding:11px;background:${accent};color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;box-shadow:0 4px 12px rgba(126,184,247,.25);">立即去认证</button>` : '<div></div>'}
+          <button onclick="document.getElementById('accountInfoOverlay').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#e5e7eb;border-radius:10px;font-weight:500;cursor:pointer;font-size:.88rem;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,.08)';this.style.borderColor='rgba(255,255,255,.16)';" onmouseout="this.style.background='rgba(255,255,255,.04)';this.style.borderColor='rgba(255,255,255,.08)';">关闭</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
   });
+
 }
 
 function doLogout() {
