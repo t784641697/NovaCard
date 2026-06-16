@@ -198,12 +198,15 @@ router.post('/login', loginRateLimiter, replayProtection, async (req, res) => {
 
   writeLog({ userId: user.id, action: 'login_ok', ip, ua, detail: {} });
 
+  // 取企业名（仅 approved 的申请）
+  const kycApp = db.prepare("SELECT company_name FROM kyc_applications WHERE user_id = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1").get(user.id);
+
   res.json({
     code: 0,
     msg:  'ok',
     data: {
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, balance: user.balance },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, balance: user.balance, company_name: kycApp ? kycApp.company_name : null },
     },
   });
 });
@@ -271,7 +274,8 @@ router.get('/me', authenticate, (req, res) => {
     'SELECT id, email, name, role, balance, status, last_login_at, last_login_ip, created_at FROM users WHERE id = ?'
   ).get(req.user.id);
   if (!user) return res.status(404).json({ code: 404, msg: '用户不存在' });
-  res.json({ code: 0, msg: 'ok', data: user });
+  const kycApp = db.prepare("SELECT company_name FROM kyc_applications WHERE user_id = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1").get(req.user.id);
+  res.json({ code: 0, msg: 'ok', data: { ...user, company_name: kycApp ? kycApp.company_name : null } });
 });
 
 // ══════════════════════════════════════════════════════════════════════════
