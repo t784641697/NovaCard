@@ -1440,6 +1440,73 @@ router.get('/users/:id/transactions', (req, res) => {
   });
 });
 
+// ==================== 管理员手动充值 ====================
+
+/**
+ * POST /api/admin/users/:id/topup
+ * 管理员为指定用户账户充值（与扣款对称）
+ * Body: { amount: number(>0), note: string(可选) }
+ */
+router.post('/users/:id/topup', async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const amount = parseFloat(req.body.amount);
+    const note = (req.body.note || '').toString().trim();
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ code: 400, msg: '充值金额必须是正数' });
+    }
+    if (amount > 100000) {
+      return res.status(400).json({ code: 400, msg: '单次充值金额不能超过 100,000' });
+    }
+
+    // 预检查目标用户存在 + 非管理员（与 deduct 对称）
+    const target = db.prepare('SELECT id, role, name FROM users WHERE id = ?').get(userId);
+    if (!target) return res.status(404).json({ code: 404, msg: '用户不存在' });
+    if (target.role === 'admin') {
+      return res.status(403).json({ code: 403, msg: '不能给管理员账户充值' });
+    }
+
+    const result = BalanceService.adminTopup(userId, amount, note || `管理员充值 (admin=${req.user.id})`);
+
+    // 写审计日志（与 adminDeduct 对称）
+    db.prepare(`
+      INSERT INTO audit_logs (user_id, action, ip, ua, detail, created_at)
+      VALUES (?, 'admin_topup', ?, ?, ?, nowiso())
+    `).run(
+      userId,
+      req.ip || '',
+      (req.headers['user-agent'] || '').slice(0, 200),
+      JSON.stringify({
+        admin_id: req.user.id,
+        admin_email: req.user.email,
+        topup_amount: amount,
+        old_balance: result.old_balance,
+        new_balance: result.new_balance,
+        note: note || ''
+      })
+    );
+
+    logger.info(`[adminTopup] admin=${req.user.id}(${req.user.email}) user=${userId} amount=+$${amount} note="${note}"`);
+
+    res.json({
+      code: 0,
+      msg: 'ok',
+      data: {
+        user_id: userId,
+        user_name: target.name,
+        topup_amount: amount,
+        old_balance: result.old_balance,
+        new_balance: result.new_balance,
+        transaction_id: result.transaction_id
+      }
+    });
+  } catch (e) {
+    logger.error(`[adminTopup] error: ${e.stack || e.message}`);
+    next(e);
+  }
+});
+
 /**
  * POST /api/admin/users/:id/deduct
  *   管理员手动扣减普通用户余额
