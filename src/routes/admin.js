@@ -14,6 +14,7 @@ const express = require('express');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
 const logger  = require('../utils/logger');
+const BalanceService = require('../services/balanceService');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -1437,6 +1438,77 @@ router.get('/users/:id/transactions', (req, res) => {
       }
     }
   });
+});
+
+/**
+ * POST /api/admin/users/:id/deduct
+ *   管理员手动扣减普通用户余额
+ *   Body: { amount: number(>0), reason: string(1-200) }
+ *   - 仅管理员可调（requireAdmin 已在 router.use 中）
+ *   - 不允许扣成负数（余额不足 → 拒绝）
+ *   - 强制要求 reason（审计要求）
+ *   - 写 transactions 流水（type='管理员扣款'，用户后台可看到）
+ *   - 写 audit_logs 审计（带管理员 ID、IP、UA、扣款前后余额）
+ */
+router.post('/users/:id/deduct', (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (!userId) return res.status(400).json({ code: 400, msg: '无效的用户ID' });
+
+    // 校验目标用户存在
+    const target = db.prepare('SELECT id, role FROM users WHERE id = ?').get(userId);
+    if (!target) return res.status(404).json({ code: 404, msg: '用户不存在' });
+
+    // 校验目标用户非管理员（虽然管理员账户在前端不显示扣款按钮，双重保护）
+    if (target.role === 'admin') {
+      return res.status(403).json({ code: 403, msg: '不能扣除管理员账户余额' });
+    }
+
+    const { amount, reason } = req.body || {};
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return res.status(400).json({ code: 400, msg: '扣款金额必须是正数' });
+    }
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ code: 400, msg: '扣款原因不能为空' });
+    }
+    if (String(reason).trim().length > 200) {
+      return res.status(400).json({ code: 400, msg: '扣款原因不能超过 200 字' });
+    }
+
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection?.remoteAddress || '';
+    const ua = req.headers['user-agent'] || '';
+
+    const result = BalanceService.adminDeduct(
+      req.user.id,  // 管理员 ID
+      userId,       // 被扣款用户 ID
+      amt,          // 金额
+      String(reason).trim(),
+      ip,
+      ua
+    );
+
+    logger.info(`[adminDeduct] admin=${req.user.id}(${req.user.email}) deducted $${amt} from user=${userId}(${result.user_email}) reason="${String(reason).trim()}"`);
+
+    res.json({
+      code: 0, msg: '扣款成功',
+      data: {
+        user_id: result.user_id,
+        user_name: result.user_name,
+        user_email: result.user_email,
+        deduction: result.deduction,
+        old_balance: result.old_balance,
+        new_balance: result.new_balance,
+        transaction_id: result.transaction_id
+      }
+    });
+  } catch (err) {
+    // 业务错误 → 400；其他 → 500
+    if (err.message && /余额不足|扣款金额|扣款原因|用户不存在|管理员不能/.test(err.message)) {
+      return res.status(400).json({ code: 400, msg: err.message });
+    }
+    next(err);
+  }
 });
 
 /**

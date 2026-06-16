@@ -4294,9 +4294,9 @@ async function renderLedger() {
       const txAmt = item.amount || 0;
       const balance = item.balance || 0;
       const amtColor = txAmt > 0 ? 'var(--green)' : txAmt < 0 ? 'var(--red)' : 'var(--text2)';
-      const typeMap = { '充值':'充值','手续费':'手续费','消费':'消费','退款':'退款','开卡费':'开卡费' };
+      const typeMap = { '充值':'充值','手续费':'手续费','消费':'消费','退款':'退款','开卡费':'开卡费','管理员扣款':'管理员扣款' };
       const typeLabel = typeMap[item.type] || item.type || '—';
-      const typeColor = item.type === '充值' ? 'var(--green)' : item.type === '手续费' ? 'var(--red)' : item.type === '消费' ? 'var(--blue, #60a5fa)' : item.type === '退款' ? 'var(--green)' : 'var(--text2)';
+      const typeColor = item.type === '充值' ? 'var(--green)' : item.type === '手续费' ? 'var(--red)' : item.type === '消费' ? 'var(--blue, #60a5fa)' : item.type === '退款' ? 'var(--green)' : item.type === '管理员扣款' ? '#ff7b7b' : 'var(--text2)';
       const feeTypeMap = {
         'small_transaction':'小额授权费','cross_border':'跨境交易费',
         'card_creation':'开卡费','topup':'充值费','refund':'退款手续费',
@@ -4733,6 +4733,7 @@ async function renderAdminUsers() {
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button class="au-btn" style="background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.3);" onclick="openUserTransactionsModal(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${String(u.email||'').replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${u.card_count||0})">🔍 查看消费</button>
               <button class="au-btn" style="background:rgba(0,242,254,.1);color:#00f2fe;border:1px solid rgba(0,242,254,.25);" onclick="openTopupModal(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}',${parseFloat(u.balance||0).toFixed(2)})">💰 充值</button>
+              <button class="au-btn" style="background:rgba(255,95,95,.1);color:#ff7b7b;border:1px solid rgba(255,95,95,.25);" onclick="openDeductModal(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}',${parseFloat(u.balance||0).toFixed(2)})">💸 扣款</button>
               ${u.status === 'disabled'
                 ? `<button class="au-btn au-btn-enable" onclick="confirmFreezeOrUnfreeze(${u.id},'active','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔓 解冻</button>
                    <button class="au-btn au-btn-disabled" disabled>🔒 冻结</button>`
@@ -5309,6 +5310,137 @@ function openTopupModal(userId, userName, currentBalance) {
   document.body.appendChild(overlay);
   // 自动聚焦金额输入框
   setTimeout(() => modal.querySelector('#topupAmountInput').focus(), 100);
+}
+
+// ── 管理员扣款弹窗 ────────────────────────────────────────────────────────────
+function openDeductModal(userId, userName, currentBalance) {
+  // 余额预览
+  const bal = parseFloat(currentBalance || 0);
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9999;';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:linear-gradient(135deg, #0d1322 0%, #13192a 100%);border:1px solid rgba(255,95,95,.3);border-radius:16px;padding:28px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5);';
+
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+      <div style="font-size:28px;line-height:1;">💸</div>
+      <div>
+        <h3 style="margin:0;color:#ff7b7b;font-size:17px;font-weight:700;">扣除用户余额</h3>
+        <p style="margin:4px 0 0;color:var(--text3);font-size:.8rem;">${userName}</p>
+      </div>
+    </div>
+    <div style="background:rgba(255,95,95,.06);border:1px solid rgba(255,95,95,.15);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--text3);font-size:.82rem;">当前余额</span>
+      <span style="color:#00f2fe;font-weight:700;font-size:1.1rem;">$${bal.toFixed(2)}</span>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;color:var(--text2);font-size:.82rem;margin-bottom:8px;">扣款金额 (USD) <span style="color:#ff7b7b">*</span></label>
+      <div style="display:flex;align-items:center;gap:0;border:1px solid rgba(255,95,95,.3);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.04);">
+        <span style="padding:0 14px;color:#ff7b7b;font-weight:700;font-size:1rem;background:rgba(255,95,95,.08);height:44px;display:flex;align-items:center;">$</span>
+        <input id="deductAmountInput" type="number" min="0.01" step="0.01" max="${bal.toFixed(2)}" placeholder="输入扣款金额"
+          style="flex:1;border:none;background:transparent;padding:0 14px;height:44px;color:var(--text1);font-size:.95rem;outline:none;"/>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;color:var(--text2);font-size:.82rem;margin-bottom:8px;">扣款原因 <span style="color:#ff7b7b">*</span><span style="color:var(--text3);font-weight:400;margin-left:6px;">（将记录到审计日志，用户后台可见）</span></label>
+      <textarea id="deductReasonInput" rows="3" maxlength="200" placeholder="如：场外退款扣回、误充值清理、违约金..."
+        style="width:100%;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);padding:10px 14px;color:var(--text1);font-size:.88rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
+      <div id="deductReasonCount" style="text-align:right;color:var(--text3);font-size:.7rem;margin-top:4px;">0 / 200</div>
+    </div>
+    <div id="deductPreview" style="background:rgba(255,95,95,.05);border:1px solid rgba(255,95,95,.12);border-radius:10px;padding:10px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--text3);font-size:.82rem;">扣款后余额</span>
+      <span id="deductPreviewValue" style="color:#ff7b7b;font-weight:700;font-size:1rem;">—</span>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;">
+      <button id="deductCancelBtn" style="padding:10px 22px;border-radius:10px;border:none;background:linear-gradient(135deg,#2d3746,#1a2332);color:#9fa8ba;cursor:pointer;font-weight:700;font-size:.9rem;">取消</button>
+      <button id="deductConfirmBtn" style="padding:10px 26px;border-radius:10px;border:none;background:linear-gradient(135deg,#ff7b7b,#e53935);color:white;cursor:pointer;font-weight:700;font-size:.9rem;letter-spacing:.5px;">⚠️ 确认扣款</button>
+    </div>`;
+
+  modal.querySelector('#deductCancelBtn').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // 实时预览扣后余额
+  const amtInput = modal.querySelector('#deductAmountInput');
+  const previewEl = modal.querySelector('#deductPreviewValue');
+  const updatePreview = () => {
+    const v = parseFloat(amtInput.value);
+    if (Number.isFinite(v) && v > 0) {
+      const after = parseFloat((bal - v).toFixed(2));
+      if (after < 0) {
+        previewEl.textContent = '⚠️ 余额不足';
+        previewEl.style.color = '#ff5252';
+      } else {
+        previewEl.textContent = '$' + after.toFixed(2);
+        previewEl.style.color = '#ff7b7b';
+      }
+    } else {
+      previewEl.textContent = '—';
+      previewEl.style.color = '#ff7b7b';
+    }
+  };
+  amtInput.addEventListener('input', updatePreview);
+
+  // 原因字符计数
+  const reasonInput = modal.querySelector('#deductReasonInput');
+  const reasonCount = modal.querySelector('#deductReasonCount');
+  reasonInput.addEventListener('input', () => {
+    reasonCount.textContent = reasonInput.value.length + ' / 200';
+  });
+
+  modal.querySelector('#deductConfirmBtn').onclick = async function() {
+    const amtVal = amtInput.value;
+    const reasonVal = reasonInput.value.trim();
+    const amt = parseFloat(amtVal);
+
+    if (!amtVal || isNaN(amt) || amt <= 0) {
+      toast('⚠️ 请输入有效的扣款金额');
+      return;
+    }
+    if (amt > bal) {
+      toast('⚠️ 扣款金额超过当前余额');
+      return;
+    }
+    if (!reasonVal) {
+      toast('⚠️ 请输入扣款原因');
+      reasonInput.focus();
+      return;
+    }
+    if (reasonVal.length > 200) {
+      toast('⚠️ 扣款原因不能超过 200 字');
+      return;
+    }
+
+    this.disabled = true;
+    this.textContent = '处理中...';
+    try {
+      const res = await apiFetch(`/admin/users/${userId}/deduct`, {
+        method: 'POST',
+        body: JSON.stringify({ amount: amt, reason: reasonVal })
+      });
+      if (res.code !== 0) {
+        toast('❌ ' + (res.msg || '扣款失败'));
+        this.disabled = false;
+        this.textContent = '⚠️ 确认扣款';
+        return;
+      }
+      overlay.remove();
+      toast(`✅ 扣款成功！${res.data.user_name} 新余额 $${res.data.new_balance}`);
+      // 直接更新表格中的余额显示
+      const balanceCell = document.getElementById(`au-balance-${userId}`);
+      if (balanceCell) balanceCell.textContent = '$' + parseFloat(res.data.new_balance).toFixed(2);
+    } catch(e) {
+      if (e.message !== 'Unauthorized') toast('❌ 操作失败');
+      this.disabled = false;
+      this.textContent = '⚠️ 确认扣款';
+    }
+  };
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  // 自动聚焦金额输入框
+  setTimeout(() => amtInput.focus(), 100);
 }
 
 // ══════════════════════════════════════════════

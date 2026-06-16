@@ -295,6 +295,104 @@ class BalanceService {
   }
 
   /**
+   * 管理员扣款（直接减少用户余额）
+   * 用于场外原因需要扣除用户余额的场景（风控、违约金、误充值清理等）
+   * - 不允许扣成负数（余额不足 → 拒绝）
+   * - 强制要求 reason（审计要求）
+   * - 扣款记入 total_spend（语义上算"非消费支出"）
+   * - 写 transactions 流水的 type='管理员扣款'（用户后台可看到）
+   * - 写 audit_logs 审计（带管理员 ID、IP、UA、扣款前后余额）
+   * @param {number} adminId   操作用户（管理员）ID
+   * @param {number} userId    被扣款用户 ID
+   * @param {number} amount    扣款金额（正数）
+   * @param {string} reason    扣款原因（必填，1-200 字）
+   * @param {string} [ip]      管理员 IP
+   * @param {string} [ua]      管理员 UA
+   * @returns {object} { success, user_id, deduction, old_balance, new_balance, transaction_id, user_name }
+   */
+  static adminDeduct(adminId, userId, amount, reason, ip = '', ua = '') {
+    // 1) 参数校验
+    amount = Number(amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('扣款金额必须是正数');
+    }
+    if (!reason || !String(reason).trim()) {
+      throw new Error('扣款原因不能为空');
+    }
+    if (String(reason).length > 200) {
+      throw new Error('扣款原因不能超过 200 字');
+    }
+    if (adminId === userId) {
+      throw new Error('管理员不能扣除自己的余额');
+    }
+
+    return db.transaction(() => {
+      // 2) 锁定用户当前余额
+      const user = db.prepare('SELECT id, email, name, balance FROM users WHERE id = ?').get(userId);
+      if (!user) throw new Error('用户不存在');
+
+      // 3) 余额校验（不允许扣成负数）
+      if (user.balance < amount) {
+        throw new Error(`余额不足，需扣除 $${amount.toFixed(2)}，当前余额仅 $${user.balance.toFixed(2)}`);
+      }
+
+      // 4) 更新余额
+      const newBalance = parseFloat((user.balance - amount).toFixed(2));
+      db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
+        .run(newBalance, userId);
+
+      // 5) 更新统计字段（扣款记入 total_spend）
+      db.prepare(`
+        UPDATE users
+        SET total_spend = total_spend + ?
+        WHERE id = ?
+      `).run(amount, userId);
+
+      // 6) 写流水（type='管理员扣款'，用户后台能直接看到）
+      const txnResult = db.prepare(`
+        INSERT INTO transactions
+          (user_id, type, amount, net_amount, description, created_at)
+        VALUES (?, ?, ?, ?, ?, nowiso())
+      `).run(
+        userId,
+        '管理员扣款',
+        -amount,
+        -amount,
+        `管理员扣款：${String(reason).trim()}`
+      );
+
+      // 7) 写审计日志
+      db.prepare(`
+        INSERT INTO audit_logs
+          (user_id, action, detail, ip, ua, created_at)
+        VALUES (?, 'admin_deduct', ?, ?, ?, nowiso())
+      `).run(
+        userId,
+        JSON.stringify({
+          admin_id: adminId,
+          old_balance: user.balance,
+          new_balance: newBalance,
+          deduction: amount,
+          reason: String(reason).trim()
+        }),
+        ip || '',
+        ua || ''
+      );
+
+      return {
+        success: true,
+        user_id: userId,
+        user_name: user.name,
+        user_email: user.email,
+        deduction: amount,
+        old_balance: user.balance,
+        new_balance: newBalance,
+        transaction_id: txnResult.lastInsertRowid
+      };
+    })();
+  }
+
+  /**
    * 管理员充值（直接增加余额）
    */
   static adminTopup(userId, amount, note = '') {
