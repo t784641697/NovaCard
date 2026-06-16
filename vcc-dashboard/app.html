@@ -5233,8 +5233,22 @@ async function setUserStatus(userId, status) {
   }
 }
 
+// ── 拉取用户最新余额（打开充/扣弹窗前调用，确保显示的是数据库实时值） ──
+async function _getLatestUserBalance(userId, fallback) {
+  try {
+    const res = await apiFetch('/admin/users');
+    if (res && res.code === 0) {
+      const users = Array.isArray(res.data) ? res.data : (res.data && res.data.list) || [];
+      const u = users.find(x => Number(x.id) === Number(userId));
+      if (u) return parseFloat(u.balance || 0);
+    }
+  } catch (e) { /* silent fallback */ }
+  return parseFloat(fallback || 0);
+}
+
 // ── 管理员充值弹窗 ────────────────────────────────────────────────────────────
-function openTopupModal(userId, userName, currentBalance) {
+async function openTopupModal(userId, userName, currentBalance) {
+  const bal = await _getLatestUserBalance(userId, currentBalance);
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9999;';
 
@@ -5251,7 +5265,7 @@ function openTopupModal(userId, userName, currentBalance) {
     </div>
     <div style="background:rgba(0,242,254,.06);border:1px solid rgba(0,242,254,.12);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
       <span style="color:var(--text3);font-size:.82rem;">当前余额</span>
-      <span style="color:#00f2fe;font-weight:700;font-size:1.1rem;">$${parseFloat(currentBalance||0).toFixed(2)}</span>
+      <span style="color:#00f2fe;font-weight:700;font-size:1.1rem;">$${bal.toFixed(2)}</span>
     </div>
     <div style="margin-bottom:16px;">
       <label style="display:block;color:var(--text2);font-size:.82rem;margin-bottom:8px;">充值金额 (USD)</label>
@@ -5314,9 +5328,9 @@ function openTopupModal(userId, userName, currentBalance) {
 }
 
 // ── 管理员扣款弹窗 ────────────────────────────────────────────────────────────
-function openDeductModal(userId, userName, currentBalance) {
-  // 余额预览
-  const bal = parseFloat(currentBalance || 0);
+async function openDeductModal(userId, userName, currentBalance) {
+  // 拉取最新余额（前端 cache 可能滞后于数据库）
+  const bal = await _getLatestUserBalance(userId, currentBalance);
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9999;';
