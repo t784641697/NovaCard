@@ -4806,24 +4806,12 @@ async function loadCardSettleList() {
       <div style="padding:12px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:2fr 1.5fr 1.5fr 1.5fr 1.5fr;gap:12px;align-items:center;font-size:.85rem;">
         <div>
           <div style="font-weight:600;color:var(--text1);">${cardId.slice(0,6)}</div>
-          <div style="color:var(--text3);margin-top:2px;font-size:.8rem;">${typeName}</div>
+          <div style="color:var(--text3);margin-top:2px;font-size:.75rem;">${typeName}</div>
         </div>
-        <div>
-          <div style="color:var(--text2);font-size:.75rem;">交易金额</div>
-          <div style="font-weight:700;color:${isOut ? 'var(--red)' : 'var(--green)'};margin-top:2px;">${amount}</div>
-        </div>
-        <div>
-          <div style="color:var(--text2);font-size:.75rem;">交易ID</div>
-          <div style="font-weight:400;color:var(--text3);margin-top:2px;font-size:.75rem;">${item.auth_id?.slice(0,12) || '—'}</div>
-        </div>
-        <div>
-          <div style="color:var(--text2);font-size:.75rem;">状态</div>
-          <div style="margin-top:2px;"><span class="status-tag status-${(item.status||'').toLowerCase()}">${statusName}</span></div>
-        </div>
-        <div style="text-align:right;">
-          <div style="color:var(--text3);font-size:.75rem;">结算时间</div>
-          <div style="font-weight:600;color:var(--text1);margin-top:2px;">${fmtDate(item.create_time)}</div>
-        </div>
+        <div style="font-weight:700;color:${isOut ? 'var(--red)' : 'var(--green)'};">${amount}</div>
+        <div style="color:var(--text3);font-size:.8rem;">${item.auth_id?.slice(0,12) || '—'}</div>
+        <div><span class="status-tag status-${(item.status||'').toLowerCase()}">${statusName}</span></div>
+        <div style="text-align:right;color:var(--text1);">${fmtDate(item.create_time)}</div>
       </div>
     `;
   }).join('');
