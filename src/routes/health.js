@@ -378,4 +378,18 @@ router.get('/', (req, res) => {
   res.status(httpCode).json(body);
 });
 
+/**
+ * @swagger
+ * /health/live:
+ *   get:
+ *     summary: 存活探针 (Kubernetes livenessProbe 风格)
+ *     description: 极简端点, 1ms 内响应, 用于 LB/容器健康探针。不检查磁盘/SSL/DB。
+ *     responses:
+ *       200:
+ *         description: 进程在线
+ */
+router.get('/live', (req, res) => {
+  res.status(200).json({ status: 'alive', pid: process.pid, uptime: Math.floor((Date.now() - START_TIME) / 1000) });
+});
+
 module.exports = router;

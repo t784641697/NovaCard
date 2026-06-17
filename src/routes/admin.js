@@ -2117,7 +2117,7 @@ module.exports = router;
  *                     alerts:        { type: array, items: { $ref: '#/components/schemas/AnomalyAlert' } }
  *                     summary:      { type: object }
  *                     total_alerts:  { type: integer }
- *                     unread_by_user:{ type: array, items: { type: object } }
+ *                     unread_by_user: { type: array, items: { type: object } }
  */
 router.get('/anomaly-alerts', (req, res) => {
   try {
