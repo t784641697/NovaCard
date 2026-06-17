@@ -30,6 +30,13 @@ const Database = require('better-sqlite3');
 // ── 启动时间（用于计算 uptime）────────────────────────────────────────────
 const START_TIME = Date.now();
 
+// ── 缓存：避免 health 检查在并发压垮事件循环 ────────────────────────────
+// better-sqlite3 是同步的, db.pragma + execSync 都阻塞 event loop
+// 100 并发会让 P99 飙到秒级. 用 5 秒内存缓存让 UptimeRobot 这种低频检查受益
+const CACHE_TTL_MS = 5000;
+let cachedResult = null;
+let cachedAt = 0;
+
 const db = require('../db');
 
 // ── 阈值配置 ──────────────────────────────────────────────────────────────
@@ -285,6 +292,12 @@ function checkVmcardioConfig() {
 
 // ── 主路由 ────────────────────────────────────────────────────────────────
 router.get('/', (req, res) => {
+  // 命中缓存: 5 秒内的重复请求直接返回 (避免压测/真实高并发阻塞 event loop)
+  if (cachedResult && Date.now() - cachedAt < CACHE_TTL_MS) {
+    res.set('X-Health-Cache', 'hit');
+    return res.status(cachedResult.httpCode).json(cachedResult.body);
+  }
+
   const uptimeSec = Math.floor((Date.now() - START_TIME) / 1000);
 
   const checks = {
@@ -317,13 +330,20 @@ router.get('/', (req, res) => {
     httpCode = 200;
   }
 
-  res.status(httpCode).json({
+  const body = {
     status,
     env:    process.env.NODE_ENV || 'unknown',
     time:   new Date().toISOString(),
     uptime_sec: uptimeSec,
     checks,
-  });
+  };
+
+  // 写入缓存
+  cachedResult = { httpCode, body };
+  cachedAt = Date.now();
+
+  res.set('X-Health-Cache', 'miss');
+  res.status(httpCode).json(body);
 });
 
 module.exports = router;

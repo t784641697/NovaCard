@@ -12,6 +12,10 @@ const rateLimit  = require('express-rate-limit');
 const logger     = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 
+// ── Swagger / OpenAPI 文档 ──
+const swaggerUi     = require('swagger-ui-express');
+const swaggerSpec   = require('./swagger');
+
 // ── 初始化数据库（启动时自动建表/种子）──
 require('./db/database');
 
@@ -97,6 +101,14 @@ app.use('/api/auth', require('./middleware/auth').authenticate, require('./route
 
 // ── 健康检查（强化版：7 维度自检）─────────────────────────────────────────
 app.use('/health', require('./routes/health'));
+
+// ── Swagger UI ──
+app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'VCC Hub API',
+  customCss: '.swagger-ui .topbar { display: none }',
+  swaggerOptions: { persistAuthorization: true },
+}));
 
 // ── 静态文件服务（提供前端页面）────────────────────────────────────────────
 const path = require('path');

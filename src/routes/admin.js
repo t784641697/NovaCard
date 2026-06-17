@@ -2093,3 +2093,137 @@ router.post('/kyc/:id/reject', (req, res) => {
 });
 
 module.exports = router;
+// ── 异常消费告警 ─────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /api/admin/anomaly-alerts:
+ *   get:
+ *     summary: 获取异常消费告警汇总（管理员）
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 告警列表 + 汇总 + 各用户未读数
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code: { type: integer, example: 0 }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     alerts:        { type: array, items: { $ref: '#/components/schemas/AnomalyAlert' } }
+ *                     summary:      { type: object }
+ *                     total_alerts:  { type: integer }
+ *                     unread_by_user:{ type: array, items: { type: object } }
+ */
+router.get('/anomaly-alerts', (req, res) => {
+  try {
+    const db = require('../db');
+
+    // 最近 20 条告警
+    const logRow = db.prepare("SELECT value FROM settings WHERE key='anomaly_alerts_log'").get();
+    const alerts = logRow ? (JSON.parse(logRow.value) || []) : [];
+
+    // 汇总
+    const summaryRow = db.prepare("SELECT value FROM settings WHERE key='anomaly_alert_summary'").get();
+    const summary = summaryRow ? (JSON.parse(summaryRow.value) || null) : null;
+
+    // 未读站内信数量
+    const unread = db.prepare(`
+      SELECT user_id, COUNT(*) as c FROM notifications
+      WHERE is_read = 0 GROUP BY user_id
+    `).all();
+
+    res.json({
+      code: 0,
+      msg: 'ok',
+      data: {
+        alerts,
+        summary,
+        unread_by_user: unread,
+        total_alerts: alerts.length,
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ code: 500, msg: e.message });
+  }
+});
+
+// 更新告警阈值
+/**
+ * @swagger
+ * /api/admin/anomaly-thresholds:
+ *   post:
+ *     summary: 更新异常告警阈值
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               single:  { type: number,  description: '单笔阈值 USD',   example: 200 }
+ *               hourly:  { type: number,  description: '1 小时累计 USD', example: 500 }
+ *               daily:   { type: number,  description: '24 小时累计 USD', example: 2000 }
+ *               strict:  { type: boolean, description: '是否启用严格模式' }
+ *     responses:
+ *       200:
+ *         description: 当前生效的阈值
+ */
+router.post('/anomaly-thresholds', (req, res) => {
+  try {
+    const db = require('../db');
+    const { single, hourly, daily, strict } = req.body || {};
+    const setSetting = (key, value) => {
+      db.prepare(`
+        INSERT INTO settings (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value
+      `).run(key, String(value));
+    };
+    if (single !== undefined) setSetting('anomaly_single_usd', Number(single));
+    if (hourly !== undefined) setSetting('anomaly_hourly_usd', Number(hourly));
+    if (daily !== undefined)  setSetting('anomaly_daily_usd', Number(daily));
+    if (strict !== undefined) setSetting('anomaly_enable_strict', strict ? 'true' : 'false');
+
+    const anomalyAlert = require('../services/anomalyAlert');
+    res.json({ code: 0, msg: 'ok', data: { thresholds: anomalyAlert.getThresholds() } });
+  } catch (e) {
+    res.status(500).json({ code: 500, msg: e.message });
+  }
+});
+
+// 列出某用户的告警站内信
+/**
+ * @swagger
+ * /api/admin/notifications/{userId}:
+ *   get:
+ *     summary: 列出某用户的告警站内信
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: 站内信列表（最近 50 条）
+ */
+router.get('/notifications/:userId', (req, res) => {
+  try {
+    const db = require('../db');
+    const list = db.prepare(`
+      SELECT * FROM notifications WHERE user_id = ?
+      ORDER BY created_at DESC LIMIT 50
+    `).all(req.params.userId);
+    res.json({ code: 0, msg: 'ok', data: list });
+  } catch (e) {
+    res.status(500).json({ code: 500, msg: e.message });
+  }
+});

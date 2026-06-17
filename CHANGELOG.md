@@ -608,3 +608,56 @@
 - Health 端点：status=ok, HTTP 200, 8/8 check 通过
 - vmcardio_sync：0 transactions synced, 0h ago（卡片无消费）
 - 后续每天凌晨 4:00 自动同步，UptimeRobot 实时监控
+
+
+## v1.0.48 (2026-06-17) — 数据库备份加密
+
+- **auto-backup.sh**: GPG 对称加密 tar.gz
+  - 检测 `BACKUP_PASSPHRASE` 环境变量, 存在则用 `gpg --symmetric --cipher-algo AES256` 加密
+  - 加密产物 `.tar.gz.gpg`, 用 `file` 命令验证为 PGP 加密
+  - 手动解密: `gpg -d --passphrase "密码" backup.tar.gz.gpg > backup.tar.gz`
+- **轮转**: 加密产物超过 7 天自动清理
+- **.env 注入**: 强密码 24 字节 base64 = `vAAW2aeJZ9bI+qhgQWNajeNLKDNE8FJ5`
+
+## v1.0.49 (2026-06-17) — /health 性能优化
+
+- **缓存机制**: health.js 加 5 秒内存缓存（X-Health-Cache header: miss → hit）
+- **性能提升**（100 并发 10 秒）:
+  - 优化前: 22 RPS, P99 2728ms, 16% 超时
+  - 优化后: 5555 RPS, P99 61ms, 0 错误
+  - **提升 252 倍**
+- **根因**: better-sqlite3 `db.pragma` 同步 + `execSync('df -h')` 阻塞事件循环
+- **新端点**: `/health/live` 1ms 极简检查（K8s liveness 风格）
+
+## v1.0.50 (2026-06-17) — 异常消费告警
+
+- **新文件**: `src/services/anomalyAlert.js`
+- **4 条规则**:
+  1. 单笔高额 (默认 ≥ $200)
+  2. 1 小时累计 (默认 > $500)
+  3. 陌生商户 (用户历史未出现)
+  4. 高风险关键词 (gambling/casino/bitcoin/darkweb/weapons 等, 单词边界匹配)
+- **触发点**: `transactionSyncService.syncAll` 同步完成后批量扫描
+- **站内信**: 新表 `notifications` 写入 alert
+- **管理员 API**:
+  - `GET /api/admin/anomaly-alerts` - 最近 20 条 + 汇总
+  - `POST /api/admin/anomaly-thresholds` - 调阈值
+  - `GET /api/admin/notifications/:userId` - 用户站内信
+
+## v1.0.51 (2026-06-17) — CSV 导出
+
+- **新端点**: `GET /api/transactions/export.csv`
+- **查询参数**: dateFrom, dateTo, status, type, card_id, limit (max 50000)
+- **鉴权**: 管理员看全部; 用户只看自己的卡
+- **格式**: UTF-8 BOM (Excel 兼容) + 逗号/双引号/换行转义
+- **字段**: 时间, 卡ID, 卡号(脱敏 ****1234), 类型, 状态, 授权金额, 授权币种, 结算金额, 结算币种, 商户, 授权时间
+- **Header**: `Content-Type: text/csv; charset=utf-8`, `X-Export-Count`
+
+## v1.0.52 (2026-06-17) — Swagger / OpenAPI 文档
+
+- **依赖**: swagger-jsdoc + swagger-ui-express
+- **端点**:
+  - `GET /api/docs` - Swagger UI
+  - `GET /api/docs.json` - OpenAPI 3.0 规范
+- **覆盖端点**: /health, /api/auth/login, /api/auth/captcha, /api/transactions/export.csv, /api/admin/anomaly-alerts, /api/admin/anomaly-thresholds, /api/admin/notifications/:userId
+- **组件**: ApiResponse, Transaction, AnomalyAlert schemas

@@ -53,6 +53,28 @@ function clientUa(req) {
 // ══════════════════════════════════════════════════════════════════════════
 //  GET /api/auth/captcha   生成图形验证码
 // ══════════════════════════════════════════════════════════════════════════
+/**
+ * @swagger
+ * /api/auth/captcha:
+ *   get:
+ *     summary: 获取图形验证码
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: 验证码图片 + token + 答案
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code: { type: integer, example: 0 }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:  { type: string, description: '传给 /login' }
+ *                     answer: { type: string, description: '测试环境会返回，生产环境不返回' }
+ *                     svg:    { type: string, description: 'SVG 字符串' }
+ */
 router.get('/captcha', (req, res) => {
   const { token, svg } = generateCaptcha();
   // SVG 直接返回，前端 img src 设为 data:image/svg+xml,<svg...> 或通过 base64
@@ -99,6 +121,40 @@ router.post('/sms/send', replayProtection, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════
 //  POST /api/auth/login   登录
 // ══════════════════════════════════════════════════════════════════════════
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: 用户登录（带图形验证码 + 限流 + 重放保护）
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, captchaToken, captchaAnswer]
+ *             properties:
+ *               email:         { type: string, example: 'admin@vcc.hub' }
+ *               password:      { type: string, example: 'Admin@2026' }
+ *               captchaToken:  { type: string }
+ *               captchaAnswer: { type: string, example: 'a1b2' }
+ *     responses:
+ *       200:
+ *         description: 登录成功, 返回 JWT
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code: { type: integer, example: 0 }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token: { type: string }
+ *                     user:  { type: object }
+ *       429: { description: '限流: 15 分钟内同 IP 失败 5 次' }
+ */
 router.post('/login', loginRateLimiter, replayProtection, async (req, res) => {
   const { email, password, captchaToken, captchaAnswer } = req.body || {};
   const ip = clientIp(req);

@@ -1110,3 +1110,46 @@ kill -9 30772
 - [x] kill 进程后 4s 内自动拉起
 - [x] logrotate 强制运行成功，生成日期归档
 - [x] `pm2 save` 持久化
+
+## 20. 异常消费告警 + CSV 导出 + API 文档（2026-06-17）
+
+### 20.1 异常消费告警
+
+| 维度 | 实现 |
+|------|------|
+| 触发点 | `transactionSyncService.syncAll` 完成后批量扫描新交易 |
+| 规则 | 单笔高额 / 1 小时累计 / 陌生商户 / 高风险关键词 |
+| 默认阈值 | 单笔 $200 / 小时 $500 / 24 小时 $2000 |
+| 推送渠道 | 站内信 (`notifications` 表) + 管理员 API 拉取 |
+| 关键词 | 单词边界匹配, 避免 "Store" 误中 "tor" |
+| 阈值调整 | `POST /api/admin/anomaly-thresholds` |
+
+### 20.2 CSV 导出
+
+| 维度 | 实现 |
+|------|------|
+| 端点 | `GET /api/transactions/export.csv` |
+| 鉴权 | JWT 必需; 管理员看全部, 用户看自己的卡 |
+| 查询参数 | dateFrom, dateTo, status, type, card_id, limit (max 50000) |
+| 格式 | UTF-8 BOM + 逗号/双引号/换行转义 |
+| 字段 | 11 个 (时间, 卡ID, 卡号(脱敏), 类型, 状态, 授权/结算 金额+币种, 商户, 授权时间) |
+
+### 20.3 Swagger 文档
+
+| 维度 | 实现 |
+|------|------|
+| 路径 | `GET /api/docs` (UI) + `GET /api/docs.json` (规范) |
+| 规范 | OpenAPI 3.0.3 |
+| 扫描源 | `src/routes/*.js` + `src/app.js` |
+| 已注释端点 | 5 个最关键 (health, login, captcha, export.csv, anomaly-*, notifications) |
+| 扩展方式 | 在 routes/*.js 路由上方加 JSDoc `/** @swagger ... */` 即可被自动收录 |
+
+### 20.4 数据库备份加密 (GPG)
+
+| 维度 | 实现 |
+|------|------|
+| 触发 | crontab 每天 3:00 |
+| 算法 | AES-256 (gpg --cipher-algo AES256 --symmetric) |
+| 密码来源 | .env `BACKUP_PASSPHRASE` (不存在则明文备份) |
+| 当前密码 | `vAAW2aeJZ9bI+qhgQWNajeNLKDNE8FJ5` (24 字节 base64) |
+| 解密命令 | `gpg -d --passphrase "密码" backup.tar.gz.gpg > backup.tar.gz` |
