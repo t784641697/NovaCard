@@ -7306,6 +7306,11 @@ async function trLoad() {
 }
 
 async function trApprove(id, amount) {
+  // ── 防抖锁：防止重复点击触发多次 PATCH（后端会报"该申请已处理"）──
+  if (window._trApproving && window._trApproving[id]) {
+    return toast('⏳ 正在处理中，请勿重复点击');
+  }
+
   const usdtAmt = amount > 0 ? amount : parseFloat(prompt('请输入入账 USDT 金额（USD）：') || '0');
   if (!usdtAmt || usdtAmt <= 0) return toast('⚠️ 请输入有效金额');
   // 实时算手续费（按后端当前费率，仅做预览；实际扣费以后端为准）
@@ -7325,6 +7330,12 @@ async function trApprove(id, amount) {
     }
   );
   if (!ok) return;
+
+  // 锁住该 id 的所有后续点击 + 禁用按钮
+  window._trApproving = window._trApproving || {};
+  window._trApproving[id] = true;
+  document.querySelectorAll('.tr-btn-pass, .tr-btn-reject').forEach(b => b.disabled = true);
+
   try {
     const r = await apiFetch('/topup/' + id, {
       method: 'PATCH',
@@ -7334,21 +7345,48 @@ async function trApprove(id, amount) {
       toast('✅ 充值已通过，$' + net.toFixed(2) + ' 已入账' + (fee > 0 ? '（手续费 $' + fee.toFixed(2) + '）' : ''));
       trLoad();
     }
+    else if (r.msg && r.msg.includes('已处理')) {
+      // 后端告诉我们该申请已不是 pending — 大概率是重复点击或并发审批
+      toast('ℹ️ 该申请已被处理，正在刷新列表…');
+      trLoad();
+    }
     else toast('❌ ' + (r.msg || '操作失败'));
   } catch(e) { toast('❌ 请求失败：' + e.message); }
+  finally {
+    delete window._trApproving[id];
+    document.querySelectorAll('.tr-btn-pass, .tr-btn-reject').forEach(b => b.disabled = false);
+  }
 }
 
 async function trReject(id) {
+  // ── 防抖锁：防止重复点击触发多次 PATCH ──
+  if (window._trRejecting && window._trRejecting[id]) {
+    return toast('⏳ 正在处理中，请勿重复点击');
+  }
   const reason = await promptModal('请输入拒绝原因：');
   if (reason === null) return;
+
+  // 锁住该 id 的所有后续点击 + 禁用按钮
+  window._trRejecting = window._trRejecting || {};
+  window._trRejecting[id] = true;
+  document.querySelectorAll('.tr-btn-pass, .tr-btn-reject').forEach(b => b.disabled = true);
+
   try {
     const r = await apiFetch('/topup/' + id, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'rejected', note: reason })
     });
     if (r.code === 0) { toast('📋 已拒绝该充值申请' + (reason ? '（' + reason + '）' : '')); trLoad(); }
+    else if (r.msg && r.msg.includes('已处理')) {
+      toast('ℹ️ 该申请已被处理，正在刷新列表…');
+      trLoad();
+    }
     else toast('❌ ' + (r.msg || '操作失败'));
   } catch(e) { toast('❌ 请求失败：' + e.message); }
+  finally {
+    delete window._trRejecting[id];
+    document.querySelectorAll('.tr-btn-pass, .tr-btn-reject').forEach(b => b.disabled = false);
+  }
 }
 
 function copyTxHash(el) {
