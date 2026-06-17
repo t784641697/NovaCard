@@ -30,6 +30,8 @@ const Database = require('better-sqlite3');
 // ── 启动时间（用于计算 uptime）────────────────────────────────────────────
 const START_TIME = Date.now();
 
+const db = require('../db');
+
 // ── 阈值配置 ──────────────────────────────────────────────────────────────
 const THRESHOLDS = {
   DISK_WARN_PCT: 85,    // 磁盘使用率告警阈值
@@ -231,6 +233,35 @@ function checkBackup() {
   return result;
 }
 
+// ── 辅助：检查 vmcardio 上游同步状态 ────────────────────────────────────
+function checkVmcardioSync() {
+  const result = { ok: false };
+  try {
+    const rows = db.prepare(
+      "SELECT key, value FROM settings WHERE key LIKE 'last_tx_sync%'"
+    ).all();
+    const s = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    result.status = s.last_tx_sync_status || 'never';
+    result.last_time = s.last_tx_sync_time || null;
+    result.last_count = parseInt(s.last_tx_sync_count || '0', 10);
+    result.last_error = s.last_tx_sync_error || null;
+    if (result.last_time) {
+      const ageMs = Date.now() - new Date(result.last_time).getTime();
+      result.age_hours = Math.round((ageMs / 3600000) * 10) / 10;
+    } else {
+      result.age_hours = null;
+    }
+    // 关键：48 小时没成功同步 → 告警
+    result.ok =
+      result.status === 'success' &&
+      result.age_hours !== null &&
+      result.age_hours < 48;
+  } catch (e) {
+    result.error = e.message;
+  }
+  return result;
+}
+
 // ── 辅助：检查 vmcardio 配置 ──────────────────────────────────────────────
 function checkVmcardioConfig() {
   const result = { ok: false };
@@ -263,13 +294,14 @@ router.get('/', (req, res) => {
     memory:  checkMemory(),
     ssl:     checkSsl(),
     backup:  checkBackup(),
-    vmcardio_config: checkVmcardioConfig(),
+    vmcardio_sync:    checkVmcardioSync(),
+    vmcardio_config:  checkVmcardioConfig(),
   };
 
   // 总体状态：所有关键项 ok 才算 ok
-  // 关键项: db, ssl, backup
+  // 关键项: db, ssl, backup, vmcardio_sync
   // 非关键: disk/memory/vmcardio_config（有 warning 不影响整体）
-  const critical = ['db', 'ssl', 'backup'];
+  const critical = ['db', 'ssl', 'backup', 'vmcardio_sync'];
   const allOk    = critical.every(k => checks[k].ok);
   const anyFail  = critical.some(k => !checks[k].ok);
 
