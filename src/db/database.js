@@ -276,12 +276,22 @@ db.exec(`
 
 // ── Schema 迁移：补全旧版本缺少的字段 ───────────────────────────────────
 (function migrate() {
+  // 迁移计数器：避免每次启动刷一堆"已存在"日志
+  let addedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+
   // users 表迁移
   const cols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
   const add = (col, def) => {
-    if (!cols.includes(col)) {
+    if (cols.includes(col)) { skippedCount++; return; }
+    try {
       db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`);
       console.log(`[DB Migration] users 表已添加列: ${col}`);
+      addedCount++;
+    } catch (e) {
+      console.warn(`[DB Migration] users.${col} ALTER 失败: ${e.message}`);
+      errorCount++;
     }
   };
   add('status',         "TEXT    NOT NULL DEFAULT 'active'");
@@ -305,9 +315,14 @@ db.exec(`
   // cards 表迁移
   const cardCols = db.prepare("PRAGMA table_info(cards)").all().map(c => c.name);
   const addCard = (col, def) => {
-    if (!cardCols.includes(col)) {
+    if (cardCols.includes(col)) { skippedCount++; return; }
+    try {
       db.exec(`ALTER TABLE cards ADD COLUMN ${col} ${def}`);
       console.log(`[DB Migration] cards 表已添加列: ${col}`);
+      addedCount++;
+    } catch (e) {
+      console.warn(`[DB Migration] cards.${col} ALTER 失败: ${e.message}`);
+      errorCount++;
     }
   };
   addCard('card_type',        "TEXT    DEFAULT ''");
@@ -321,9 +336,14 @@ db.exec(`
   // topup_requests 老表加列（兜底迁移：v1.0.14 之前的老库没 fee/net 字段）
   const topupCols = db.prepare("PRAGMA table_info(topup_requests)").all().map(c => c.name);
   const addTopup = (col, type) => {
-    if (!topupCols.includes(col)) {
+    if (topupCols.includes(col)) { skippedCount++; return; }
+    try {
       db.exec(`ALTER TABLE topup_requests ADD COLUMN ${col} ${type}`);
-      console.log(`[migrate] topup_requests.${col} 已添加`);
+      console.log(`[DB Migration] topup_requests 表已添加列: ${col}`);
+      addedCount++;
+    } catch (e) {
+      console.warn(`[DB Migration] topup_requests.${col} ALTER 失败: ${e.message}`);
+      errorCount++;
     }
   };
   addTopup('fee_rate',   "REAL    NOT NULL DEFAULT 0");
@@ -350,13 +370,28 @@ db.exec(`
     INSERT OR IGNORE INTO fee_configs (fee_type, description, fee_rate, fee_fixed, min_amount, max_amount, sort_order)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
+  let feeAdded = 0;
+  let feeExisted = 0;
   for (const [feeType, desc, rate, fixed, minAmt, maxAmt, sort] of seedFees) {
     const r = insertFee.run(feeType, desc, rate, fixed, minAmt, maxAmt, sort);
-    if (r.changes > 0) console.log(`[DB Seed] fee_configs: ${feeType}`);
+    if (r.changes > 0) {
+      console.log(`[DB Seed] fee_configs: ${feeType} ✓ 新增`);
+      feeAdded++;
+    } else {
+      console.log(`[DB Seed] fee_configs: ${feeType} - 已存在`);
+      feeExisted++;
+    }
   }
+  console.log(`[DB Seed] fee_configs 完成: 新增 ${feeAdded} 项, 已存在 ${feeExisted} 项`);
 
   // 更新已存在的 cross_border 为正确的值（1% + $0.45）
   db.prepare(`UPDATE fee_configs SET fee_rate = 0.01, fee_fixed = 0.45, updated_at = nowiso() WHERE fee_type = 'cross_border'`).run();
+
+  // ── 迁移完成汇总日志（每次启动都打，方便确认 migrate 跑过）──────────
+  console.log(`[migrate] ✓ 完成: 新增 ${addedCount} 列, 已存在 ${skippedCount} 列, 失败 ${errorCount} 列 (users/cards/topup_requests 合计)`);
+  if (errorCount > 0) {
+    console.warn(`[migrate] ⚠️ 有 ${errorCount} 个 ALTER 失败，请检查上方错误日志`);
+  }
 })();
 
 // ── 种子数据（首次运行插入默认账号）──────────────────────────────────────
