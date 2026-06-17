@@ -31,6 +31,7 @@ router.get('/', authenticate, (req, res) => {
     const total = db.prepare(`SELECT COUNT(*) c FROM card_transactions t LEFT JOIN cards c ON c.card_id = t.card_id ${whereSql}`).get(...args).c;
     const rows  = db.prepare(`
       SELECT t.id, t.auth_id, t.card_id, c.card_number, t.type, t.status,
+             t.auth_amount AS amount, t.auth_currency AS currency,
              t.auth_amount, t.auth_currency, t.settle_amount, t.settle_currency,
              t.merchant_name, t.create_time, t.auth_time, t.sync_time
       FROM card_transactions t

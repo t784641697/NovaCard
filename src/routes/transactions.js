@@ -42,7 +42,8 @@ router.get('/', (req, res, next) => {
     const rows  = db.prepare(`
       SELECT t.id, t.auth_id, t.card_id, c.card_number, t.type, t.status,
              t.auth_amount, t.auth_currency, t.settle_amount, t.settle_currency,
-             t.merchant_name, t.create_time, t.auth_time, t.sync_time
+             t.merchant_name, t.create_time, t.auth_time, t.sync_time,
+             t.auth_amount AS amount, t.auth_currency AS currency
       FROM card_transactions t
       LEFT JOIN cards c ON c.card_id = t.card_id
       ${whereSql}
