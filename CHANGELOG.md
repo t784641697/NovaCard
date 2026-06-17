@@ -546,3 +546,26 @@
   - DB 完整性：`integrity_check: ok`
   - 已 push 到 `github.com/t784641697/NovaCard`
 - **本地下载**：`https://9b77cfb8-d336-408a-94d4-695b84e403a8.dev.coze.site/static/novacard-backup-20260617-031612.tar.gz`
+
+---
+
+## v1.0.45 | 2026-06-17
+
+### 健康检查端点强化（7 维度自检）
+- 新增 `src/routes/health.js`（7 维度自检）替代 app.js 内联实现
+- 检查项：process / db (integrity_check) / disk / memory / ssl / backup / vmcardio_config
+- 关键项 (db/ssl/backup) 任意失败 → **HTTP 503** + `status=degraded`
+- 修复 better-sqlite3 `db.pragma()` 返回 `[{column:value}]` 数组的解析 bug
+- 验证：正常 → 200/ok；移走 backups/ → 503/degraded；恢复 → 200/ok
+
+### UptimeRobot 监控配置
+- 注册 https://uptimerobot.com/ (免费版)
+- 监控项：nova-vcc.com/health (5 min 间隔)
+- 告警通道：邮件 → Taoliang.light@gmail.com
+- 任一关键维度异常 → 邮件告警
+- 配额：1/50 monitors
+
+### 自动备份首次执行成功
+- 2026-06-17 03:37:53 第一次 crontab 触发执行
+- 输出：novacard-2026-06-17-20260617-033753.tar.gz (2.0MB)
+- 保留 2 份本地副本

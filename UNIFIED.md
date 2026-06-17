@@ -980,3 +980,38 @@ curl -s http://139.180.188.104:5000/health
 - **教训**：沙箱是非持久化环境，关键工具（ssh/git/curl/wget）需在使用前确认
 - **预防**：未来操作前先 `which ssh git curl wget` 一次性检查
 
+
+---
+
+## 17. 健康监控与告警
+
+### 17.1 架构
+- **健康端点**：`GET /health` 返回 7 维度 JSON
+- **外部监控**：UptimeRobot 免费版，每 5 分钟 ping
+- **告警通道**：邮件（Taoliang.light@gmail.com）
+- **响应时间**：异常 → 5 分钟内收到邮件
+
+### 17.2 7 维度检查项
+| 维度 | 检查内容 | 阈值 | 失败时返回 |
+|------|---------|------|------------|
+| process | uptime, pid, Node 版本 | - | 非关键 |
+| db | PRAGMA integrity_check + 大小 + 表数 | - | 关键 → 503 |
+| disk | df -h /opt/vcc-hub 使用率 | warn 85% / fail 95% | 非关键 |
+| memory | process.memoryUsage() rss | warn 512MB | 非关键 |
+| ssl | Cloudflare Origin 证书剩余天数 | warn 30d / fail 7d | 关键 → 503 |
+| backup | /opt/vcc-hub/backups 最新文件 | warn 36h / fail 72h | 关键 → 503 |
+| vmcardio_config | RSA 密钥存在性 | - | 非关键 |
+
+### 17.3 关键/非关键项区分
+- **关键**（3 个）：db / ssl / backup
+  - 这些出问题 = 系统不能正常工作
+  - 任一失败 → HTTP 503 → UptimeRobot DOWN → 邮件告警
+- **非关键**（4 个）：process / disk / memory / vmcardio_config
+  - 这些出问题 = 性能下降但系统仍工作
+  - HTTP 200 + status="warning"
+
+### 17.4 故障排查顺序
+1. 看 UptimeRobot 邮件（5 分钟内必到）
+2. curl https://nova-vcc.com/health 看哪个 check 失败
+3. ssh root@139.180.188.104 验证
+4. pm2 logs vcc-hub 看错误
