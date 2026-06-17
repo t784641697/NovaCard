@@ -3154,7 +3154,7 @@ async function renderTopup() {
   ` : '';
   const usdtFeeHint = isUSDT ? `
           <div style="font-size:.78rem;color:var(--text3);margin-top:8px;padding:8px 12px;background:rgba(0,242,254,.05);border-radius:6px;border-left:3px solid var(--primary,#00f2fe);">
-            💡 <b>入账费率 2%</b>，实际到账金额以管理员确认为准
+            💡 <b>入账费率 <span id="usdtFeeRateText">2%</span></b>，实际到账金额以管理员确认为准
           </div>
   ` : '';
 
@@ -3273,16 +3273,26 @@ async function renderTopup() {
 
   loadTopupHistory();
 
-  // USD 模式：拉取费率 + 绑定预览事件
-  if (!isUSDT) {
-    fetchTopupFeeConfig().then(() => {
+  // USD 模式：拉取费率 + 绑定预览事件；USDT 模式：拉取费率 + 更新提示框费率
+  fetchTopupFeeConfig().then(() => {
+    if (!isUSDT) {
+      // USD 模式：绑定输入事件
       const amtEl = document.getElementById('topupAmt');
       if (amtEl) {
         amtEl.addEventListener('input', updateTopupPreview);
         amtEl.addEventListener('change', updateTopupPreview);
+        // 用户可能已经输入金额，拉到费率后立即刷新预览
+        updateTopupPreview();
       }
-    });
-  }
+    } else {
+      // USDT 模式：把"2%"占位换成实际费率
+      const feeEl = document.getElementById('usdtFeeRateText');
+      if (feeEl && window._topupFeeRate !== undefined) {
+        const pct = window._topupFeeRate * 100;
+        feeEl.textContent = (pct % 1 === 0 ? pct.toString() : pct.toFixed(2)) + '%';
+      }
+    }
+  });
 
   // USDT 模式下生成二维码（默认 TRC20）
   if (isUSDT) {
