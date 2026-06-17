@@ -1047,3 +1047,66 @@ curl -s http://139.180.188.104:5000/health
 1. **dotenv 缺失** → SDK 拿不到 .env → 用默认 sandbox URL → IP 白名单不匹配
 2. **status 判定不一致** → 写 'ok' 但检查 'success'
 3. **错误字段不清除** → 成功时还显示旧错误
+
+## 19. PM2 cluster 模式 + 日志轮转（2026-06-17）
+
+### 19.1 PM2 cluster 配置
+
+| 项目 | 值 |
+|------|-----|
+| 配置文件 | `/opt/vcc-hub/ecosystem.config.cjs` |
+| 模式 | `cluster` |
+| 实例数 | 2（共享 5000 端口）|
+| 启动命令 | `pm2 start ecosystem.config.cjs` |
+| 持久化 | `pm2 save`（开机自启）|
+
+**关键配置**：
+```js
+{
+  name: "vcc-hub",
+  script: "./src/app.js",
+  cwd: "/opt/vcc-hub",        // ← 关键! PM2 默认从 /root 启动
+  instances: 2,
+  exec_mode: "cluster",
+  autorestart: true,
+  max_memory_restart: "512M",
+  env: { NODE_ENV: "production" }
+}
+```
+
+**历史问题**：之前 PM2 跑了 5 次 restart。根因是 `cwd` 默认 /root，找不到 `/opt/vcc-hub/.env` → `process.env.PORT` 是 undefined → Express 用默认 3000 端口 → 5000 未监听 → 外部请求 502 → PM2 不断重启。
+
+### 19.2 故障切换验证
+
+```bash
+# kill 主进程
+kill -9 30772
+# PM2 4 秒内拉起新进程 30891
+# 端口 5000 持续在线（剩余进程 30779 接管）
+# /health 仍返回 ok
+
+# kill 副进程同样自动拉起
+# 0 停机切换
+```
+
+### 19.3 logrotate 规则
+
+| 路径 | 周期 | 保留 | 压缩 |
+|------|------|------|------|
+| `/root/.pm2/logs/vcc-hub-*.log` | daily | 7 天 | delaycompress |
+| `/opt/vcc-hub/logs/*.log` | daily | 14 天 | delaycompress |
+| `/var/log/novacard-*.log` | weekly | 4 周 | delaycompress |
+
+**配置位置**：`/etc/logrotate.d/vcc-hub`
+**触发方式**：系统 `/etc/cron.daily/logrotate`（每天自动跑）
+**关键指令**：`copytruncate`（不发送信号，PM2 持有的文件描述符继续往清空后的文件写）
+**命名格式**：`*.log-20260617`（`dateext -%Y%m%d extension .log`）
+
+### 19.4 部署检查清单
+
+- [x] `ecosystem.config.cjs` 在沙箱 + 部署到 Vultr
+- [x] PM2 启动 2 进程 online
+- [x] /health 8 维度全 ok
+- [x] kill 进程后 4s 内自动拉起
+- [x] logrotate 强制运行成功，生成日期归档
+- [x] `pm2 save` 持久化

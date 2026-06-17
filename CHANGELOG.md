@@ -1,4 +1,20 @@
 
+## v1.0.47 | 2026-06-17 | PM2 cluster 模式 + 日志轮转
+
+**生产环境高可用加固**
+
+- **PM2 cluster 模式**：从单进程 fork 升级为 2 实例 cluster，共享 5000 端口实现 0 停机故障切换
+  - 新增 `ecosystem.config.cjs` 显式指定 `cwd: /opt/vcc-hub`（修复 PM2 从 /root 启动找不到 .env 的根因）
+  - 之前 5 次 restart 记录得到解释：dotenv 缺失 → Express 用默认端口 3000 → 5000 未监听 → PM2 一直重启失败
+  - 已验证：kill 任一进程，4 秒内 PM2 自动拉起新进程，HTTP 服务 0 中断
+- **logrotate 日志轮转**：新增 `/etc/logrotate.d/vcc-hub`，3 段规则
+  - PM2 日志 (`/root/.pm2/logs/vcc-hub-*.log`)：每天切割，保留 7 天，`copytruncate` 不影响 PM2 文件描述符
+  - winston 应用日志 (`/opt/vcc-hub/logs/*.log`)：每天切割，保留 14 天
+  - 运维脚本日志 (`/var/log/novacard-*.log`)：每周切割，保留 4 周
+  - 全部 `dateext -%Y%m%d extension .log` 生成日期归档，`delaycompress` 推迟到下一轮才 gzip
+  - 由系统 `/etc/cron.daily/logrotate` 每天自动触发
+
+
 ## v1.0.40 | 2026-06-14 | KYC审核页表格对齐优化
 
 
