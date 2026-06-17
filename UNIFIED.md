@@ -1015,3 +1015,35 @@ curl -s http://139.180.188.104:5000/health
 2. curl https://nova-vcc.com/health 看哪个 check 失败
 3. ssh root@139.180.188.104 验证
 4. pm2 logs vcc-hub 看错误
+
+---
+
+## 18. 上游交易自动同步 (autoSync)
+
+### 18.1 触发方式
+- **Crontab**：`0 4 * * * cd /opt/vcc-hub && /usr/bin/node src/services/autoSync.js`
+- **手动触发**：`cd /opt/vcc-hub && node src/services/autoSync.js`
+- **手动页面触发**：管理员访问交易监控页（已有逻辑）
+
+### 18.2 同步流程
+```
+启动 → 拿所有 cards.card_id (SELECT card_id FROM cards)
+     → 对每个 card_id 调 sdk.cardTransaction({card_id, page, page_size, start_time, end_time})
+     → 解析返回的 transaction_list 数组
+     → 按 auth_id UPSERT 到 card_transactions
+     → 写 last_tx_sync_* 到 settings 表
+```
+
+### 18.3 重试策略
+- 单次 API 调用：3 次重试，指数退避 1s/2s/4s
+- 单次失败：记入日志，不中断整个同步
+
+### 18.4 关键文件
+- `src/services/autoSync.js` - cron 入口
+- `src/services/transactionSyncService.js` - 核心同步逻辑
+- `src/services/vmcardioSDK.js` - vmcardio API 客户端
+
+### 18.5 常见 bug 与修复
+1. **dotenv 缺失** → SDK 拿不到 .env → 用默认 sandbox URL → IP 白名单不匹配
+2. **status 判定不一致** → 写 'ok' 但检查 'success'
+3. **错误字段不清除** → 成功时还显示旧错误

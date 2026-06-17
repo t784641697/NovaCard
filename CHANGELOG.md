@@ -569,3 +569,26 @@
 - 2026-06-17 03:37:53 第一次 crontab 触发执行
 - 输出：novacard-2026-06-17-20260617-033753.tar.gz (2.0MB)
 - 保留 2 份本地副本
+
+---
+
+## v1.0.46 | 2026-06-17
+
+### 上游交易自动同步 - 完整跑通
+- **Crontab**：`0 4 * * *` 每天 4:00 自动同步 vmcardio 上游交易
+- **同步流程**：拿所有 card_id → 调 vmcardio `/cardTransaction` API → 写入 `card_transactions` 表
+- **3 次重试 + 指数退避**：1s/2s/4s 间隔
+- **健康监控**：8 维度自检，vmcardio_sync 48h 内必须成功
+
+### 排查与修复的 3 个 bug
+1. **dotenv 缺失**：`autoSync.js` 没 `require('dotenv').config()`，SDK 拿不到 `.env` 配置，**用了默认 sandbox URL**（`https://sandbox-api.vmcardio.com`），不在用户白名单的 IP 段
+   - 修复：autoSync.js 顶部加 `require('dotenv').config()`
+2. **status 判定不一致**：autoSync 写 `'ok'`，health 端点检查 `=== 'success'`
+   - 修复：health 接受 `['ok', 'success']` 两种值
+3. **last_tx_sync_error 不清除**：成功时还显示旧错误
+   - 修复：成功分支显式 setSetting('last_tx_sync_error', null)
+
+### 验证
+- Health 端点：status=ok, HTTP 200, 8/8 check 通过
+- vmcardio_sync：0 transactions synced, 0h ago（卡片无消费）
+- 后续每天凌晨 4:00 自动同步，UptimeRobot 实时监控
