@@ -7352,11 +7352,11 @@ function trSetTab(tab) {
 
 // 加载列表
 async function trLoad() {
-  // 拉取充值费率（用于预览手续费）
+  // 拉取全局兜底费率（用于 pending 申请未在 effective_* 时的兜底显示）
   try {
-    const feeR = await apiFetch('/admin/fee-configs?type=topup', {}, true);
-    if (feeR && feeR.code === 0 && feeR.data && feeR.data.length > 0) {
-      window._topupFeeRate = feeR.data[0].fee_rate || 0;
+    const feeR = await apiFetch('/topup/fee-config', {}, true);
+    if (feeR && feeR.code === 0 && feeR.data) {
+      window._topupFeeRate = feeR.data.fee_rate || 0;
     } else {
       window._topupFeeRate = 0;
     }
@@ -7367,6 +7367,9 @@ async function trLoad() {
   const r = await apiFetch('/topup/admin' + statusParam, {}, true);
   if (!r || r.code !== 0) return;
   const list = r.data?.list || [];
+  // 缓存完整对象（id → 申请记录），trApprove 弹窗用 effective_* 字段算费
+  window._trList = {};
+  list.forEach(a => { window._trList[a.id] = a; });
 
   // 统计卡片
   const statsEl = document.getElementById('trStats');
@@ -7435,7 +7438,7 @@ async function trLoad() {
         '<td class="col-time"><span class="tr-time">' + dtFormat(a.created_at) + '</span></td>' +
         '<td class="col-action"><div class="tr-action-btns">' +
           (isPending
-            ? '<button class="tr-btn tr-btn-pass" onclick="trApprove(' + a.id + ',' + Number(a.amount_usdt||0) + ')" title="通过">✓</button>' +
+            ? '<button class="tr-btn tr-btn-pass" onclick="trApprove(' + a.id + ')" title="通过">✓</button>' +
               '<button class="tr-btn tr-btn-reject" onclick="trReject(' + a.id + ')" title="拒绝">✕</button>'
             : '<span style="color:var(--text3);font-size:.8rem;">—</span>'
           ) +
@@ -7445,22 +7448,32 @@ async function trLoad() {
     '</tbody></table></div>';
 }
 
-async function trApprove(id, amount) {
+async function trApprove(id) {
   // ── 防抖锁：防止重复点击触发多次 PATCH（后端会报"该申请已处理"）──
   if (window._trApproving && window._trApproving[id]) {
     return toast('⏳ 正在处理中，请勿重复点击');
   }
 
-  const usdtAmt = amount > 0 ? amount : parseFloat(prompt('请输入入账 USDT 金额（USD）：') || '0');
-  if (!usdtAmt || usdtAmt <= 0) return toast('⚠️ 请输入有效金额');
-  // 实时算手续费（按后端当前费率，仅做预览；实际扣费以后端为准）
-  const feeRate = (window._topupFeeRate || 0);
-  const fee = parseFloat((usdtAmt * feeRate).toFixed(2));
-  const net = parseFloat((usdtAmt - fee).toFixed(2));
+  // 从 trLoad 缓存里取该申请的完整对象（含后端按 user_id 算的 effective_* 字段）
+  const a = (window._trList && window._trList[id]) || {};
+  const origAmt = Number(a.amount_usdt || 0);
+  let usdtAmt = origAmt;
+  if (!usdtAmt || usdtAmt <= 0) {
+    const inp = parseFloat(prompt('请输入入账 USDT 金额（USD）：') || '0');
+    if (!inp || inp <= 0) return toast('⚠️ 请输入有效金额');
+    usdtAmt = inp;
+  }
+  // 用后端按 user_id 算的 effective_* 字段做预览 — 跟 PATCH 实际扣费完全一致
+  const feeRate = Number(a.effective_fee_rate || 0);
+  const fee = Number(a.effective_fee_amount || (parseFloat((usdtAmt * feeRate).toFixed(2))));
+  const net = Number(a.effective_net_amount || (parseFloat((usdtAmt - fee).toFixed(2))));
+  const feePct = (feeRate * 100).toFixed(2);
   const ok = await confirmModal(
     '确认通过该充值申请？<br>' +
     '申请入账：<b>$' + usdtAmt.toFixed(2) + '</b><br>' +
-    (fee > 0 ? '入账手续费：<b style="color:#f87171">$' + fee.toFixed(2) + '</b>（' + (feeRate * 100).toFixed(2) + '%）<br>' : '') +
+    (fee > 0
+      ? '入账手续费：<b style="color:#f87171">$' + fee.toFixed(2) + '</b>（' + feePct + '%）<br>'
+      : '<span style="color:#f59e0b">⚠️ 未设置入账费率，手续费为 0</span><br>') +
     '实际到账：<b style="color:#34d399">$' + net.toFixed(2) + '</b>',
     {
       icon: '✅',
@@ -7482,7 +7495,10 @@ async function trApprove(id, amount) {
       body: JSON.stringify({ status: 'approved', amount_usdt: usdtAmt, note: '' })
     });
     if (r.code === 0) {
-      toast('✅ 充值已通过，$' + net.toFixed(2) + ' 已入账' + (fee > 0 ? '（手续费 $' + fee.toFixed(2) + '）' : ''));
+      // 用后端响应的 net_amount / fee_amount（权威值，覆盖预览）显示
+      const finalNet = Number((r.data && r.data.net_amount) || net);
+      const finalFee = Number((r.data && r.data.fee_amount) || fee);
+      toast('✅ 充值已通过，$' + finalNet.toFixed(2) + ' 已入账' + (finalFee > 0 ? '（手续费 $' + finalFee.toFixed(2) + '）' : ''));
       trLoad();
     }
     else if (r.msg && r.msg.includes('已处理')) {

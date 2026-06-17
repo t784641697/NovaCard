@@ -182,7 +182,7 @@ router.get('/admin', requireAdmin, (req, res, next) => {
 
     const total = db.prepare(`SELECT COUNT(*) as cnt FROM topup_requests t ${where}`).get(...(status ? [status] : [])).cnt;
     const rows  = db.prepare(`
-      SELECT t.id, t.network, t.amount_usdt, t.txhash, t.remark, t.status,
+      SELECT t.id, t.user_id, t.network, t.amount_usdt, t.txhash, t.remark, t.status,
              t.fee_rate, t.fee_amount, t.net_amount,
              t.created_at, t.updated_at,
              u.email as user_email, u.name as user_name
@@ -192,6 +192,22 @@ router.get('/admin', requireAdmin, (req, res, next) => {
       ORDER BY t.id DESC
       LIMIT ? OFFSET ?
     `).all(...args);
+
+    // 对每条申请按其 user_id 重新计算 effective_* 字段（用户级费率优先，回退全局）
+    // 弹窗预览用 effective_* 跟 PATCH 时后端算的 fee_amount 完全一致
+    rows.forEach(r => {
+      try {
+        const feeResult = FeeCalculator.calculateFee('topup', Number(r.amount_usdt || 0), r.user_id);
+        r.effective_fee_rate   = Number(feeResult.fee_rate   || 0);
+        r.effective_fee_amount = Number(feeResult.fee_amount || 0);
+        r.effective_net_amount = Number(feeResult.net_amount || r.amount_usdt || 0);
+      } catch (e) {
+        logger.warn('[topup/admin] effective fee calc failed for id=' + r.id + ': ' + e.message);
+        r.effective_fee_rate   = Number(r.fee_rate   || 0);
+        r.effective_fee_amount = Number(r.fee_amount || 0);
+        r.effective_net_amount = Number(r.net_amount || r.amount_usdt || 0);
+      }
+    });
 
     res.json({ code: 0, msg: 'ok', data: { total, list: rows } });
   } catch (err) {
