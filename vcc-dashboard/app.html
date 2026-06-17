@@ -4632,7 +4632,8 @@ async function loadCardTxList() {
       const typeName = txTypeMap[item.type] || item.type || '—';
       const statusName = txStatusMap[item.status] || item.status || '—';
       const tagCls = item.status === 'COMPLETE' ? 'tag-green' : item.status === 'PENDING' ? 'tag-yellow' : 'tag-red';
-      const isNeg = item.amount < 0;
+      // 按"卡"语义配色：消费/清算(支出)红，退款/撤销(入账)绿
+      const isOut = item.type === 'Authorization' || item.type === 'Settlement';
       return `
       <div style="padding:12px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1.2fr 100px 1fr;gap:12px;align-items:center;font-size:.85rem;">
         <div>
@@ -4647,7 +4648,7 @@ async function loadCardTxList() {
           <span class="tag ${tagCls}" style="font-size:.7rem;">${statusName}</span>
         </div>
         <div style="text-align:right;">
-          <div style="font-weight:700;color:${isNeg ? 'var(--red)' : 'var(--green)'};">$${Math.abs(item.amount||0).toFixed(2)}</div>
+          <div style="font-weight:700;color:${isOut ? 'var(--red)' : 'var(--green)'};">$${Math.abs(item.amount||0).toFixed(2)}</div>
           <div style="color:var(--text3);margin-top:2px;font-size:.75rem;">${fmtDate(item.create_time)}</div>
         </div>
       </div>`;
@@ -4797,7 +4798,8 @@ async function loadCardSettleList() {
   const html = items.map(item => {
     const cardId = item.card_id || '—';
     const amount = item.amount != null ? `$${Math.abs(item.amount).toFixed(2)}` : '—';
-    const isNegative = item.amount < 0;
+    // 按"卡"语义配色：消费/清算(支出)红，退款/撤销(入账)绿
+    const isOut = item.type === 'Settlement' || item.type === 'Authorization';
     const typeName = item.type === 'Settlement' ? '清算' : (item.type === 'Reversal' ? '撤销' : item.type || '—');
     const statusName = item.status === 'COMPLETE' ? '已完成' : item.status === 'PENDING' ? '清算中' : item.status === 'DECLINED' ? '失败' : item.status || '—';
     return `
@@ -4808,7 +4810,7 @@ async function loadCardSettleList() {
         </div>
         <div>
           <div style="color:var(--text2);font-size:.75rem;">交易金额</div>
-          <div style="font-weight:700;color:${isNegative ? 'var(--red)' : 'var(--green)'};margin-top:2px;">${amount}</div>
+          <div style="font-weight:700;color:${isOut ? 'var(--red)' : 'var(--green)'};margin-top:2px;">${amount}</div>
         </div>
         <div>
           <div style="color:var(--text2);font-size:.75rem;">交易ID</div>
