@@ -269,18 +269,6 @@ db.exec(`
     UNIQUE(user_id, fee_type)
   );
   CREATE INDEX IF NOT EXISTS idx_user_fee_configs ON user_fee_configs(user_id, fee_type, is_active);
-
-  CREATE TABLE IF NOT EXISTS notifications (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type        TEXT    NOT NULL DEFAULT 'info',  -- alert / info / warning / system
-    title       TEXT    NOT NULL,
-    content     TEXT    NOT NULL DEFAULT '',
-    related_id  TEXT    DEFAULT NULL,             -- 关联的卡/交易 ID
-    is_read     INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT    NOT NULL DEFAULT (nowiso())
-  );
-  CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
 `);
 
 // ── Schema 迁移：补全旧版本缺少的字段 ───────────────────────────────────

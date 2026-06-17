@@ -1153,3 +1153,37 @@ kill -9 30772
 | 密码来源 | .env `BACKUP_PASSPHRASE` (不存在则明文备份) |
 | 当前密码 | `vAAW2aeJZ9bI+qhgQWNajeNLKDNE8FJ5` (24 字节 base64) |
 | 解密命令 | `gpg -d --passphrase "密码" backup.tar.gz.gpg > backup.tar.gz` |
+
+### 20.5 Telegram 告警
+
+| 维度 | 实现 |
+|------|------|
+| 库 | Telegram Bot API (原生 fetch) |
+| 配置 | .env: TELEGRAM_ENABLED / TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID |
+| 触发 | 启动通知 / 异常消费 / 健康检查失败 |
+| 格式 | HTML 模式 + 自动分块 (Telegram 4096 限制) |
+| 限流 | 100ms 间隔, IPv4 family, 10s timeout |
+| Bot | @NovaCard_alert_bot (token: 8602206550:AAE...) |
+| Chat | NovaCard 告警群 (chat_id: -5318112256) |
+| 关键 | Group Privacy 必须 Disable (否则 bot 收不到群消息) |
+| 文档 | `src/services/telegram.js` 头部 + JSDoc |
+
+### 20.6 PM2 cluster + logrotate
+
+| 维度 | 实现 |
+|------|------|
+| 模式 | cluster, 2 instances, 共享 5000 端口 |
+| 配置 | `ecosystem.config.cjs` (显式 cwd, 避免 .env 找不到) |
+| 重启 | `pm2 reload vcc-hub --update-env` (--update-env 强制重读 .env) |
+| 日志 | logrotate 3 段: PM2 (7d) / winston (14d) / 脚本 (4w) |
+| 零停机 | kill 任一 worker, 4 秒内自动恢复 |
+
+### 20.7 Swagger / OpenAPI
+
+| 维度 | 实现 |
+|------|------|
+| 库 | swagger-jsdoc + swagger-ui-express |
+| 端点 | GET /api/docs (UI) + GET /api/docs.json (raw) |
+| 规范 | OpenAPI 3.0 |
+| 注释 | JSDoc `@swagger` 块, 6 个端点已覆盖 |
+| 组件 | ApiResponse, Transaction, AnomalyAlert schemas |

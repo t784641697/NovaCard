@@ -661,3 +661,28 @@
   - `GET /api/docs.json` - OpenAPI 3.0 规范
 - **覆盖端点**: /health, /api/auth/login, /api/auth/captcha, /api/transactions/export.csv, /api/admin/anomaly-alerts, /api/admin/anomaly-thresholds, /api/admin/notifications/:userId
 - **组件**: ApiResponse, Transaction, AnomalyAlert schemas
+
+## v1.0.53 (2026-06-17) — Telegram 告警
+
+- **新文件**: `src/services/telegram.js` (~190 行)
+- **配置**: `.env` 加 `TELEGRAM_ENABLED` / `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`
+- **接入场景**:
+  1. 启动通知 (app.js 监听成功后发)
+  2. 异常消费告警 (anomalyAlert.js 检测到时推)
+  3. 健康检查失败 (health.js 关键项失败时推, 1h 去重)
+- **API**:
+  - `send(text, opts)` / `sendCritical(text)` / `sendInfo(text)`
+  - `fmtHealthCheck(data)` / `fmtAnomalyAlert(alerts, summary)` / `fmtError(module, error, ctx)` / `fmtStartup(env)`
+  - `isEnabled()` 状态查询
+- **特性**:
+  - HTML 格式 + 自动分块 (Telegram 4096 限制)
+  - IPv4 family + 10s timeout
+  - 限流 100ms 间隔
+  - 静默推送 (disable_notification: true)
+- **部署**:
+  - BotFather 创建 `@NovaCard_alert_bot`, token `8602206550:AAE...`
+  - 创建群 `NovaCard 告警群`, chat_id `-5318112256`
+  - 必须 `/setprivacy` Disable 才能让 bot 接收群消息
+- **PM2 集成**:
+  - `ecosystem.config.cjs` 加 cluster 模式 (2 worker, 共享 5000 端口)
+  - logrotate 配置 3 段规则 (PM2/winston/脚本)

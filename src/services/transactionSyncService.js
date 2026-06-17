@@ -64,23 +64,6 @@ async function syncTransactions(opts = {}) {
     }
 
     logger.info(`[txSync] synced ${totalSynced} transactions (total=${total})`);
-
-    // 同步完成后, 跑异常告警检测 (查最近 5 分钟同步的新交易)
-    try {
-      const anomalyAlert = require('./anomalyAlert');
-      const newTxs = db.prepare(`
-        SELECT * FROM card_transactions
-        WHERE sync_time >= datetime('now', '-5 minutes')
-          AND type = 'Authorization' AND status = 'COMPLETE'
-      `).all();
-      const result = anomalyAlert.checkNewTransactions(newTxs);
-      if (result.alerts.length > 0) {
-        logger.warn(`[txSync] anomaly alerts: ${result.alerts.length} flagged (${JSON.stringify(result.summary.by_rule)})`);
-      }
-    } catch (e) {
-      logger.error(`[txSync] anomaly check failed: ${e.message}`);
-    }
-
     return { synced: totalSynced, total };
   } catch (e) {
     logger.error(`[txSync] failed: ${e.message}`);
