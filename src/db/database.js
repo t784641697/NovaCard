@@ -168,11 +168,6 @@ db.exec(`
     updated_at   TEXT    NOT NULL DEFAULT (nowiso())
   );
 
-  -- 老表加列（幂等迁移）
-  try { db.exec("ALTER TABLE topup_requests ADD COLUMN fee_rate REAL NOT NULL DEFAULT 0"); } catch(e) {}
-  try { db.exec("ALTER TABLE topup_requests ADD COLUMN fee_amount REAL NOT NULL DEFAULT 0"); } catch(e) {}
-  try { db.exec("ALTER TABLE topup_requests ADD COLUMN net_amount REAL NOT NULL DEFAULT 0"); } catch(e) {}
-
   CREATE INDEX IF NOT EXISTS idx_topup_user_id ON topup_requests(user_id);
   CREATE INDEX IF NOT EXISTS idx_topup_status  ON topup_requests(status);
 
@@ -322,6 +317,18 @@ db.exec(`
   addCard('last_verified',    "TEXT    DEFAULT ''");
   addCard('verified_status',  "TEXT    DEFAULT ''");
   addCard('verification_error',"TEXT   DEFAULT ''");
+
+  // topup_requests 老表加列（兜底迁移：v1.0.14 之前的老库没 fee/net 字段）
+  const topupCols = db.prepare("PRAGMA table_info(topup_requests)").all().map(c => c.name);
+  const addTopup = (col, type) => {
+    if (!topupCols.includes(col)) {
+      db.exec(`ALTER TABLE topup_requests ADD COLUMN ${col} ${type}`);
+      console.log(`[migrate] topup_requests.${col} 已添加`);
+    }
+  };
+  addTopup('fee_rate',   "REAL    NOT NULL DEFAULT 0");
+  addTopup('fee_amount', "REAL    NOT NULL DEFAULT 0");
+  addTopup('net_amount', "REAL    NOT NULL DEFAULT 0");
 
   // fee_configs 种子数据（INSERT OR IGNORE 保证幂等）
   // 迁移：将旧的 dispute 记录删除（已被 chargeback 替代）
