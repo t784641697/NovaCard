@@ -4429,7 +4429,7 @@ function ledgerExport() {
   if (s.type)     qs.set('type',     s.type);
   qs.set('limit', '50000');
   const url = '/api/ledger/export.csv?' + qs.toString();
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const token = localStorage.getItem('vcc_token') || '';
   fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
     .then(blob => {
@@ -4582,7 +4582,7 @@ function cardTxExport() {
   if (s.type)     qs.set('type',     s.type);
   qs.set('limit', '50000');
   const url = '/api/transactions/export.csv?' + qs.toString();
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const token = localStorage.getItem('vcc_token') || '';
   fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
     .then(blob => {
@@ -4714,7 +4714,7 @@ function cardSettleExport() {
   qs.set('type', 'Settlement');  // 结算记录固定
   qs.set('limit', '50000');
   const url = '/api/transactions/export.csv?' + qs.toString();
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const token = localStorage.getItem('vcc_token') || '';
   fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
     .then(blob => {
