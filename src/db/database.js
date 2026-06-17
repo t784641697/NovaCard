@@ -356,7 +356,7 @@ db.exec(`
 
   const seedFees = [
     ['card_creation',     '开卡费',       0,     10.00,  0,  0,  10],
-    ['topup',             '充值入账手续费',0.02,  0,     0,  0,  15],  // 用户充值 100 → 扣 2% → 实到 98
+    ['topup',             '入账手续费',    0.02,  0,     0,  0,  15],  // 用户充值 100 → 扣 2% → 实到 98
     ['transaction',       '交易手续费',   0.03,   0.30,  0,  0,  20],
     ['refund',            '退款手续费',   0.05,   0.50,  0,  0,  30],
     ['chargeback',        '拒付手续费',   0.08,   2.00,  0,  0,  40],
@@ -386,6 +386,10 @@ db.exec(`
 
   // 更新已存在的 cross_border 为正确的值（1% + $0.45）
   db.prepare(`UPDATE fee_configs SET fee_rate = 0.01, fee_fixed = 0.45, updated_at = nowiso() WHERE fee_type = 'cross_border'`).run();
+
+  // 同步重命名：老记录 '充值入账手续费' → '入账手续费'（2026-06 重命名）
+  const renTopup = db.prepare(`UPDATE fee_configs SET description = '入账手续费', updated_at = nowiso() WHERE fee_type = 'topup' AND description = '充值入账手续费'`).run();
+  if (renTopup.changes > 0) console.log(`[DB Seed] fee_configs: topup description 重命名 (${renTopup.changes} 条)`);
 
   // ── 迁移完成汇总日志（每次启动都打，方便确认 migrate 跑过）──────────
   console.log(`[migrate] ✓ 完成: 新增 ${addedCount} 列, 已存在 ${skippedCount} 列, 失败 ${errorCount} 列 (users/cards/topup_requests 合计)`);
