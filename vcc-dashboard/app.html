@@ -4341,7 +4341,25 @@ async function renderLedger() {
     <div class="page-header">
       <div><h2>账户流水</h2><p class="text-muted mt-1">账户余额变动历史记录</p></div>
     </div>
-    <div class="panel" style="height:calc(100vh - 180px);display:flex;flex-direction:column;">
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="cm-search-section" style="padding:12px 20px;">
+        <div class="cm-search-row">
+          <div class="cm-tabs-group">
+            <button class="cm-status-tab active" onclick="ledgerSelectType(this,'')">全部</button>
+            <button class="cm-status-tab" onclick="ledgerSelectType(this,'管理员充值')">充值</button>
+            <button class="cm-status-tab" onclick="ledgerSelectType(this,'管理员扣款')">扣款</button>
+          </div>
+          <span class="cm-date-label">交易时间</span>
+          <span id="ledgerDateWrap"></span>
+          <div class="cm-search-actions">
+            <button class="cm-btn-search" onclick="ledgerSearch()">🔍 搜索</button>
+            <button class="cm-btn-reset" onclick="ledgerReset()">重置</button>
+            <button class="cm-btn-reset" onclick="ledgerExport()" title="导出当前筛选为 CSV">📥 导出</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="height:calc(100vh - 280px);display:flex;flex-direction:column;">
       <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:12px;font-size:.75rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         <div>交易时间</div>
         <div>交易类型</div>
@@ -4354,16 +4372,89 @@ async function renderLedger() {
         <div class="skeleton" style="height:300px;border-radius:0;margin:0;"></div>
       </div>
     </div>`;
-  
+
+  // 初始化 DateRangePicker
+  window._ledgerDrPicker = new DateRangePicker({
+    id: 'ledgerDr',
+    container: '#ledgerDateWrap',
+    placeholder: '开始日期 — 结束日期',
+    onConfirm: function(start, end) {
+      window._ledgerSearch.dateFrom = start;
+      window._ledgerSearch.dateTo = end;
+      loadLedgerList();
+    },
+    onClear: function() {
+      window._ledgerSearch.dateFrom = '';
+      window._ledgerSearch.dateTo = '';
+      loadLedgerList();
+    }
+  });
+  window._ledgerDrPicker.init();
+
+  await loadLedgerList();
+}
+
+// 账户流水筛选状态
+window._ledgerSearch = { type: '', dateFrom: '', dateTo: '' };
+
+function ledgerSelectType(btn, value) {
+  btn.closest('div').querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  window._ledgerSearch.type = value;
+  loadLedgerList();
+}
+
+function ledgerSearch() { loadLedgerList(); }
+
+function ledgerReset() {
+  window._ledgerSearch = { type: '', dateFrom: '', dateTo: '' };
+  document.querySelectorAll('#contentArea .cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
+  var first = document.querySelector('#contentArea .cm-status-tab');
+  if (first) first.classList.add('active');
+  if (window._ledgerDrPicker) window._ledgerDrPicker.clear();
+  loadLedgerList();
+}
+
+function ledgerExport() {
+  const s = window._ledgerSearch || {};
+  const qs = new URLSearchParams();
+  if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
+  if (s.dateTo)   qs.set('dateTo',   s.dateTo);
+  if (s.type)     qs.set('type',     s.type);
+  qs.set('limit', '50000');
+  const url = '/api/ledger/export.csv?' + qs.toString();
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ledger-' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('✅ 已导出');
+    })
+    .catch(e => toast('❌ 导出失败: ' + e.message, 'error'));
+}
+
+async function loadLedgerList() {
+  const wrap = document.getElementById('ledgerWrap');
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="skeleton" style="height:300px;border-radius:0;margin:0;"></div>`;
+  const s = window._ledgerSearch || {};
+  const qs = new URLSearchParams({ page_size: '50' });
+  if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
+  if (s.dateTo)   qs.set('dateTo',   s.dateTo);
+  if (s.type)     qs.set('type',     s.type);
   try {
-    const r = await apiFetch('/ledger?page_size=50');
-    if (r.code !== 0) { 
-      document.getElementById('ledgerWrap').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败</div></div>`;
-      return; 
+    const r = await apiFetch('/ledger?' + qs.toString());
+    if (r.code !== 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败</div></div>`;
+      return;
     }
     const items = r.data?.list || [];
     if (!items.length) {
-      document.getElementById('ledgerWrap').innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无账户流水</div></div>`;
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无账户流水</div></div>`;
       return;
     }
     const html = items.map(item => {
@@ -4393,10 +4484,10 @@ async function renderLedger() {
         <div style="text-align:right;color:var(--text1);font-weight:600;">$${balance.toFixed(2)}</div>
       </div>`;
     }).join('');
-    document.getElementById('ledgerWrap').innerHTML = html || '<div class="empty-state"><div class="empty-text">暂无记录</div></div>';
+    wrap.innerHTML = html || '<div class="empty-state"><div class="empty-text">暂无记录</div></div>';
   } catch(e) {
     if (e.message !== 'Unauthorized') {
-      document.getElementById('ledgerWrap').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败，请稍后重试</div></div>`;
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败，请稍后重试</div></div>`;
     }
   }
 }
@@ -4410,33 +4501,117 @@ async function renderCardTx() {
     <div class="page-header">
       <div><h2>卡交易记录</h2><p class="text-muted mt-1">所有虚拟卡的交易明细</p></div>
     </div>
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="cm-search-section" style="padding:12px 20px;">
+        <div class="cm-search-row">
+          <div class="cm-tabs-group">
+            <button class="cm-status-tab active" onclick="cardTxSelectType(this,'')">全部</button>
+            <button class="cm-status-tab" onclick="cardTxSelectType(this,'Authorization')">消费授权</button>
+            <button class="cm-status-tab" onclick="cardTxSelectType(this,'Settlement')">清算</button>
+            <button class="cm-status-tab" onclick="cardTxSelectType(this,'Refund')">退款</button>
+            <button class="cm-status-tab" onclick="cardTxSelectType(this,'Reversal')">撤销</button>
+          </div>
+          <span class="cm-date-label">交易时间</span>
+          <span id="cardTxDateWrap"></span>
+          <div class="cm-search-actions">
+            <button class="cm-btn-search" onclick="cardTxSearch()">🔍 搜索</button>
+            <button class="cm-btn-reset" onclick="cardTxReset()">重置</button>
+            <button class="cm-btn-reset" onclick="cardTxExport()" title="导出当前筛选为 CSV">📥 导出</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="panel">
       <div id="cardTxWrap" style="padding:24px;">
         <div class="skeleton" style="height:300px;border-radius:12px;"></div>
       </div>
     </div>`;
+
+  // 初始化 DateRangePicker
+  window._cardTxDrPicker = new DateRangePicker({
+    id: 'cardTxDr',
+    container: '#cardTxDateWrap',
+    placeholder: '开始日期 — 结束日期',
+    onConfirm: function(start, end) {
+      window._cardTxSearch.dateFrom = start;
+      window._cardTxSearch.dateTo = end;
+      loadCardTxList();
+    },
+    onClear: function() {
+      window._cardTxSearch.dateFrom = '';
+      window._cardTxSearch.dateTo = '';
+      loadCardTxList();
+    }
+  });
+  window._cardTxDrPicker.init();
+
+  await loadCardTxList();
+}
+
+window._cardTxSearch = { type: '', dateFrom: '', dateTo: '' };
+
+function cardTxSelectType(btn, value) {
+  btn.closest('.cm-tabs-group').querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  window._cardTxSearch.type = value;
+  loadCardTxList();
+}
+
+function cardTxSearch() { loadCardTxList(); }
+
+function cardTxReset() {
+  window._cardTxSearch = { type: '', dateFrom: '', dateTo: '' };
+  document.querySelectorAll('#contentArea .cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
+  var first = document.querySelector('#contentArea .cm-status-tab');
+  if (first) first.classList.add('active');
+  if (window._cardTxDrPicker) window._cardTxDrPicker.clear();
+  loadCardTxList();
+}
+
+function cardTxExport() {
+  const s = window._cardTxSearch || {};
+  const qs = new URLSearchParams();
+  if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
+  if (s.dateTo)   qs.set('dateTo',   s.dateTo);
+  if (s.type)     qs.set('type',     s.type);
+  qs.set('limit', '50000');
+  const url = '/api/transactions/export.csv?' + qs.toString();
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'transactions-' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('✅ 已导出');
+    })
+    .catch(e => toast('❌ 导出失败: ' + e.message, 'error'));
+}
+
+async function loadCardTxList() {
+  const wrap = document.getElementById('cardTxWrap');
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="skeleton" style="height:300px;border-radius:12px;"></div>`;
+  const s = window._cardTxSearch || {};
+  const qs = new URLSearchParams({ page_size: '50' });
+  if (s.dateFrom) qs.set('start_time', s.dateFrom + ' 00:00:00');
+  if (s.dateTo)   qs.set('end_time',   s.dateTo   + ' 23:59:59');
+  if (s.type)     qs.set('transaction_type', s.type);
   try {
-    const r = await apiFetch('/transactions?page_size=50');
-    if (r.code !== 0) { 
-      document.getElementById('cardTxWrap').innerHTML = `<div class="empty-state"><div class="empty-text">加载失败</div></div>`;
-      return; 
+    const r = await apiFetch('/transactions?' + qs.toString());
+    if (r.code !== 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-text">加载失败</div></div>`;
+      return;
     }
     const items = r.data?.list || [];
     if (!items.length) {
-      document.getElementById('cardTxWrap').innerHTML = `<div class="empty-state"><div class="empty-text">暂无交易记录</div></div>`;
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-text">暂无交易记录</div></div>`;
       return;
     }
-    const txTypeMap = {
-      Authorization: '消费授权',
-      Settlement: '清算',
-      Refund: '退款',
-      Reversal: '撤销',
-    };
-    const txStatusMap = {
-      PENDING: '清算中',
-      DECLINED: '失败',
-      COMPLETE: '完成',
-    };
+    const txTypeMap = { Authorization: '消费授权', Settlement: '清算', Refund: '退款', Reversal: '撤销' };
+    const txStatusMap = { PENDING: '清算中', DECLINED: '失败', COMPLETE: '完成' };
     const html = items.map(item => `
       <div style="padding:12px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:center;font-size:.85rem;">
         <div>
@@ -4458,10 +4633,10 @@ async function renderCardTx() {
         </div>
       </div>
     `).join('');
-    document.getElementById('cardTxWrap').innerHTML = html;
+    wrap.innerHTML = html;
   } catch(e) {
     if (e.message !== 'Unauthorized') {
-      document.getElementById('cardTxWrap').innerHTML = `<div class="empty-state"><div class="empty-text">加载失败</div></div>`;
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-text">加载失败</div></div>`;
     }
   }
 }
@@ -4475,42 +4650,114 @@ async function renderCardSettle() {
     <div class="page-header">
       <div><h2>卡结算记录</h2><p class="text-muted mt-1">虚拟卡的结算对账记录</p></div>
     </div>
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="cm-search-section" style="padding:12px 20px;">
+        <div class="cm-search-row">
+          <span class="cm-date-label">结算时间</span>
+          <span id="cardSettleDateWrap"></span>
+          <div class="cm-search-actions">
+            <button class="cm-btn-search" onclick="cardSettleSearch()">🔍 搜索</button>
+            <button class="cm-btn-reset" onclick="cardSettleReset()">重置</button>
+            <button class="cm-btn-reset" onclick="cardSettleExport()" title="导出当前筛选为 CSV">📥 导出</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="panel">
       <div id="cardSettleWrap" style="padding:24px;">
         <div class="skeleton" style="height:300px;border-radius:12px;"></div>
       </div>
     </div>`;
-  
-  const r = await apiFetch('/settlements?page_size=50');
-  
-  // 检查API响应
+
+  // 初始化 DateRangePicker
+  window._cardSettleDrPicker = new DateRangePicker({
+    id: 'cardSettleDr',
+    container: '#cardSettleDateWrap',
+    placeholder: '开始日期 — 结束日期',
+    onConfirm: function(start, end) {
+      window._cardSettleSearch.dateFrom = start;
+      window._cardSettleSearch.dateTo = end;
+      loadCardSettleList();
+    },
+    onClear: function() {
+      window._cardSettleSearch.dateFrom = '';
+      window._cardSettleSearch.dateTo = '';
+      loadCardSettleList();
+    }
+  });
+  window._cardSettleDrPicker.init();
+
+  await loadCardSettleList();
+}
+
+window._cardSettleSearch = { dateFrom: '', dateTo: '' };
+
+function cardSettleSearch() { loadCardSettleList(); }
+
+function cardSettleReset() {
+  window._cardSettleSearch = { dateFrom: '', dateTo: '' };
+  if (window._cardSettleDrPicker) window._cardSettleDrPicker.clear();
+  loadCardSettleList();
+}
+
+function cardSettleExport() {
+  const s = window._cardSettleSearch || {};
+  const qs = new URLSearchParams();
+  if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
+  if (s.dateTo)   qs.set('dateTo',   s.dateTo);
+  qs.set('type', 'Settlement');  // 结算记录固定
+  qs.set('limit', '50000');
+  const url = '/api/transactions/export.csv?' + qs.toString();
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'settlements-' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('✅ 已导出');
+    })
+    .catch(e => toast('❌ 导出失败: ' + e.message, 'error'));
+}
+
+async function loadCardSettleList() {
+  const wrap = document.getElementById('cardSettleWrap');
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="skeleton" style="height:300px;border-radius:12px;"></div>`;
+  const s = window._cardSettleSearch || {};
+  const qs = new URLSearchParams({ page_size: '50' });
+  if (s.dateFrom) qs.set('start_time', s.dateFrom + ' 00:00:00');
+  if (s.dateTo)   qs.set('end_time',   s.dateTo   + ' 23:59:59');
+
+  const r = await apiFetch('/settlements?' + qs.toString());
+
   if (r.code === 429) {
-    // 频率限制错误
-    document.getElementById('cardSettleWrap').innerHTML = `
+    wrap.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">⏰</div>
         <div class="empty-text">请求过于频繁</div>
         <div class="empty-sub">请等待1分钟后重试</div>
-        <button class="btn btn-outline mt-4" onclick="renderCardSettle()">🔄 重新加载</button>
+        <button class="btn btn-outline mt-4" onclick="loadCardSettleList()">🔄 重新加载</button>
       </div>`;
     return;
   }
-  
-  if (r.code !== 0) { 
-    // 其他错误
-    document.getElementById('cardSettleWrap').innerHTML = `
+
+  if (r.code !== 0) {
+    wrap.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">⚠️</div>
         <div class="empty-text">${r.msg||'加载失败'}</div>
         <div class="empty-sub">请检查网络连接</div>
-        <button class="btn btn-outline mt-4" onclick="renderCardSettle()">🔄 重新加载</button>
+        <button class="btn btn-outline mt-4" onclick="loadCardSettleList()">🔄 重新加载</button>
       </div>`;
-    return; 
+    return;
   }
-  
+
   const items = r.data?.list || [];
   if (!items.length) {
-    document.getElementById('cardSettleWrap').innerHTML = `
+    wrap.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">📊</div>
         <div class="empty-text">暂无结算记录</div>
@@ -4549,7 +4796,7 @@ async function renderCardSettle() {
       </div>
     `;
   }).join('');
-  document.getElementById('cardSettleWrap').innerHTML = html;
+  wrap.innerHTML = html;
 }
 
 // ══════════════════════════════════════════════
