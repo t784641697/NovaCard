@@ -3469,15 +3469,12 @@ async function loadTopupHistory() {
           <button class="th-fill-btn" onclick="toggleThAmt(${r.id})">${hasAmt ? '修改金额' : '+ 填写金额'}</button>
         `;
       } else if (isApproved && hasNet) {
-        // 申请入账 = amount_usdt（管理员审核确认的入账金额），实到 = net_amount
-        // USD 模式下 amount_usdt = 用户填写金额 + 0，net_amount = 扣费后实到
-        const applied = Number(r.amount_usdt || 0);
+        // 实际入账金额：approved 时显示 net_amount（实到），样式与左侧时间一致（渐变文字）
         const net = Number(r.net_amount);
         rightExtra = `
-          <div class="th-net-block">
-            <div class="th-net-row"><span class="th-net-label">申请入账</span><span class="th-net-val">$${applied.toFixed(2)}</span></div>
-            ${fee > 0 ? `<div class="th-net-row th-net-fee"><span class="th-net-label">入账手续费</span><span class="th-net-val">-$${fee.toFixed(2)}</span></div>` : ''}
-            <div class="th-net-row th-net-total"><span class="th-net-label">实际到账</span><span class="th-net-val th-net-final">$${net.toFixed(2)}</span></div>
+          <div class="th-net-block" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+            <div class="th-amount" style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">$${net.toFixed(2)}</div>
+            <div style="font-size:11px;color:var(--muted);letter-spacing:.5px">实际入账</div>
           </div>
         `;
       } else if (hasAmt) {
