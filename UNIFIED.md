@@ -171,9 +171,11 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 
 ## 6. 生产服务器
 
+> **⚠️ 重要**：本节描述的是**已弃用**的旧腾讯云服务器（`43.135.26.36`）。当前生产环境见 §13。
+
 | 项目 | 信息 |
 |------|------|
-| 地址 | `43.135.26.36` |
+| 地址（已停用）| `43.135.26.36` |
 | SSH | `ubuntu` / `System.error.9` |
 | 项目路径 | `/opt/vcc-hub` |
 | 进程管理 | PM2（进程名: `vcc-hub`） |
