@@ -1194,11 +1194,17 @@ select.form-control option{background:var(--bg3);}
 <div id="splash" style="position:fixed;inset:0;background:#0b0d17;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;transition:opacity .3s">
   <div style="font-size:48px;margin-bottom:16px">💳</div>
   <div style="font-size:20px;font-weight:700;background:linear-gradient(135deg,#7eb8f7,#a78bfa,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent">NovaCard</div>
-  <div style="margin-top:24px;width:120px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden">
-    <div id="splashBar" style="width:0;height:100%;background:linear-gradient(90deg,#7eb8f7,#a78bfa,#e879f9);border-radius:2px;transition:width .3s"></div>
+  <div style="margin-top:24px;width:120px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;position:relative">
+    <div id="splashBar" style="position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(90deg,transparent,#7eb8f7,#a78bfa,#e879f9,transparent);border-radius:2px;animation:splashShimmer 1.2s linear infinite"></div>
   </div>
   <div id="splashText" style="margin-top:12px;font-size:13px;color:#6b7a90">正在加载...</div>
 </div>
+<style>
+@keyframes splashShimmer {
+  0%   { left: -40%; }
+  100% { left: 100%; }
+}
+</style>
 
 
 <div id="toast"></div>
@@ -9238,17 +9244,21 @@ document.addEventListener('DOMContentLoaded', function() {
   // 移除加载骨架屏
   const splash = document.getElementById('splash');
   if (splash) {
-    document.getElementById('splashBar').style.width = '100%';
     document.getElementById('splashText').textContent = '加载完成';
     setTimeout(() => { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 300); }, 200);
   }
-  // 保险：最多5秒后强制移除splash，防止JS报错导致遮罩不消失
+  // 保险：最多2秒后强制移除splash，防止JS报错导致遮罩不消失
   setTimeout(() => {
     const s = document.getElementById('splash');
     if (s) { s.style.opacity = '0'; setTimeout(() => s.remove(), 300); }
-  }, 5000);
+  }, 2000);
   // refreshCaptcha('login');
 });
+// 终极保险：3秒后强制移除 splash（不依赖任何事件）
+setTimeout(() => {
+  const s = document.getElementById('splash');
+  if (s && s.parentNode) s.remove();
+}, 3000);
 </script>
 
 
