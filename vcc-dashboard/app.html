@@ -4387,12 +4387,12 @@ async function renderLedger() {
     onConfirm: function(start, end) {
       window._ledgerSearch.dateFrom = start;
       window._ledgerSearch.dateTo = end;
-      loadLedgerList();
+      // 用户点"搜索"才查
     },
     onClear: function() {
       window._ledgerSearch.dateFrom = '';
       window._ledgerSearch.dateTo = '';
-      loadLedgerList();
+      // 用户点"搜索"才查
     }
   });
   window._ledgerDrPicker.init();
@@ -4407,7 +4407,7 @@ function ledgerSelectType(btn, value) {
   btn.closest('div').querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
   btn.classList.add('active');
   window._ledgerSearch.type = value;
-  loadLedgerList();
+  // 用户点"搜索"才查
 }
 
 function ledgerSearch() { loadLedgerList(); }
@@ -4541,12 +4541,12 @@ async function renderCardTx() {
     onConfirm: function(start, end) {
       window._cardTxSearch.dateFrom = start;
       window._cardTxSearch.dateTo = end;
-      loadCardTxList();
+      // 用户点"搜索"才查
     },
     onClear: function() {
       window._cardTxSearch.dateFrom = '';
       window._cardTxSearch.dateTo = '';
-      loadCardTxList();
+      // 用户点"搜索"才查
     }
   });
   window._cardTxDrPicker.init();
@@ -4560,7 +4560,7 @@ function cardTxSelectType(btn, value) {
   btn.closest('.cm-tabs-group').querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
   btn.classList.add('active');
   window._cardTxSearch.type = value;
-  loadCardTxList();
+  // 用户点"搜索"才查
 }
 
 function cardTxSearch() { loadCardTxList(); }
@@ -4683,12 +4683,12 @@ async function renderCardSettle() {
     onConfirm: function(start, end) {
       window._cardSettleSearch.dateFrom = start;
       window._cardSettleSearch.dateTo = end;
-      loadCardSettleList();
+      // 用户点"搜索"才查
     },
     onClear: function() {
       window._cardSettleSearch.dateFrom = '';
       window._cardSettleSearch.dateTo = '';
-      loadCardSettleList();
+      // 用户点"搜索"才查
     }
   });
   window._cardSettleDrPicker.init();
