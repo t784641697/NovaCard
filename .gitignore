@@ -28,3 +28,5 @@ config/*_old*
 
 # 保留 backups/ 目录的备份文件（手动备份）
 !backups/
+VCC-HUB-BACKUP-PASSWORD.txt
+vcc-dashboard/VCC-HUB-BACKUP-PASSWORD.txt
