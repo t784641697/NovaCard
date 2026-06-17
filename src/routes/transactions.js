@@ -6,29 +6,52 @@
 
 const express = require('express');
 const router  = express.Router();
-const sdk     = require('../services/vmcardioSDK');
 const db      = require('../db');
 const { authenticate } = require('../middleware/auth');
 
 router.use(authenticate);
 
-// GET /api/transactions?card_id=&transaction_type=&status=&start_time=&end_time=&page=&page_size=
-router.get('/', async (req, res, next) => {
+/**
+ * GET /api/transactions — 查本地 card_transactions 表（与 export.csv 数据源一致）
+ * 支持 card_id / transaction_type / status / start_time / end_time / page / page_size
+ * 鉴权：管理员看全部，普通用户只看自己卡的
+ */
+router.get('/', (req, res, next) => {
   try {
-    const params = {
-      card_id:          req.query.card_id          || undefined,
-      transaction_type: req.query.transaction_type || undefined,
-      status:           req.query.status           || undefined,
-      start_time:       req.query.start_time       || undefined,
-      end_time:         req.query.end_time         || undefined,
-      page:             parseInt(req.query.page)      || 1,
-      page_size:        parseInt(req.query.page_size) || 20,
-    };
-    const result = await sdk.cardTransaction(params);
-    res.json({ code: 0, msg: 'ok', data: result });
-  } catch (err) {
-    next(err);
-  }
+    const userId  = req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    const where = [];
+    const args  = [];
+
+    if (req.query.card_id) { where.push('t.card_id = ?'); args.push(req.query.card_id); }
+    if (!isAdmin) {
+      where.push('c.user_id = ?');
+      args.push(userId);
+    }
+    if (req.query.transaction_type) { where.push('t.type = ?'); args.push(req.query.transaction_type); }
+    if (req.query.status)           { where.push('t.status = ?'); args.push(req.query.status); }
+    if (req.query.start_time)       { where.push('t.create_time >= ?'); args.push(req.query.start_time); }
+    if (req.query.end_time)         { where.push('t.create_time <= ?'); args.push(req.query.end_time); }
+
+    const page      = Math.max(1, parseInt(req.query.page)      || 1);
+    const pageSize  = Math.min(200, Math.max(1, parseInt(req.query.page_size) || 20));
+    const offset    = (page - 1) * pageSize;
+
+    const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const total = db.prepare(`SELECT COUNT(*) c FROM card_transactions t LEFT JOIN cards c ON c.card_id = t.card_id ${whereSql}`).get(...args).c;
+    const rows  = db.prepare(`
+      SELECT t.id, t.auth_id, t.card_id, c.card_number, t.type, t.status,
+             t.auth_amount, t.auth_currency, t.settle_amount, t.settle_currency,
+             t.merchant_name, t.mcc, t.country, t.create_time, t.auth_time, t.sync_time
+      FROM card_transactions t
+      LEFT JOIN cards c ON c.card_id = t.card_id
+      ${whereSql}
+      ORDER BY t.create_time DESC
+      LIMIT ? OFFSET ?
+    `).all(...args, pageSize, offset);
+
+    res.json({ code: 0, msg: 'ok', data: { list: rows, total, page, page_size: pageSize } });
+  } catch (err) { next(err); }
 });
 
 /**
