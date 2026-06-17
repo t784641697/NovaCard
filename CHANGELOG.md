@@ -515,3 +515,34 @@
   - Entry 2：`openCardTransactionsModal(cardId)` mode='card'，先拉 /info 再调底层
   - 弹窗宽度统一 960×720，复用 95% 代码
 - **数据库**：cards 表 schema 字段名修正（`available_amount` 而非 `available_balance`，无 `currency`/`brand` 列）
+
+## v1.0.44 | 2026-06-17 | Vultr 自动备份脚本 + Cloudflare 三项优化
+
+**新增：Vultr 自动备份脚本（`scripts/auto-backup.sh`）**
+
+- **备份内容**：`data/vcc.db` (VACUUM INTO 热备份) + `.env` + `config/*.pem`
+- **备份策略**：
+  - 本地轮转保留 7 天（`/opt/vcc-hub/backups/`，自动清理）
+  - 可选 GitHub Release 推送（配置 `GITHUB_PAT` + `GITHUB_REPO` 到 `.env`）
+- **执行时间**：每天凌晨 3:00（crontab `0 3 * * *`）
+- **关键技术**：
+  - `VACUUM INTO` (SQLite 3.27+) 替代 better-sqlite3 `.backup()`（该 API 不存在）
+  - 备份后用 `PRAGMA integrity_check` 验证（3 users / 16 tables / integrity: ok）
+  - VACUUM 后 DB 从 5.5MB 压缩到 2.9MB（节省 48%）
+- **日志**：`/var/log/novacard-backup.log`
+- **远程推送**（可选）：通过 GitHub REST API 创建 daily release，每天一个 `backup-YYYY-MM-DD-HHMMSS` tag
+
+**Cloudflare 三项优化**
+
+- ✅ **Always Use HTTPS**：Edge Certificates → On，`http://nova-vcc.com/` 自动 301 → `https://`
+- ✅ **Brotli**：Cloudflare Free 计划默认开启（`content-encoding: br`），app.html 从 471KB → 106KB（**省 77%**）
+- ✅ **Auto Minify**：Free 计划强制开启（不可关闭），UI 不可见但实际生效
+- ❌ **Rocket Loader**：未启用（与 `app.html` 内联 JS 兼容性风险）
+
+**首次双份备份（2026-06-17）**
+
+- **Git 备份**：commit `ac4c99e`，`backups/novacard-2026-06-17-031612.tar.gz` (4MB)
+  - 含 `data/vcc.db` + `.env` + `config/` 全部
+  - DB 完整性：`integrity_check: ok`
+  - 已 push 到 `github.com/t784641697/NovaCard`
+- **本地下载**：`https://9b77cfb8-d336-408a-94d4-695b84e403a8.dev.coze.site/static/novacard-backup-20260617-031612.tar.gz`

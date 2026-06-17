@@ -796,3 +796,187 @@ sudo tail -f /var/log/nginx/vcc-hub-access.log
 | 浏览器显示"不安全" | Universal SSL 未签发完成 | 等 15-20 分钟，Cloudflare 自动签发 |
 | ERR_CONNECTION_TIMED_OUT | DNS 还没传播 | https://dnschecker.org/ 检查全球解析 |
 | `linuxuser` SSH 失败 | 公钥只注入到 root | `cp /root/.ssh/authorized_keys /home/linuxuser/.ssh/` |
+
+## 14. Vultr 自动备份脚本
+
+### 14.1 部署信息
+
+| 项 | 值 |
+|---|---|
+| 脚本路径 | `/opt/vcc-hub/scripts/auto-backup.sh`（同时存在沙箱 `/workspace/projects/scripts/auto-backup.sh`） |
+| 配置示例 | `/workspace/projects/scripts/auto-backup.env.example` |
+| 执行时间 | `0 3 * * *`（每天凌晨 3:00） |
+| crontab 状态 | `systemctl is-active cron` = `active` |
+| 日志 | `/var/log/novacard-backup.log` |
+| 本地备份目录 | `/opt/vcc-hub/backups/`（保留 7 天，自动轮转） |
+
+### 14.2 备份流程
+
+```
+[1/4] SQLite 热备份 (VACUUM INTO)
+       ↓
+[2/4] 打包 tar.gz (data/ + .env + config/)
+       ↓
+[3/4] 验证备份 (integrity_check + tar list)
+       ↓
+[4a/4] 本地轮转 (保留 7 天)
+       ↓
+[4b/4] 可选 GitHub Release 推送 (需 GITHUB_PAT)
+```
+
+### 14.3 关键技术细节
+
+- **SQLite 备份**：用 `VACUUM INTO` (SQLite 3.27+) 而非 `cp`，原因：
+  - `cp` 在 WAL 模式下可能丢失未 checkpoint 的数据
+  - `VACUUM INTO` 输出是**已 checkpoint + 已压缩**的干净文件
+  - 副作用：源 DB 不被修改（VACUUM INTO 是输出到新文件）
+  - 实际效果：5.5MB → 2.9MB（节省 48%）
+
+- **管道 SIGPIPE 修复**：`set -o pipefail` + `grep -q` 会因为 grep 提前退出导致 tar 收到 SIGPIPE，整个 pipeline 失败。改用临时文件：
+  ```bash
+  tar tzf "$BACKUP_PATH" > "$TAR_LIST" 2>/dev/null
+  grep -q "^data/vcc.db$" "$TAR_LIST" || err "备份中无 data/vcc.db"
+  rm -f "$TAR_LIST"
+  ```
+
+- **better-sqlite3 `.backup()` 不可用**：该 API 来自 node-sqlite3，better-sqlite3 不实现。改用 `VACUUM INTO` 替代。
+
+### 14.4 启用 GitHub Release 推送（可选）
+
+```bash
+# 1. 创建 GitHub PAT: https://github.com/settings/tokens/new
+#    勾选 "public_repo" 或 "repo" 权限
+
+# 2. 追加到 /opt/vcc-hub/.env
+echo "GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxx" >> /opt/vcc-hub/.env
+echo "GITHUB_REPO=t784641697/NovaCard" >> /opt/vcc-hub/.env
+
+# 3. 重启 cron (其实不需要,下次跑就生效)
+# crontab 每天 3:00 自动跑
+```
+
+推送后会在 GitHub 看到：
+- 每天一个 Release tag: `backup-2026-06-17-033737`
+- Release 标题: `NovaCard Backup 2026-06-17`
+- Asset: `novacard-2026-06-17-033737.tar.gz` (~2MB)
+
+### 14.5 手动触发备份
+
+```bash
+ssh root@139.180.188.104 '/opt/vcc-hub/scripts/auto-backup.sh'
+```
+
+### 14.6 验证备份完整性
+
+```bash
+# 1. 在 Vultr 验证
+ssh root@139.180.188.104 'cd /opt/vcc-hub/backups && for f in *.tar.gz; do
+  echo "=== $f ==="
+  tar tzf "$f" | head -10
+  echo "大小: $(du -h $f | cut -f1)"
+done'
+
+# 2. 在沙箱验证
+cd /workspace/projects/backups
+for f in *.tar.gz; do
+  tar xzf "$f" -C /tmp/test-restore
+  node -e "const D=require('better-sqlite3'); \
+    const db=new D('/tmp/test-restore/data/vcc.db',{readonly:true}); \
+    console.log('$f:', db.pragma('integrity_check')); \
+    console.log('  users:', db.prepare('SELECT count(*) c FROM users').get().c);"
+  rm -rf /tmp/test-restore
+done
+```
+
+## 15. Cloudflare 三项优化
+
+### 15.1 Always Use HTTPS（强制 HTTPS）
+
+| 项 | 值 |
+|---|---|
+| 路径 | Cloudflare Dashboard → nova-vcc.com → **SSL/TLS → Edge Certificates** |
+| 开关 | Always Use HTTPS → **On** |
+| 效果 | `http://nova-vcc.com/` → `301` → `https://nova-vcc.com/` |
+| 验证 | `curl -sI http://nova-vcc.com/` 返回 `Location: https://nova-vcc.com/` |
+| 计划要求 | **Free** 计划支持 |
+
+### 15.2 Brotli 压缩
+
+| 项 | 值 |
+|---|---|
+| 路径 | 无需手动开，Cloudflare Free 计划**默认启用** |
+| 验证 | `curl -sI -H "Accept-Encoding: br" https://nova-vcc.com/static/app.html` |
+| 响应头 | `content-encoding: br` |
+| 实际效果 | `app.html` 从 **471KB → 106KB**（省 77%） |
+| 计划要求 | **Free** 计划支持 |
+
+### 15.3 Auto Minify（HTML/CSS/JS 压缩）
+
+| 项 | 值 |
+|---|---|
+| 路径 | Speed → Settings → Content Optimization |
+| 状态 | **Free 计划 UI 不显示开关**（强制启用不可关闭） |
+| 计划要求 | **Free** 计划强制启用 |
+| 验证 | 看 Source 视图，HTML/CSS/JS 已被去除空白和注释 |
+
+### 15.4 未启用的优化
+
+| 优化 | 状态 | 原因 |
+|---|---|---|
+| Rocket Loader | ❌ Off | `app.html` 有大量内联 JS，开启会导致初始化竞态 |
+| HTTP/3 (QUIC) | ⚠️ 默认开 | 一般不需要调整 |
+| Early Hints | ⚠️ 默认开 | 一般不需要调整 |
+
+### 15.5 综合性能影响
+
+| 资源 | 原始 | Brotli 后 | 节省 |
+|---|---|---|---|
+| `app.html` (482KB) | 482,650 B | 109,076 B | **77%** |
+| API JSON 响应 | ~10-50KB | ~3-15KB | 70%+ |
+| 第三方资源 (CDN) | 不变 | 不变 | 0% (Cloudflare 不压缩跨域) |
+
+## 16. 首次双份备份记录（2026-06-17）
+
+### 16.1 备份快照
+
+| 项 | 值 |
+|---|---|
+| 时间 | 2026-06-17 03:16 UTC |
+| 备份文件 | `novacard-backup-20260617-031612.tar.gz` |
+| 大小 | 4,085,951 bytes (4 MB) |
+| 包含 | `data/vcc.db` (5.5MB → 2.9MB VACUUM 后) + `.env` + `config/*.pem` + `card-products-data.json` |
+| DB 完整性 | `integrity_check: ok` |
+| 数据量 | 3 users / 16 tables / 9 fee_configs / 8 upstream_fees / 1 kyc_application / 10 audit_logs |
+
+### 16.2 备份目的地
+
+| 目的地 | 路径 | 状态 |
+|---|---|---|
+| **本地下载** | `https://9b77cfb8-d336-408a-94d4-695b84e403a8.dev.coze.site/static/novacard-backup-20260617-031612.tar.gz` | ✅ 可用 |
+| **GitHub 仓库** | `github.com/t784641697/NovaCard` / `backups/` 目录 / commit `ac4c99e` | ✅ 已 push |
+| **沙箱本地** | `/workspace/projects/backups/novacard-backup-20260617-031612.tar.gz` | ✅ 存在 |
+| **Vultr 服务器** | 备份时在 `/tmp/`，已删除（不浪费磁盘） | ✅ 已删除 |
+
+### 16.3 备份恢复演练
+
+```bash
+# 1. 从沙箱下载
+wget https://9b77cfb8-d336-408a-94d4-695b84e403a8.dev.coze.site/static/novacard-backup-20260617-031612.tar.gz
+
+# 2. 解压
+tar xzf novacard-backup-20260617-031612.tar.gz -C /opt/vcc-hub/
+
+# 3. 重启服务
+pm2 restart vcc-hub
+
+# 4. 验证
+curl -s http://139.180.188.104:5000/health
+```
+
+### 16.4 沙箱 SSH 客户端丢失事件
+
+- **现象**：沙箱中 `ssh` 命令突然消失（30 分钟内从可用变为 `command not found`）
+- **修复**：`apt-get install -y openssh-client`（9.6p1）
+- **教训**：沙箱是非持久化环境，关键工具（ssh/git/curl/wget）需在使用前确认
+- **预防**：未来操作前先 `which ssh git curl wget` 一次性检查
+
