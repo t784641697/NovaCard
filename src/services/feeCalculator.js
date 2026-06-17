@@ -171,7 +171,7 @@ class FeeCalculator {
       config.min_amount === undefined ? null : config.min_amount,
       config.max_amount === undefined ? null : config.max_amount,
       config.notes || null,
-      config.is_active !== undefined ? config.is_active : true,
+      config.is_active !== undefined ? (config.is_active ? 1 : 0) : 1,
       now
     );
     
