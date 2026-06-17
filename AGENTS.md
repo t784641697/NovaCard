@@ -113,27 +113,54 @@ node src/app.js # 生产模式
 4. **前端**: 单页应用，所有逻辑在 `app.html` 中内联，通过 CDN 加载 Chart.js 和 QRCode.js。
 
 ### 🔧 生产服务器
+
+> **⚠️ 注意**：AGENTS.md 历史版本写的是 **旧腾讯云服务器 `43.135.26.36`**，该服务器已于 2026-05 弃用。新部署请使用下方 Vultr 新加坡服务器。
+
+#### 当前生产（Vultr 新加坡 + Cloudflare CDN）
+
 | 项目 | 信息 |
 |------|------|
-| 地址 | `http://43.135.26.36` |
-| SSH 账号 | `ubuntu` |
-| SSH 密码 | `System.error.9` |
-| 项目目录 | `/opt/vcc-hub` |
+| 对外域名 | **`https://nova-vcc.com/`**（Cloudflare Proxied，自动 HTTPS） |
+| 真实 IP | `139.180.188.104`（仅源站，访客看不到） |
+| SSH 账号 | `root`（RSA 私钥 `/workspace/projects/.ssh/vultr_new_key`） |
+| SSH 备用 | `linuxuser@139.180.188.104`（无 sudo 免密，权限受限） |
+| 镜像 | Vultr Ubuntu 24.04（默认用户 `linuxuser`，UID 1000） |
+| 项目目录 | `/opt/vcc-hub`（root:root 拥有） |
 | 入口文件 | `/opt/vcc-hub/src/app.js` |
-| 进程管理 | PM2（进程名: `vcc-hub`） |
+| 进程管理 | PM2（进程名: `vcc-hub`，模式: `cluster`，2 workers） |
 | 环境配置 | `/opt/vcc-hub/.env`（PORT=5000） |
 | 前端目录 | `/opt/vcc-hub/vcc-dashboard` |
-| 方向代理 | Nginx 80 → 后端 5000 |
+| 反向代理 | Nginx 80/443 → 后端 127.0.0.1:5000 |
+| DNS | Namecheap：A `nova-vcc.com` → `139.180.188.104` (🔶 Proxied) |
 | Git 仓库 | `origin/main` → `github.com/t784641697/NovaCard` |
 
 **部署命令：**
 ```bash
-# 拉取最新代码
-cd /opt/vcc-hub && git fetch origin && git reset --hard origin/main
+# SSH 登录（root 有完整权限，推荐）
+ssh -i /workspace/projects/.ssh/vultr_new_key root@139.180.188.104
 
-# 重启服务
-cd /opt/vcc-hub && pm2 delete vcc-hub && pm2 start src/app.js --name vcc-hub --update-env && pm2 save
+# 拉取最新代码 + 重启服务
+cd /opt/vcc-hub && \
+  git fetch origin && \
+  git reset --hard origin/main && \
+  pm2 reload vcc-hub --update-env
+
+# 查看状态
+pm2 list
+pm2 logs vcc-hub --lines 50
+
+# 重启 Nginx
+sudo systemctl restart nginx
 ```
+
+#### 旧生产（已弃用，仅作备份保留）
+
+| 项目 | 信息 |
+|------|------|
+| 地址 | `http://43.135.26.36`（腾讯云香港，**已停止对外服务**） |
+| SSH 账号 | `ubuntu` / 密码 `System.error.9` |
+| 数据 | `/opt/vcc-hub/data/vcc.db` 作为备份保留 |
+| 用途 | 仅供参考，**不要部署到这台** |
 
 ### 📌 已知问题和修复记录
 | 版本 | 日期 | 修复内容 |
@@ -151,6 +178,7 @@ cd /opt/vcc-hub && pm2 delete vcc-hub && pm2 start src/app.js --name vcc-hub --u
 | v1.0.10 | 2026-05-22 | 卡段页面优化：可用/暂不可用区分展示（10可用+7不可用，置灰+暂不可用标签） |
 | v1.0.12 | 2026-06-02 | 卡段使用说明展示：后端 HARDCODED_PRODUCTS 扩充为全部10个可用卡段，增加 metadata（适用平台、验证类型、限额、禁止事项）；前端开卡 Step2 新增卡段提醒信息面板 |
 | v1.0.13 | 2026-06-04 | **RSA 密钥修复**：重新生成 merchant 密钥对（2048-bit），用户上传公钥到 vmcardio 后恢复正常解密；修复 `/api/admin/merchant-balance` 解析上游返回格式错误（result.balance → result.data.balance） |
+| v1.0.14 | 2026-06-17 | **AGENTS.md 生产服务器信息纠正**：之前误把已弃用的腾讯云 `43.135.26.36` 标为生产，实际生产是 Vultr 新加坡 `139.180.188.104` + Cloudflare + `nova-vcc.com`；同日修复"卡交易/卡结算金额配色按'卡'语义"（消费/清算红、退款/撤销绿）+ `Cache-Control: no-store` 防止 CDN/浏览器缓存旧 HTML |
 
 ### 🔴 重要：双 API 架构说明
 
