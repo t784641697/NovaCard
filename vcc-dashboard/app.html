@@ -3413,7 +3413,16 @@ async function submitTopup() {
       : { network, amount_usdt: amt, txhash: '', remark };
     const res = await apiFetch('/topup',{method:'POST',body:JSON.stringify(body)});
     if (res.code!==0) { toast('❌ '+(res.msg||'提交失败')); return; }
-    toast('✅ 充值申请已提交');
+    // 提交成功后，弹预览"申请 $X → 预计到账 $Y（已扣手续费 $Z）"
+    if (res.data && Number(res.data.net_amount) > 0) {
+      const applied = Number(res.data.amount_usdt || 0).toFixed(2);
+      const net = Number(res.data.net_amount).toFixed(2);
+      const fee = Number(res.data.fee_amount || 0).toFixed(2);
+      const rate = (Number(res.data.fee_rate || 0) * 100).toFixed(2);
+      toast(`✅ 充值申请已提交：申请 $${applied}，预计到账 $${net}（已扣 ${rate}% 手续费 $${fee}）`, 4500);
+    } else {
+      toast('✅ 充值申请已提交');
+    }
     if (amtEl) amtEl.value='';
     if (remarkEl) remarkEl.value='';
     document.querySelectorAll('.amount-chip,.network-chip,.usdt-pay-card').forEach(e=>e.classList.remove('selected'));
@@ -3447,12 +3456,33 @@ async function loadTopupHistory() {
       const s = statusMap[r.status]||{tag:'tag-purple',label:r.status};
       const dt = new Date(r.created_at).toLocaleString('zh-CN');
       const isPending = r.status === 'pending';
+      const isApproved = r.status === 'approved' || r.status === 'rejected';
       const hasAmt = r.amount_usdt && Number(r.amount_usdt) > 0;
+      const hasNet = r.net_amount && Number(r.net_amount) > 0;
+      const fee = r.fee_amount && Number(r.fee_amount) > 0 ? Number(r.fee_amount) : 0;
       // 右侧：pending 时显示「填写金额」按钮 + 已填金额（如有）
-      const rightExtra = isPending ? `
-        ${hasAmt ? `<span class="th-filled-amt">$${Number(r.amount_usdt).toFixed(2)}</span>` : ''}
-        <button class="th-fill-btn" onclick="toggleThAmt(${r.id})">${hasAmt ? '修改金额' : '+ 填写金额'}</button>
-      ` : (hasAmt ? `<span class="th-filled-amt" style="margin-right:8px">$${Number(r.amount_usdt).toFixed(2)}</span>` : '');
+      // approved 时显示「申请入账 $X / 入账手续费 $Y / 实到 $Z」三行明细
+      let rightExtra = '';
+      if (isPending) {
+        rightExtra = `
+          ${hasAmt ? `<span class="th-filled-amt">$${Number(r.amount_usdt).toFixed(2)}</span>` : ''}
+          <button class="th-fill-btn" onclick="toggleThAmt(${r.id})">${hasAmt ? '修改金额' : '+ 填写金额'}</button>
+        `;
+      } else if (isApproved && hasNet) {
+        // 申请入账 = amount_usdt（管理员审核确认的入账金额），实到 = net_amount
+        // USD 模式下 amount_usdt = 用户填写金额 + 0，net_amount = 扣费后实到
+        const applied = Number(r.amount_usdt || 0);
+        const net = Number(r.net_amount);
+        rightExtra = `
+          <div class="th-net-block">
+            <div class="th-net-row"><span class="th-net-label">申请入账</span><span class="th-net-val">$${applied.toFixed(2)}</span></div>
+            ${fee > 0 ? `<div class="th-net-row th-net-fee"><span class="th-net-label">入账手续费</span><span class="th-net-val">-$${fee.toFixed(2)}</span></div>` : ''}
+            <div class="th-net-row th-net-total"><span class="th-net-label">实际到账</span><span class="th-net-val th-net-final">$${net.toFixed(2)}</span></div>
+          </div>
+        `;
+      } else if (hasAmt) {
+        rightExtra = `<span class="th-filled-amt" style="margin-right:8px">$${Number(r.amount_usdt).toFixed(2)}</span>`;
+      }
       // 行内输入区（pending 才有）
       const amtRow = isPending ? `
         <div class="th-amt-row" id="th-amt-row-${r.id}">
@@ -4574,6 +4604,8 @@ async function loadLedgerList() {
       wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无账户流水</div></div>`;
       return;
     }
+    // 表头 + 列表（之前漏 const header，导致 ReferenceError 被 catch 吞、显示"加载失败"）
+    const header = `<div class="th th-head"><div>交易时间</div><div>交易类型</div><div>费用类型</div><div>币种</div><div>交易金额</div><div>账户余额</div></div>`;
     const html = items.map(item => {
       const dt = new Date(item.created_at || item.timestamp).toLocaleString('zh-CN');
       const currency = item.currency || 'USD';
