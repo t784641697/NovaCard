@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+
+// Load .env first so SDK picks up VMCARDIO_* config
+require('dotenv').config();
 /**
  * 上游交易自动同步 - 定时任务入口
  *
@@ -41,7 +44,13 @@ function writeSyncStatus({ status, count, error, durationMs }) {
   stmt.run('last_tx_sync_status',   status,                                             now);
   stmt.run('last_tx_sync_count',    String(count || 0),                                 now);
   stmt.run('last_tx_sync_duration', String(durationMs),                                 now);
+  // 成功时清空 error 字段 (保持状态干净)
   if (error) stmt.run('last_tx_sync_error', error.substring(0, 500), now);
+  else {
+    const dbNow = new Date().toISOString();
+    const del = db.prepare("DELETE FROM settings WHERE key = 'last_tx_sync_error'");
+    del.run();
+  }
 }
 
 /**

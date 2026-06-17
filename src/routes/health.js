@@ -253,7 +253,7 @@ function checkVmcardioSync() {
     }
     // 关键：48 小时没成功同步 → 告警
     result.ok =
-      result.status === 'success' &&
+      ['ok', 'success'].includes(result.status) &&
       result.age_hours !== null &&
       result.age_hours < 48;
   } catch (e) {
