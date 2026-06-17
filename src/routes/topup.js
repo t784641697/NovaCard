@@ -62,6 +62,35 @@ router.post('/', async (req, res, next) => {
 });
 
 // ── 用户查询自己的申请记录 ─────────────────────────────────────────────────
+router.get('/fee-config', (req, res, next) => {
+  try {
+    // 公开端点：任何已登录用户都能查 topup 费率（用于申请页实时预览）
+    const cfg = db.prepare(`
+      SELECT fee_type, description, fee_rate, fee_fixed, min_amount, max_amount
+      FROM fee_configs
+      WHERE fee_type = 'topup' AND is_active = 1
+      LIMIT 1
+    `).get();
+    if (!cfg) {
+      return res.json({ code: 0, msg: 'ok', data: { fee_rate: 0, fee_fixed: 0, min_amount: 0, max_amount: 0, description: '入账手续费' } });
+    }
+    res.json({
+      code: 0,
+      msg: 'ok',
+      data: {
+        fee_type:     cfg.fee_type,
+        description:  cfg.description,
+        fee_rate:     Number(cfg.fee_rate     || 0),
+        fee_fixed:    Number(cfg.fee_fixed    || 0),
+        min_amount:   Number(cfg.min_amount   || 0),
+        max_amount:   Number(cfg.max_amount   || 0)
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/', (req, res, next) => {
   try {
     const page      = parseInt(req.query.page)      || 1;

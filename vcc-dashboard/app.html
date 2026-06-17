@@ -696,6 +696,21 @@ select.form-control option{background:var(--bg3);}
 ══════════════════════════════════════════════ */
 .topup-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;}
 .topup-amount-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;}
+/* USD 模式：实时预计到账预览 */
+.topup-preview{
+  margin:16px 0 12px;padding:14px 16px;border-radius:10px;
+  background:linear-gradient(135deg,rgba(0,242,254,.06),rgba(168,85,247,.05));
+  border:1px solid rgba(0,242,254,.2);
+}
+.tp-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:.9rem;}
+.tp-label{color:var(--text2,#a0a8b8);}
+.tp-value{font-weight:600;color:var(--text,#fff);font-variant-numeric:tabular-nums;}
+.tp-rate{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;background:rgba(168,85,247,.18);color:#c084fc;font-size:.72rem;font-weight:500;}
+.tp-fee{color:#ff6b6b;}
+.tp-total{margin-top:6px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.08);}
+.tp-total .tp-label{font-weight:600;color:var(--text,#fff);}
+.tp-net{color:#00c758;font-size:1.1rem;font-weight:700;}
+.tp-note{margin-top:8px;font-size:.72rem;color:var(--text3,#6b7480);font-style:italic;}
 .amount-chip{
   padding:10px;border-radius:10px;border:1.5px solid var(--border);
   background:var(--bg3);cursor:pointer;text-align:center;
@@ -3118,6 +3133,31 @@ async function renderTopup() {
   const TRC20_ADDR = 'TWJ7pHoj1uSBeHHaFDM9eFJNNmfYt1X9zr';
   const ERC20_ADDR = '0x0984967bbe780dd605ac815c6a2845ba8062fa32';
 
+  // USD 模式：实时到账预览（费率由后端拉取后 window._topupFeeRate 提供）
+  // USDT 模式：实际到账金额以管理员审核为准，加费率提示
+  const usdPreviewBox = !isUSDT ? `
+          <div class="topup-preview" id="topupPreview" style="display:none">
+            <div class="tp-row">
+              <span class="tp-label">申请入账</span>
+              <span class="tp-value" id="tpApply">$0.00</span>
+            </div>
+            <div class="tp-row">
+              <span class="tp-label">入账手续费 <span id="tpFeeRateText" class="tp-rate">0%</span></span>
+              <span class="tp-value tp-fee" id="tpFee">-$0.00</span>
+            </div>
+            <div class="tp-row tp-total">
+              <span class="tp-label">预计到账</span>
+              <span class="tp-value tp-net" id="tpNet">$0.00</span>
+            </div>
+            <div class="tp-note">实际到账金额以管理员审核为准，费率可在管理员后台调整</div>
+          </div>
+  ` : '';
+  const usdtFeeHint = isUSDT ? `
+          <div style="font-size:.78rem;color:var(--text3);margin-top:8px;padding:8px 12px;background:rgba(0,242,254,.05);border-radius:6px;border-left:3px solid var(--primary,#00f2fe);">
+            💡 <b>入账费率 2%</b>，实际到账金额以管理员确认为准（按收到 USDT 数量 × (1 − 2%)）
+          </div>
+  ` : '';
+
   // 左侧面板：USDT 展示二维码 / USD 展示金额选择
   const leftPanel = isUSDT ? `
         <div class="panel">
@@ -3161,6 +3201,7 @@ async function renderTopup() {
             <label>TxHash 交易哈希</label>
             <input class="form-control" id="topupRemark" placeholder="转账后请填写链上 TxHash"/>
           </div>
+          ${usdtFeeHint}
 
           <button class="btn btn-primary btn-block btn-lg" id="topupSubmitBtn" onclick="submitTopup()">
             提交充值申请
@@ -3192,6 +3233,8 @@ async function renderTopup() {
             <label>备注（可选）</label>
             <input class="form-control" id="topupRemark" placeholder="${remarkPlaceholder}"/>
           </div>
+
+          ${usdPreviewBox}
 
           <button class="btn btn-primary btn-block btn-lg" id="topupSubmitBtn" onclick="submitTopup()">
             提交充值申请
@@ -3229,6 +3272,17 @@ async function renderTopup() {
   `;
 
   loadTopupHistory();
+
+  // USD 模式：拉取费率 + 绑定预览事件
+  if (!isUSDT) {
+    fetchTopupFeeConfig().then(() => {
+      const amtEl = document.getElementById('topupAmt');
+      if (amtEl) {
+        amtEl.addEventListener('input', updateTopupPreview);
+        amtEl.addEventListener('change', updateTopupPreview);
+      }
+    });
+  }
 
   // USDT 模式下生成二维码（默认 TRC20）
   if (isUSDT) {
@@ -3279,11 +3333,55 @@ function selectAmt(val, el) {
   document.querySelectorAll('.amount-chip').forEach(e=>e.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('topupAmt').value = val;
+  updateTopupPreview();
 }
 function selectNetwork(name, el) {
   document.querySelectorAll('.network-chip').forEach(e=>e.classList.remove('selected'));
   el.classList.add('selected');
   _topupNetwork = name;
+}
+
+// ── 用户端：拉取充值费率配置（topup 模式） ──────────────────────────────
+async function fetchTopupFeeConfig() {
+  try {
+    const r = await apiFetch('/topup/fee-config', {}, true);
+    if (r && r.code === 0 && r.data) {
+      window._topupFeeRate = Number(r.data.fee_rate || 0);
+      window._topupFeeFixed = Number(r.data.fee_fixed || 0);
+      window._topupFeeDesc = r.data.description || '入账手续费';
+    } else {
+      window._topupFeeRate = 0;
+      window._topupFeeFixed = 0;
+      window._topupFeeDesc = '入账手续费';
+    }
+  } catch (e) {
+    window._topupFeeRate = 0;
+    window._topupFeeFixed = 0;
+    window._topupFeeDesc = '入账手续费';
+  }
+}
+
+// ── 用户端：实时更新 USD 模式"预计到账"预览 ─────────────────────────────
+function updateTopupPreview() {
+  const amtEl = document.getElementById('topupAmt');
+  const box = document.getElementById('topupPreview');
+  if (!amtEl || !box) return;
+  const amt = parseFloat(amtEl.value) || 0;
+  if (amt <= 0) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  const rate = Number(window._topupFeeRate || 0);
+  const fixed = Number(window._topupFeeFixed || 0);
+  const fee = amt * rate + fixed;
+  const net = Math.max(0, amt - fee);
+  const ratePct = (rate * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
+  document.getElementById('tpApply').textContent = '$' + amt.toFixed(2);
+  document.getElementById('tpFee').textContent = '-$' + fee.toFixed(2);
+  document.getElementById('tpNet').textContent = '$' + net.toFixed(2);
+  const rateEl = document.getElementById('tpFeeRateText');
+  if (rateEl) rateEl.textContent = ratePct;
 }
 
 async function submitTopup() {
@@ -3310,6 +3408,9 @@ async function submitTopup() {
     if (remarkEl) remarkEl.value='';
     document.querySelectorAll('.amount-chip,.network-chip,.usdt-pay-card').forEach(e=>e.classList.remove('selected'));
     _topupNetwork='';
+    // 清空预计到账预览
+    const preview = document.getElementById('topupPreview');
+    if (preview) preview.style.display = 'none';
     loadTopupHistory();
   } catch(e) {
     if (e.message!=='Unauthorized') toast('❌ 提交失败');
