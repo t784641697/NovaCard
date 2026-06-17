@@ -121,20 +121,27 @@ const frontendDir = process.env.FRONTEND_DIR
 const frontendPath = path.join(frontendDir, 'app.html');
 const indexPath = path.join(frontendDir, 'index.html');
 if (fs.existsSync(frontendPath)) {
-  // 提供前端HTML文件
-  app.get('/', (req, res) => {
+  // 提供前端HTML文件（强制禁用缓存，避免 CDN/浏览器拿到旧版本）
+  const noCache = (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    next();
+  };
+  app.get('/', noCache, (req, res) => {
     res.sendFile(frontendPath);
   });
-  app.get('/app.html', (req, res) => {
+  app.get('/app.html', noCache, (req, res) => {
     res.sendFile(frontendPath);
   });
   if (fs.existsSync(indexPath)) {
-    app.get('/index.html', (req, res) => {
+    app.get('/index.html', noCache, (req, res) => {
       res.sendFile(indexPath);
     });
   }
-  // 提供其他静态资源（CSS、JS等）
-  app.use('/static', express.static(frontendDir));
+  // 提供其他静态资源（CSS、JS等）也禁用缓存
+  app.use('/static', noCache, express.static(frontendDir));
   logger.info('📁 前端静态文件服务已启用：' + frontendDir);
 } else {
   logger.warn('⚠️  前端文件未找到：' + frontendPath);
