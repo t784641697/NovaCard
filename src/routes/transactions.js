@@ -139,13 +139,18 @@ router.get('/export.csv', (req, res) => {
       return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
+    // 类型/状态 英文 → 中文（与前端 UI 一致）
+    const TYPE_ZH   = { Authorization: '消费授权', Settlement: '清算', Refund: '退款', Reversal: '撤销' };
+    const STATUS_ZH = { COMPLETE: '完成', PENDING: '清算中', DECLINED: '失败' };
+
     const header = ['时间', '卡ID', '卡号', '类型', '状态', '授权金额', '授权币种', '结算金额', '结算币种', '商户', '授权时间'];
     const lines = [header.map(esc).join(',')];
     for (const r of rows) {
       lines.push([
         r.create_time, r.card_id,
         r.card_number ? `****${String(r.card_number).slice(-4)}` : '',
-        r.type, r.status,
+        TYPE_ZH[r.type] || r.type,
+        STATUS_ZH[r.status] || r.status,
         r.auth_amount, r.auth_currency,
         r.settle_amount, r.settle_currency,
         r.merchant_name, r.auth_time,
