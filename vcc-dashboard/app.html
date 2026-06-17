@@ -5592,6 +5592,32 @@ async function _getLatestUserBalance(userId, fallback) {
 // ── 管理员充值弹窗 ────────────────────────────────────────────────────────────
 async function openTopupModal(userId, userName, currentBalance) {
   const bal = await _getLatestUserBalance(userId, currentBalance);
+  // 预拉充值手续费率
+  try {
+    const feeR = await apiFetch('/admin/fee-configs?type=topup', {}, true);
+    if (feeR && feeR.code === 0 && feeR.data && feeR.data.length > 0) {
+      window._topupFeeRate = feeR.data[0].fee_rate || 0;
+    } else {
+      window._topupFeeRate = 0;
+    }
+  } catch(e) { window._topupFeeRate = 0; }
+
+  function updateTopupPreview() {
+    const el = document.getElementById('topupPreview');
+    if (!el) return;
+    const amt = parseFloat(document.getElementById('topupAmountInput')?.value || 0);
+    if (!amt || amt <= 0) { el.innerHTML = '<div style="color:var(--text3);">请输入金额预览手续费</div>'; return; }
+    const feeRate = window._topupFeeRate || 0;
+    const fee = parseFloat((amt * feeRate).toFixed(2));
+    const net = parseFloat((amt - fee).toFixed(2));
+    el.innerHTML =
+      '<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>申请金额</span><b style="color:var(--text1);">$' + amt.toFixed(2) + '</b></div>' +
+      (fee > 0
+        ? '<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>入账手续费（' + (feeRate * 100).toFixed(2) + '%）</span><b style="color:#f87171;">-$' + fee.toFixed(2) + '</b></div>'
+        : '') +
+      '<div style="display:flex;justify-content:space-between;padding:2px 0;border-top:1px solid rgba(255,255,255,.1);margin-top:4px;padding-top:6px;"><span>实际到账</span><b style="color:#34d399;font-size:1rem;">$' + net.toFixed(2) + '</b></div>';
+  }
+  window.updateTopupPreview = updateTopupPreview;
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9999;';
 
@@ -5615,7 +5641,11 @@ async function openTopupModal(userId, userName, currentBalance) {
       <div style="display:flex;align-items:center;gap:0;border:1px solid rgba(0,242,254,.3);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.04);">
         <span style="padding:0 14px;color:#00f2fe;font-weight:700;font-size:1rem;background:rgba(0,242,254,.08);height:44px;display:flex;align-items:center;">$</span>
         <input id="topupAmountInput" type="number" min="0.01" step="0.01" placeholder="输入充值金额"
-          style="flex:1;border:none;background:transparent;padding:0 14px;height:44px;color:var(--text1);font-size:.95rem;outline:none;"/>
+          style="flex:1;border:none;background:transparent;padding:0 14px;height:44px;color:var(--text1);font-size:.95rem;outline:none;"
+          oninput="updateTopupPreview()"/>
+      </div>
+      <div id="topupPreview" style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;font-size:.78rem;color:var(--text3);">
+        <div>请输入金额预览手续费</div>
       </div>
     </div>
     <div style="margin-bottom:24px;">
@@ -7182,6 +7212,16 @@ function trSetTab(tab) {
 
 // 加载列表
 async function trLoad() {
+  // 拉取充值费率（用于预览手续费）
+  try {
+    const feeR = await apiFetch('/admin/fee-configs?type=topup', {}, true);
+    if (feeR && feeR.code === 0 && feeR.data && feeR.data.length > 0) {
+      window._topupFeeRate = feeR.data[0].fee_rate || 0;
+    } else {
+      window._topupFeeRate = 0;
+    }
+  } catch(e) { window._topupFeeRate = 0; }
+
   const tab = window._trTab || 'pending';
   const statusParam = tab === 'all' ? '' : '?status=' + tab;
   const r = await apiFetch('/topup/admin' + statusParam, {}, true);
@@ -7268,19 +7308,32 @@ async function trLoad() {
 async function trApprove(id, amount) {
   const usdtAmt = amount > 0 ? amount : parseFloat(prompt('请输入入账 USDT 金额（USD）：') || '0');
   if (!usdtAmt || usdtAmt <= 0) return toast('⚠️ 请输入有效金额');
-  const ok = await confirmModal('确认通过该充值申请，入账 <b>$' + usdtAmt.toFixed(2) + '</b>？', {
-    icon: '✅',
-    okText: '确认通过',
-    okColor: '#22c55e',
-    okBg: 'rgba(34,197,94,0.15)'
-  });
+  // 实时算手续费（按后端当前费率，仅做预览；实际扣费以后端为准）
+  const feeRate = (window._topupFeeRate || 0);
+  const fee = parseFloat((usdtAmt * feeRate).toFixed(2));
+  const net = parseFloat((usdtAmt - fee).toFixed(2));
+  const ok = await confirmModal(
+    '确认通过该充值申请？<br>' +
+    '申请入账：<b>$' + usdtAmt.toFixed(2) + '</b><br>' +
+    (fee > 0 ? '入账手续费：<b style="color:#f87171">$' + fee.toFixed(2) + '</b>（' + (feeRate * 100).toFixed(2) + '%）<br>' : '') +
+    '实际到账：<b style="color:#34d399">$' + net.toFixed(2) + '</b>',
+    {
+      icon: '✅',
+      okText: '确认通过',
+      okColor: '#22c55e',
+      okBg: 'rgba(34,197,94,0.15)'
+    }
+  );
   if (!ok) return;
   try {
     const r = await apiFetch('/topup/' + id, {
       method: 'PATCH',
-      body: JSON.stringify({ status: 'approved', note: '' })
+      body: JSON.stringify({ status: 'approved', amount_usdt: usdtAmt, note: '' })
     });
-    if (r.code === 0) { toast('✅ 充值申请已通过，$' + usdtAmt.toFixed(2) + ' 已入账'); trLoad(); }
+    if (r.code === 0) {
+      toast('✅ 充值已通过，$' + net.toFixed(2) + ' 已入账' + (fee > 0 ? '（手续费 $' + fee.toFixed(2) + '）' : ''));
+      trLoad();
+    }
     else toast('❌ ' + (r.msg || '操作失败'));
   } catch(e) { toast('❌ 请求失败：' + e.message); }
 }

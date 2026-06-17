@@ -161,9 +161,17 @@ db.exec(`
     txhash       TEXT    NOT NULL DEFAULT '',   -- 链上哈希（选填）
     remark       TEXT    NOT NULL DEFAULT '',
     status       TEXT    NOT NULL DEFAULT 'pending',  -- pending / approved / rejected
+    fee_rate     REAL    NOT NULL DEFAULT 0,    -- 申请时锁定的入账手续费率
+    fee_amount   REAL    NOT NULL DEFAULT 0,    -- 申请时锁定的手续费金额（USD）
+    net_amount   REAL    NOT NULL DEFAULT 0,    -- 申请时锁定的实到金额（USD）
     created_at   TEXT    NOT NULL DEFAULT (nowiso()),
     updated_at   TEXT    NOT NULL DEFAULT (nowiso())
   );
+
+  -- 老表加列（幂等迁移）
+  try { db.exec("ALTER TABLE topup_requests ADD COLUMN fee_rate REAL NOT NULL DEFAULT 0"); } catch(e) {}
+  try { db.exec("ALTER TABLE topup_requests ADD COLUMN fee_amount REAL NOT NULL DEFAULT 0"); } catch(e) {}
+  try { db.exec("ALTER TABLE topup_requests ADD COLUMN net_amount REAL NOT NULL DEFAULT 0"); } catch(e) {}
 
   CREATE INDEX IF NOT EXISTS idx_topup_user_id ON topup_requests(user_id);
   CREATE INDEX IF NOT EXISTS idx_topup_status  ON topup_requests(status);
@@ -290,6 +298,7 @@ db.exec(`
   add('phone',          "TEXT    DEFAULT NULL");
   add('initial_balance',"REAL    DEFAULT 0");
   add('topup_total',    "REAL    DEFAULT 0");
+  add('topup_net_total',"REAL    DEFAULT 0");  // 累计实到金额（扣手续费后）
   add('total_spend',    "REAL    DEFAULT 0");
   add('total_refund',   "REAL    DEFAULT 0");
   add('total_dispute',  "REAL    DEFAULT 0");
@@ -320,6 +329,7 @@ db.exec(`
 
   const seedFees = [
     ['card_creation',     '开卡费',       0,     10.00,  0,  0,  10],
+    ['topup',             '充值入账手续费',0.02,  0,     0,  0,  15],  // 用户充值 100 → 扣 2% → 实到 98
     ['transaction',       '交易手续费',   0.03,   0.30,  0,  0,  20],
     ['refund',            '退款手续费',   0.05,   0.50,  0,  0,  30],
     ['chargeback',        '拒付手续费',   0.08,   2.00,  0,  0,  40],
