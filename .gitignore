@@ -25,3 +25,6 @@ vcc-dashboard/index.html
 package-lock.json
 config/*.bak.*
 config/*_old*
+
+# 保留 backups/ 目录的备份文件（手动备份）
+!backups/
