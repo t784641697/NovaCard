@@ -26,6 +26,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
+const logger = require('../utils/logger');
 
 // ── 启动时间（用于计算 uptime）────────────────────────────────────────────
 const START_TIME = Date.now();
@@ -341,6 +342,37 @@ router.get('/', (req, res) => {
   // 写入缓存
   cachedResult = { httpCode, body };
   cachedAt = Date.now();
+
+  // ── 关键项失败 → Telegram 推送 (1 小时去重) ──
+  if (httpCode === 503) {
+    setImmediate(async () => {
+      try {
+        const telegram = require('../services/telegram');
+        if (!telegram.isEnabled()) return;
+
+        // 1 小时去重: 同样的失败 hash 1 小时内只发一次
+        const failHash = Object.entries(checks)
+          .filter(([_, c]) => !c.ok)
+          .map(([k, c]) => k + ':' + (c.error || c.message || 'failed'))
+          .sort()
+          .join('|');
+        const cacheKey = 'tg_health_dedup_' + require('crypto').createHash('md5').update(failHash).digest('hex');
+        const lastSent = db.prepare('SELECT value FROM settings WHERE key=?').get(cacheKey);
+        const now = Date.now();
+        if (lastSent && now - Number(lastSent.value) < 3600 * 1000) return; // 1 小时内已发过
+
+        db.prepare(`
+          INSERT INTO settings (key, value) VALUES (?, ?)
+          ON CONFLICT(key) DO UPDATE SET value=excluded.value
+        `).run(cacheKey, String(now));
+
+        const msg = telegram.fmtHealthCheck(body);
+        await telegram.sendCritical('⚠️ ' + msg);
+      } catch (e) {
+        logger.error('[health] telegram push failed: ' + e.message);
+      }
+    });
+  }
 
   res.set('X-Health-Cache', 'miss');
   res.status(httpCode).json(body);

@@ -231,6 +231,31 @@ function checkNewTransactions(newTxs) {
     console.warn('save summary failed: ' + e.message);
   }
 
+  // ── Telegram 推送 (异步, 不阻塞) ──
+  if (alerts.length > 0) {
+    setImmediate(async () => {
+      try {
+        const telegram = require('./telegram');
+        if (telegram.isEnabled()) {
+          const msg = telegram.fmtAnomalyAlert(alerts, summary);
+          if (msg) {
+            // 严重告警 (高额/累计/高风险) 用有声音, 普通陌生商户无声音
+            const hasHighRisk = alerts.some(a =>
+              a.reasons.some(r => r.includes('高额') || r.includes('累计') || r.includes('高风险'))
+            );
+            if (hasHighRisk) {
+              await telegram.sendCritical(msg);
+            } else {
+              await telegram.sendInfo(msg);
+            }
+          }
+        }
+      } catch (e) {
+        logger.error('[anomaly] telegram push failed: ' + e.message);
+      }
+    });
+  }
+
   return { alerts, summary };
 }
 

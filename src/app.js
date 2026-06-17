@@ -175,6 +175,19 @@ const server = app.listen(PORT, () => {
   logger.info(`🚀 VCC Hub 后端服务启动，端口 ${PORT}，环境 ${process.env.NODE_ENV || 'development'}`);
   logger.info(`📡 vmcardio Base URL: ${process.env.VMCARDIO_BASE_URL || '（未配置，使用沙箱）'}`);
   logger.info(`🔔 WebHook 接收地址：POST http://localhost:${PORT}/api/webhook/vmcardio`);
+
+  // 启动通知 (异步, 不阻塞)
+  const telegram = require('./services/telegram');
+  if (telegram.isEnabled()) {
+    const uptime = process.uptime().toFixed(0);
+    const mem = (process.memoryUsage().rss / 1024 / 1024).toFixed(0);
+    telegram.sendInfo(
+      `🟢 <b>VCC Hub 启动</b>\n` +
+      `端口: <code>${PORT}</code>  环境: <code>${process.env.NODE_ENV || 'dev'}</code>\n` +
+      `PID: <code>${process.pid}</code>  内存: ${mem}MB\n` +
+      `时间: ${new Date().toISOString()}`
+    ).catch(e => logger.error('启动通知失败:', e.message));
+  }
 });
 
 // 修复 Nginx keepalive 竞争：Node.js keepalive 超时需大于 Nginx（默认 75s）
