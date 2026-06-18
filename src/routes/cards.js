@@ -14,6 +14,7 @@ const rateLimit = require('express-rate-limit');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
 const { authenticate } = require('../middleware/auth');
+const { normalizeCountry } = require('../utils/country');
 
 const router = express.Router();
 router.use(authenticate);
@@ -557,6 +558,8 @@ router.get('/meta/products', async (req, res, next) => {
       .map(p => {
         const hp = hardcodedMap.get(p.product_code);
         const biz = (hp && hp.business) || {};
+        // 国家/地区标准化（统一中文名 + 国旗 emoji）
+        const country = normalizeCountry(p.issuing_area);
         return {
           ...p,
           // 业务覆盖
@@ -566,6 +569,10 @@ router.get('/meta/products', async (req, res, next) => {
           custom_message:  biz.custom_message || null,
           // 友好别名（如 G5554LC → VC102）
           display_name:    (hp && hp.display_name) || p.product_code,
+          // 国家/地区标准化字段（后端统一，前端无需处理）
+          issuing_area_code:  country.code,
+          issuing_area_name:  country.name,
+          issuing_area_flag:  country.flag,
         };
       })
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
@@ -587,7 +594,18 @@ router.get('/meta/products', async (req, res, next) => {
 router.get('/meta/products/upstream', async (req, res, next) => {
   try {
     const result = await sdk.getProductCode();
-    res.json({ code: 0, msg: 'ok (upstream raw)', data: { ...result, list: (result && result.list) || [] } });
+    const rawList = (result && result.list) || [];
+    // 附带标准化字段（便于调试时对比原始 vs 标准化）
+    const listWithNorm = rawList.map(p => {
+      const c = normalizeCountry(p.issuing_area);
+      return {
+        ...p,
+        issuing_area_code: c.code,
+        issuing_area_name: c.name,
+        issuing_area_flag: c.flag,
+      };
+    });
+    res.json({ code: 0, msg: 'ok (upstream raw)', data: { ...result, list: listWithNorm } });
   } catch (err) {
     res.status(500).json({ code: 500, msg: 'upstream failed: ' + err.message });
   }
