@@ -504,122 +504,76 @@ router.get('/:cardId/fb-codes', async (req, res, next) => {
 });
 
 // ── 产品码列表（开卡选项）────────────────────────────────────────────────
-// 地区模板：每个国家一个 metadata 模板
-const REGION_META = {
-  HK: {
-    country: '香港',
-    applicable_platforms: 'Facebook, Google, Amazon, Shopify, Walmart, Alibaba, AliExpress 等',
-  },
-  UK: {
-    country: '英国',
-    applicable_platforms: 'Facebook, Google, Amazon, Shopify, Walmart, Alibaba, AliExpress, OpenAI 等',
-  },
-  US: {
-    country: '美国',
-    applicable_platforms: 'Facebook, Google, TikTok, Amazon, AI/Agent 工具 等',
-  },
-  SG: {
-    country: '新加坡',
-    applicable_platforms: 'Facebook, Google, OpenAI, Twitter, Telegram 等',
-  },
-};
-
-// 通用元数据（每个卡段都有）
-const COMMON_META = {
-  network: 'Mastercard',
-  card_type: 'Mastercard',
-  type: 'save',
-  verification: '无需AVS验证、无需3DS',
-  single_limit: 10000,
-  daily_limit: 100000,
-  rechargeable: true,
-  prohibitions: ['高频拒付', '小额消费（平均订单金额低于$0.5）', '高撤销退款', '高风险商户'],
-};
-
-// 上游 17 个 product_code 实际清单（来自 getProductCode）
-// v1.0.19 修正：G5554LC 是 sandbox 时期旧名，正式环境上游后台 + API 已升级为 VC102（同名同 BIN）
+// v1.0.21 HARDCODED 业务控制层（v1.0.19 旧版含 metadata 模板已废弃，上游 API 自身已返回完整 metadata）
+// 数据来源：上游 API 返回完整 metadata + description + available，业务代码只控制 4 个维度：
+//   - available: 用户可申请（true=可选，false=灰显"暂不可用"）
+//   - featured: 推荐标记（前端加 ⭐/首推 徽章）
+//   - priority: 排序权重（数字越大越靠前）
+//   - custom_message: 自定义文案（覆盖上游 description）
+// 其他字段（bin/network/metadata/issuing_area/limits/prohibitions）全部来自上游 API，不再硬编码
 const HARDCODED_PRODUCTS = [
-  // HK 香港（10 个）
-  { product_code: 'S5395YL', bin: '539502', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'G55832SI', bin: '558325', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'G5450SU', bin: '54502000', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'S5258LL', bin: '525847', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'G5449LJ', bin: '54492360', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'G5449IC', bin: '54493747', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'G5321KC', bin: '53211359', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'G5324FV', bin: '53240691', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'S5395PL', bin: '539578', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  { product_code: 'S5257PM', bin: '525797', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
-  // UK 英国（4 个）
-  { product_code: 'S2460OL', bin: '246001', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
-  { product_code: 'S2380AL', bin: '238003', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
-  { product_code: 'S2350CX', bin: '235019', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
-  { product_code: 'S2236CP', bin: '223600', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
-  // US 美国（2 个）
-  // VC102 (sandbox 旧名 G5554LC) — 2 个 6 位 BIN 随机分配，bin 字段是上游把 2 个拼接成 12 位返回
-  { product_code: 'VC102', bin: '555671544015', bins: ['555671', '544015'], legacy_product_code: 'G5554LC', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
-  { product_code: 'G5237OH', bin: '52737560', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.US },
-  // SG 新加坡（1 个）
-  { product_code: 'S5331GL', bin: '533171', issuing_area: 'Singapore', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.SG },
-].map(p => ({
-  // 重新组织字段：metadata 子对象存放描述/限额/适用平台
-  product_code: p.product_code,
-  bin: p.bin,
-  bins: p.bins,                  // VC102 等多 BIN 卡段：['555671', '544015']
-  legacy_product_code: p.legacy_product_code,  // 兼容旧 G 前缀的 sandbox 名（VC102 → G5554LC）
-  issuing_area: p.issuing_area,
-  card_type: p.card_type,
-  type: p.type,
-  network: p.network,
-  card_price: p.card_price,
-  available: p.available,
-  description: p.country + ' Mastercard 虚拟储蓄卡',
-  metadata: {
-    country: p.country,
-    applicable_platforms: p.applicable_platforms,
-    verification: p.verification,
-    single_limit: p.single_limit,
-    daily_limit: p.daily_limit,
-    rechargeable: p.rechargeable,
-    prohibitions: p.prohibitions,
-  },
-}));
+  // 🇭🇰 香港 (10个) - 暂不可用
+  { product_code: 'S5395YL',  business: { available: false, priority: 110 } },
+  { product_code: 'G55832SI', business: { available: false, priority: 120 } },
+  { product_code: 'G5450SU',  business: { available: false, priority: 130 } },
+  { product_code: 'S5258LL',  business: { available: false, priority: 140 } },
+  { product_code: 'G5449LJ',  business: { available: false, priority: 150 } },
+  { product_code: 'G5449IC',  business: { available: false, priority: 160 } },
+  { product_code: 'G5321KC',  business: { available: false, priority: 170 } },
+  { product_code: 'G5324FV',  business: { available: false, priority: 180 } },
+  { product_code: 'S5395PL',  business: { available: false, priority: 190 } },
+  { product_code: 'S5257PM',  business: { available: false, priority: 200 } },
+  // 🇬🇧 英国 (4个) - 暂不可用
+  { product_code: 'S2460OL',  business: { available: false, priority: 210 } },
+  { product_code: 'S2380AL',  business: { available: false, priority: 220 } },
+  { product_code: 'S2350CX',  business: { available: false, priority: 230 } },
+  { product_code: 'S2236CP',  business: { available: false, priority: 240 } },
+  // 🇸🇬 新加坡 (1个) - 暂不可用
+  { product_code: 'S5331GL',  business: { available: false, priority: 250 } },
+  // 🇺🇸 美国 (2个)
+  { product_code: 'G5237OH',  business: { available: false, priority: 260 } },
+  // VC102 - 唯一可用 + 推荐
+  { product_code: 'VC102',    business: { available: true, featured: true, priority: 1000, custom_message: '🌟 AI/Agent 工具付费首选 · 美国 Mastercard · 2 个 BIN 随机分配' } },
+];
 
 
 router.get('/meta/products', async (req, res, next) => {
   try {
     const result = await sdk.getProductCode();
-    // 合并 API 返回的产品列表 + 硬编码默认产品（去重）
     const apiList = (result && result.list) || [];
-    // 按 BIN 去重：API 产品在上层，硬编码补充缺失信息
-    const merged = [...apiList];
-    for (const hp of HARDCODED_PRODUCTS) {
-      const existing = merged.find(m => m.bin === hp.bin);
-      if (existing) {
-        // API 已有该 BIN：用硬编码的 product_code 覆盖（v1.0.19 G5554LC → VC102）
-        existing.product_code      = hp.product_code;
-        existing.metadata          = hp.metadata;
-        existing.description       = hp.description;
-        existing.available         = hp.available;   // v1.0.20 用硬编码的 available 覆盖 API（业务可手动控制）
-        // 透传硬编码里的拓展字段（bins、legacy_product_code 等）
-        if (hp.bins)               existing.bins = hp.bins;
-        if (hp.legacy_product_code) existing.legacy_product_code = hp.legacy_product_code;
-      } else {
-        // API 没有该 BIN，添加硬编码产品
-        merged.push(hp);
-      }
-    }
+
     // v1.0.21 ?raw=1: 跳过 HARDCODED 合并，直接返回上游 API 原始数据（调试用）
     if (req.query.raw === '1') {
       return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: apiList } });
     }
+
+    // v1.0.21 合并策略：上游 API 为基础数据层 + HARDCODED 业务控制层
+    //   - 基础数据（bin/network/type/media/issuing_area/remaining_open_card_num/metadata/description）→ 100% 来自上游
+    //   - 业务控制（available/featured/priority/custom_message）→ HARDCODED 覆盖
+    //   - 按 priority 降序排序
+    const businessMap = new Map(HARDCODED_PRODUCTS.map(hp => [hp.product_code, hp.business || {}]));
+    const merged = apiList
+      .map(p => {
+        const biz = businessMap.get(p.product_code) || {};
+        return {
+          ...p,
+          // 业务覆盖：HARDCODED 优先（业务可手动控制）
+          available:       biz.available !== undefined ? biz.available : p.available,
+          featured:        biz.featured || false,
+          priority:        biz.priority || 0,
+          custom_message:  biz.custom_message || null,
+        };
+      })
+      .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+
     res.json({ code: 0, msg: 'ok', data: { ...result, list: merged } });
   } catch (err) {
-    // API 调用失败时，至少返回硬编码列表
-    res.json({
-      code: 0,
-      msg: 'ok',
-      data: { list: HARDCODED_PRODUCTS },
+    // v1.0.21 HARDCODED 业务控制层只含 business 字段，无法作为完整 fallback
+    // 上游 API 挂掉时返回 503 + 错误信息，前端可缓存上一次成功的列表
+    logger.error && logger.error('[/api/cards/meta/products] upstream failed:', err.message);
+    res.status(503).json({
+      code: 503,
+      msg: 'upstream vmcardio API unavailable: ' + err.message,
     });
   }
 });
