@@ -600,7 +600,7 @@ router.get('/meta/products', async (req, res, next) => {
         existing.product_code      = hp.product_code;
         existing.metadata          = hp.metadata;
         existing.description       = hp.description;
-        existing.available         = true;
+        existing.available         = hp.available;   // v1.0.20 用硬编码的 available 覆盖 API（业务可手动控制）
         // 透传硬编码里的拓展字段（bins、legacy_product_code 等）
         if (hp.bins)               existing.bins = hp.bins;
         if (hp.legacy_product_code) existing.legacy_product_code = hp.legacy_product_code;
