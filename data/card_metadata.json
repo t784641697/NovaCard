@@ -1,0 +1,564 @@
+{
+  "source": "assets/11111123.docx (16 张截图) + 上游 /api/cards/meta/products/upstream",
+  "extracted_at": "2026-06-19",
+  "note": "上游 17 个卡段中 16 个从 docx 截图提取（按 6 位 BIN 前缀匹配），1 个 G5554LC（VC102，12位双BIN 555671544015）docx 缺数据",
+  "products": [
+    {
+      "product_code": "S5395YL",
+      "bin": "539502",
+      "bin_prefix6": "539502",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "G55832SI",
+      "bin": "558325",
+      "bin_prefix6": "558325",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "TikTok",
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "TikTok",
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 50000,
+        "daily_limit": null,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，小额消费费率，消费退款率；有效期内可多次充值",
+        "remaining": 10
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "G5450SU",
+      "bin": "54502000",
+      "bin_prefix6": "545020",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "TikTok",
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "TikTok",
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 50000,
+        "daily_limit": null,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，小额消费率，消费退款率；有效期内可多次充值",
+        "remaining": 10
+      },
+      "docx_match": " | 6位前缀 545020 命中"
+    },
+    {
+      "product_code": "S5258LL",
+      "bin": "525847",
+      "bin_prefix6": "525847",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "G5237OH",
+      "bin": "52737560",
+      "bin_prefix6": "527375",
+      "issuing_area": "United States",
+      "iso_code": "US",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "OpenAI",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "OpenAI",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 50000,
+        "daily_limit": 100000,
+        "card_level": "Business Credit",
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，小额消费率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": " | 6位前缀 527375 命中"
+    },
+    {
+      "product_code": "G5449LJ",
+      "bin": "54492360",
+      "bin_prefix6": "544923",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "OpenAI",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "OpenAI",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 50000,
+        "daily_limit": 100000,
+        "card_level": "Business Credit",
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，小额消费率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": " | 6位前缀 544923 命中"
+    },
+    {
+      "product_code": "G5449IC",
+      "bin": "54493747",
+      "bin_prefix6": "544937",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "OpenAI",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "OpenAI",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 50000,
+        "daily_limit": 100000,
+        "card_level": "Business Credit",
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，小额消费率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": " | 6位前缀 544937 命中"
+    },
+    {
+      "product_code": "G5321KC",
+      "bin": "53211359",
+      "bin_prefix6": "532113",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "OpenAI",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "OpenAI",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 20000,
+        "daily_limit": null,
+        "card_level": "Business Credit",
+        "verification": "未提及",
+        "notes": "仅限正规用途，严格控制拒付率，小额消费率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": " | 6位前缀 532113 命中"
+    },
+    {
+      "product_code": "G5324FV",
+      "bin": "53240691",
+      "bin_prefix6": "532406",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "OpenAI",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "OpenAI",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 20000,
+        "daily_limit": null,
+        "card_level": "Business Credit",
+        "verification": "未提及",
+        "notes": "仅限正规用途，严格控制拒付率，小额消费率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": " | 6位前缀 532406 命中"
+    },
+    {
+      "product_code": "S2460OL",
+      "bin": "246001",
+      "bin_prefix6": "246001",
+      "issuing_area": "UK",
+      "iso_code": "GB",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "OpenAI",
+        "Twitter"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "OpenAI",
+          "Twitter"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "S5331GL",
+      "bin": "533171",
+      "bin_prefix6": "533171",
+      "issuing_area": "Singapore",
+      "iso_code": "SG",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "OpenAI",
+        "Twitter",
+        "Telegram"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "OpenAI",
+          "Twitter",
+          "Telegram"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "S5395PL",
+      "bin": "539578",
+      "bin_prefix6": "539578",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "S2380AL",
+      "bin": "238003",
+      "bin_prefix6": "238003",
+      "issuing_area": "UK",
+      "iso_code": "GB",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "S2350CX",
+      "bin": "235019",
+      "bin_prefix6": "235019",
+      "issuing_area": "UK",
+      "iso_code": "GB",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress",
+        "OpenAI"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress",
+          "OpenAI"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "S2236CP",
+      "bin": "223600",
+      "bin_prefix6": "223600",
+      "issuing_area": "UK",
+      "iso_code": "GB",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "OpenAI"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "OpenAI"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "S5257PM",
+      "bin": "525797",
+      "bin_prefix6": "525797",
+      "issuing_area": "Hong Kong SAR",
+      "iso_code": "HK",
+      "applicable_platforms": [
+        "Facebook",
+        "Google",
+        "Amazon",
+        "Shopify",
+        "Walmart",
+        "Alibaba",
+        "AliExpress"
+      ],
+      "meta": {
+        "applicable_platforms": [
+          "Facebook",
+          "Google",
+          "Amazon",
+          "Shopify",
+          "Walmart",
+          "Alibaba",
+          "AliExpress"
+        ],
+        "single_limit": 10000,
+        "daily_limit": 100000,
+        "card_level": null,
+        "verification": "无需AVS验证、无需3DS",
+        "notes": "仅限正规用途，严格控制拒付率，消费退款率；有效期内可多次充值",
+        "remaining": 5
+      },
+      "docx_match": ""
+    },
+    {
+      "product_code": "G5554LC",
+      "bin": "555671544015",
+      "bin_prefix6": null,
+      "issuing_area": "United States",
+      "iso_code": "US",
+      "applicable_platforms": null,
+      "meta": {
+        "applicable_platforms": null,
+        "note": "docx 未包含此卡段数据（12位双BIN=555671544015，仅 Web API 可用，sandbox 时期无上游说明）"
+      },
+      "docx_match": " | docx 未包含"
+    }
+  ]
+}

@@ -15,6 +15,31 @@ const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
 const { authenticate } = require('../middleware/auth');
 const { normalizeCountry } = require('../utils/country');
+const path = require('path');
+const fs = require('fs');
+
+// v1.0.23 卡段静态元数据（适用平台 / 限额 / 卡级别），从 data/card_metadata.json 加载
+// 注：上游 vmcardio API 不返回这些字段，data/card_metadata.json 来源是 assets/11111123.docx 16 张截图
+// 上游字段（bin/network/issuing_area/remaining_open_card_num）以实时为准
+function loadCardMetadata() {
+  try {
+    const fp = path.join(__dirname, '..', '..', 'data', 'card_metadata.json');
+    if (!fs.existsSync(fp)) return new Map();
+    const data = JSON.parse(fs.readFileSync(fp, 'utf-8'));
+    return new Map((data.products || []).map(p => [p.product_code, p]));
+  } catch (e) {
+    console.error('[loadCardMetadata] failed:', e.message);
+    return new Map();
+  }
+}
+const CARD_METADATA = loadCardMetadata();
+const META_BY_BIN_PREFIX6 = (() => {
+  const m = new Map();
+  for (const p of CARD_METADATA.values()) {
+    if (p.bin_prefix6) m.set(p.bin_prefix6, p);
+  }
+  return m;
+})();
 
 const router = express.Router();
 router.use(authenticate);
@@ -548,11 +573,18 @@ router.get('/meta/products', async (req, res, next) => {
       // ?raw=1: 跳过 HARDCODED 合并，但仍附加国家标准化字段（供前端展示）
       const listWithNorm = apiList.map(p => {
         const country = normalizeCountry(p.issuing_area);
+        // v1.0.23 附加静态元数据(适用平台/限额/卡级别) — docx 截图数据
+        const meta = CARD_METADATA.get(p.product_code) || META_BY_BIN_PREFIX6.get(String(p.bin || '').slice(0, 6));
         return {
           ...p,
           issuing_area_code: country.code,
           issuing_area_name: country.name,
           issuing_area_flag: country.flag,
+          applicable_platforms: meta?.applicable_platforms || null,
+          card_level:           meta?.meta?.card_level || null,
+          single_limit:         meta?.meta?.single_limit || null,
+          daily_limit:          meta?.meta?.daily_limit || null,
+          verification:         meta?.meta?.verification || null,
         };
       });
       return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: listWithNorm } });
@@ -570,6 +602,8 @@ router.get('/meta/products', async (req, res, next) => {
         const biz = (hp && hp.business) || {};
         // 国家/地区标准化（统一中文名 + 国旗 emoji）
         const country = normalizeCountry(p.issuing_area);
+        // v1.0.23 附加静态元数据(适用平台/限额/卡级别) — docx 截图数据
+        const meta = CARD_METADATA.get(p.product_code) || META_BY_BIN_PREFIX6.get(String(p.bin || '').slice(0, 6));
         return {
           ...p,
           // 业务覆盖
@@ -583,6 +617,12 @@ router.get('/meta/products', async (req, res, next) => {
           issuing_area_code:  country.code,
           issuing_area_name:  country.name,
           issuing_area_flag:  country.flag,
+          // v1.0.23 静态元数据(docx 截图)
+          applicable_platforms: meta?.applicable_platforms || null,
+          card_level:           meta?.meta?.card_level || null,
+          single_limit:         meta?.meta?.single_limit || null,
+          daily_limit:          meta?.meta?.daily_limit || null,
+          verification:         meta?.meta?.verification || null,
         };
       })
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
