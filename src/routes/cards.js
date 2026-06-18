@@ -513,27 +513,27 @@ router.get('/:cardId/fb-codes', async (req, res, next) => {
 // 其他字段（bin/network/metadata/issuing_area/limits/prohibitions）全部来自上游 API，不再硬编码
 const HARDCODED_PRODUCTS = [
   // 🇭🇰 香港 (10个) - 暂不可用
-  { product_code: 'S5395YL',  business: { available: false, priority: 110 } },
-  { product_code: 'G55832SI', business: { available: false, priority: 120 } },
-  { product_code: 'G5450SU',  business: { available: false, priority: 130 } },
-  { product_code: 'S5258LL',  business: { available: false, priority: 140 } },
-  { product_code: 'G5449LJ',  business: { available: false, priority: 150 } },
-  { product_code: 'G5449IC',  business: { available: false, priority: 160 } },
-  { product_code: 'G5321KC',  business: { available: false, priority: 170 } },
-  { product_code: 'G5324FV',  business: { available: false, priority: 180 } },
-  { product_code: 'S5395PL',  business: { available: false, priority: 190 } },
-  { product_code: 'S5257PM',  business: { available: false, priority: 200 } },
+  { product_code: 'S5395YL', business: { available: false, priority: 110 }, display_name: null },
+  { product_code: 'G55832SI', business: { available: false, priority: 120 }, display_name: null },
+  { product_code: 'G5450SU', business: { available: false, priority: 130 }, display_name: null },
+  { product_code: 'S5258LL', business: { available: false, priority: 140 }, display_name: null },
+  { product_code: 'G5449LJ', business: { available: false, priority: 150 }, display_name: null },
+  { product_code: 'G5449IC', business: { available: false, priority: 160 }, display_name: null },
+  { product_code: 'G5321KC', business: { available: false, priority: 170 }, display_name: null },
+  { product_code: 'G5324FV', business: { available: false, priority: 180 }, display_name: null },
+  { product_code: 'S5395PL', business: { available: false, priority: 190 }, display_name: null },
+  { product_code: 'S5257PM', business: { available: false, priority: 200 }, display_name: null },
   // 🇬🇧 英国 (4个) - 暂不可用
-  { product_code: 'S2460OL',  business: { available: false, priority: 210 } },
-  { product_code: 'S2380AL',  business: { available: false, priority: 220 } },
-  { product_code: 'S2350CX',  business: { available: false, priority: 230 } },
-  { product_code: 'S2236CP',  business: { available: false, priority: 240 } },
+  { product_code: 'S2460OL', business: { available: false, priority: 210 }, display_name: null },
+  { product_code: 'S2380AL', business: { available: false, priority: 220 }, display_name: null },
+  { product_code: 'S2350CX', business: { available: false, priority: 230 }, display_name: null },
+  { product_code: 'S2236CP', business: { available: false, priority: 240 }, display_name: null },
   // 🇸🇬 新加坡 (1个) - 暂不可用
-  { product_code: 'S5331GL',  business: { available: false, priority: 250 } },
+  { product_code: 'S5331GL', business: { available: false, priority: 250 }, display_name: null },
   // 🇺🇸 美国 (2个)
-  { product_code: 'G5237OH',  business: { available: false, priority: 260 } },
+  { product_code: 'G5237OH', business: { available: false, priority: 260 }, display_name: null },
   // VC102 - 唯一可用 + 推荐
-  { product_code: 'VC102',    business: { available: true, featured: true, priority: 1000, custom_message: '🌟 AI/Agent 工具付费首选 · 美国 Mastercard · 2 个 BIN 随机分配' } },
+  { product_code: 'G5554LC',  display_name: 'VC102', business: { available: true, featured: true, priority: 1000, custom_message: '🌟 AI/Agent 工具付费首选 · 美国 Mastercard · 2 个 BIN 随机分配' } },
 ];
 
 
@@ -551,17 +551,21 @@ router.get('/meta/products', async (req, res, next) => {
     //   - 基础数据（bin/network/type/media/issuing_area/remaining_open_card_num/metadata/description）→ 100% 来自上游
     //   - 业务控制（available/featured/priority/custom_message）→ HARDCODED 覆盖
     //   - 按 priority 降序排序
-    const businessMap = new Map(HARDCODED_PRODUCTS.map(hp => [hp.product_code, hp.business || {}]));
+    // v1.0.21 HARDCODED 条目支持两层: business 字段（业务覆盖）+ display_name（前端友好别名）
+    const hardcodedMap = new Map(HARDCODED_PRODUCTS.map(hp => [hp.product_code, hp]));
     const merged = apiList
       .map(p => {
-        const biz = businessMap.get(p.product_code) || {};
+        const hp = hardcodedMap.get(p.product_code);
+        const biz = (hp && hp.business) || {};
         return {
           ...p,
-          // 业务覆盖：HARDCODED 优先（业务可手动控制）
+          // 业务覆盖
           available:       biz.available !== undefined ? biz.available : p.available,
           featured:        biz.featured || false,
           priority:        biz.priority || 0,
           custom_message:  biz.custom_message || null,
+          // 友好别名（如 G5554LC → VC102）
+          display_name:    (hp && hp.display_name) || p.product_code,
         };
       })
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
