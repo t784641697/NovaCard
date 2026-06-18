@@ -205,6 +205,8 @@ db.exec(`
     topup_amount REAL    NOT NULL DEFAULT 0,
     quantity     INTEGER NOT NULL DEFAULT 1,
     email        TEXT    NOT NULL DEFAULT '',
+    -- 开卡费（已扣除的开卡费，存为记录便于审计）
+    fee_amount   REAL    NOT NULL DEFAULT 0,
     -- 审批状态
     status       TEXT    NOT NULL DEFAULT 'pending',  -- pending / approved / rejected
     reject_reason TEXT   NOT NULL DEFAULT '',
@@ -350,6 +352,22 @@ db.exec(`
   addTopup('fee_amount', "REAL    NOT NULL DEFAULT 0");
   addTopup('net_amount', "REAL    NOT NULL DEFAULT 0");
 
+  // card_applications 老表加列（兜底迁移：v1.0.15 之前的老库没 fee_amount 字段，
+  // 导致普通用户开卡申请 POST /api/cards 报 500 "no column named fee_amount"）
+  const cardAppCols = db.prepare("PRAGMA table_info(card_applications)").all().map(c => c.name);
+  const addCardApp = (col, type) => {
+    if (cardAppCols.includes(col)) { skippedCount++; return; }
+    try {
+      db.exec(`ALTER TABLE card_applications ADD COLUMN ${col} ${type}`);
+      console.log(`[DB Migration] card_applications 表已添加列: ${col}`);
+      addedCount++;
+    } catch (e) {
+      console.warn(`[DB Migration] card_applications.${col} ALTER 失败: ${e.message}`);
+      errorCount++;
+    }
+  };
+  addCardApp('fee_amount', "REAL    NOT NULL DEFAULT 0");
+
   // fee_configs 种子数据（INSERT OR IGNORE 保证幂等）
   // 迁移：将旧的 dispute 记录删除（已被 chargeback 替代）
   db.prepare(`DELETE FROM fee_configs WHERE fee_type = 'dispute'`).run();
@@ -392,7 +410,7 @@ db.exec(`
   if (renTopup.changes > 0) console.log(`[DB Seed] fee_configs: topup description 重命名 (${renTopup.changes} 条)`);
 
   // ── 迁移完成汇总日志（每次启动都打，方便确认 migrate 跑过）──────────
-  console.log(`[migrate] ✓ 完成: 新增 ${addedCount} 列, 已存在 ${skippedCount} 列, 失败 ${errorCount} 列 (users/cards/topup_requests 合计)`);
+  console.log(`[migrate] ✓ 完成: 新增 ${addedCount} 列, 已存在 ${skippedCount} 列, 失败 ${errorCount} 列 (users/cards/topup_requests/card_applications 合计)`);
   if (errorCount > 0) {
     console.warn(`[migrate] ⚠️ 有 ${errorCount} 个 ALTER 失败，请检查上方错误日志`);
   }
