@@ -667,7 +667,7 @@ select.form-control option{background:var(--bg3);}
   border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;
   cursor:pointer;transition:all .18s;background:var(--bg3);
   font-family:'JetBrains Mono','Courier New',monospace;
-  min-height:90px;display:flex;flex-direction:column;justify-content:center;gap:8px;
+  display:grid;grid-template-columns:60px 1fr auto;column-gap:10px;row-gap:8px;align-items:center;
 }
 .bin-card:hover,.bin-card.selected{
   border-color:rgba(167,139,250,.6);
@@ -675,15 +675,15 @@ select.form-control option{background:var(--bg3);}
 }
 .bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
 /* 回归基础布局：3 行 */
-.bin-row-top,.bin-row-mid{display:flex;justify-content:space-between;align-items:center;line-height:1.4;min-height:20px;}
-.bin-bins{display:flex;align-items:center;gap:0;flex-wrap:nowrap;font-size:.85rem;color:var(--purple);font-weight:700;letter-spacing:.3px;min-width:0;}
-.bin-prefix{color:var(--text);font-weight:600;margin-right:8px;font-size:.85rem;display:inline-block;width:56px;text-align:right;letter-spacing:0;flex-shrink:0;}
-.bin-country{font-size:.85rem;color:var(--text);font-weight:600;display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;}
-.bin-name{font-family:'JetBrains Mono','Courier New',monospace;font-weight:700;font-size:.85rem;color:var(--purple);letter-spacing:.3px;}
-.bin-network{font-weight:700;font-family:'JetBrains Mono','Courier New',monospace;font-size:.85rem;letter-spacing:.3px;}
+.bin-row-top,.bin-row-mid{display:none;}
+.bin-bins{display:inline-flex;align-items:center;gap:0;flex-wrap:nowrap;font-size:.85rem;color:var(--purple);font-weight:700;letter-spacing:.3px;min-width:0;white-space:nowrap;}
+.bin-prefix{color:var(--text);font-weight:600;font-size:.85rem;letter-spacing:0;white-space:nowrap;text-align:right;justify-self:stretch;}
+.bin-country{font-size:.85rem;color:var(--text);font-weight:600;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;justify-self:end;}
+.bin-name{font-family:'JetBrains Mono','Courier New',monospace;font-weight:700;font-size:.85rem;color:var(--purple);letter-spacing:.3px;display:inline-block;white-space:nowrap;}
+.bin-network{font-weight:700;font-family:'JetBrains Mono','Courier New',monospace;font-size:.85rem;letter-spacing:.3px;justify-self:end;white-space:nowrap;}
 .bin-row-bot{font-size:.82rem;color:var(--text2);}
-.bin-code{font-weight:700;font-family:'JetBrains Mono','Courier New',monospace;color:var(--purple);font-size:.85rem;letter-spacing:.3px;}
-.bin-split{color:var(--text2);margin:0 3px;font-weight:400;font-size:.85rem;user-select:none;}
+.bin-code{font-weight:700;font-family:'JetBrains Mono','Courier New',monospace;color:var(--purple);font-size:.85rem;letter-spacing:.3px;display:inline-block;}
+.bin-split{color:var(--text2);margin:0 3px;font-weight:400;font-size:.85rem;user-select:none;display:inline-block;}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
@@ -2937,14 +2937,8 @@ function renderBins(list, filter) {
     const isVisa = /visa/i.test(p.network);
     const country = COUNTRY_MAP[p.issuing_area] || p.issuing_area || '';
     return `<div class="bin-card" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-      <div class="bin-row-top">
-        <div class="bin-bins"><span class="bin-prefix">卡BIN:</span>${formatBin(p.bin)}</div>
-        <div class="bin-country"><span class="bin-flag">${COUNTRY_FLAGS[p.issuing_area] || "🏳️"}</span><span>${country}</span></div>
-      </div>
-      <div class="bin-row-mid">
-        <span class="bin-prefix">产品:</span><span class="bin-name">${p.product_code}</span>
-        <span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
-      </div>
+      <span class="bin-prefix">卡BIN:</span><span class="bin-bins">${formatBin(p.bin)}</span><span class="bin-country"><span class="bin-flag">${COUNTRY_FLAGS[p.issuing_area] || "🏳️"}</span><span>${country}</span></span>
+      <span class="bin-prefix">产品:</span><span class="bin-name">${p.product_code}</span><span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
     </div>`;
   }).join('');
 }
