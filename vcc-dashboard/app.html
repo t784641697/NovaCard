@@ -1657,6 +1657,14 @@ let _rechargeCardId = null;
 let _selectedBin = null;
 let _productList = null;
 
+// v1.0.21 product_code 友好别名（API 真实名 → 用户友好显示名）
+//   如 G5554LC → VC102（上游后台改名为 VC102，但 API 仍叫 G5554LC）
+//   申请开卡提交时传 product_code（API 名），前端展示用 display name
+const PRODUCT_DISPLAY_NAMES = { 'G5554LC': 'VC102' };
+function getProductDisplayName(code) {
+  return PRODUCT_DISPLAY_NAMES[code] || code;
+}
+
 // ══════════════════════════════════════════════
 //  TOAST
 // ══════════════════════════════════════════════
@@ -2571,7 +2579,7 @@ async function loadOvTxList() {
       const statusRaw = (t.status || '').toUpperCase();
       const statusInfo = txStatusMap[statusRaw] || { cls: 'tag-purple', label: statusRaw || '—' };
       const bin = (t.card_id || '').slice(0, 6) || '—';
-      const product = t.product_code || '—';
+      const product = PRODUCT_DISPLAY_NAMES[t.product_code] || t.product_code || '—';
       const merchant = t.merchant_name || '—';
       const txAmt = t.amount !== undefined ? Number(t.amount) : null;
       const amtColor = txAmt !== null && txAmt < 0 ? 'var(--red)' : txAmt !== null && txAmt > 0 ? 'var(--green)' : 'var(--text2)';
@@ -3052,7 +3060,7 @@ async function loadMyApplications() {
       const dt = new Date(a.created_at).toLocaleDateString('zh-CN');
       return `<div class="app-item">
         <div class="app-item-main">
-          <div class="app-item-code">${a.product_code} · ${a.first_name} ${a.last_name}</div>
+          <div class="app-item-code">${PRODUCT_DISPLAY_NAMES[a.product_code] || a.product_code} · ${a.first_name} ${a.last_name}</div>
           <div class="app-item-meta">${dt}${a.label?' · '+a.label:''}${a.reject_reason?' · 原因：'+a.reject_reason:''}</div>
         </div>
         <span class="tag ${s.tag}">${s.label}</span>
@@ -6286,7 +6294,7 @@ window.showCardDetailModal = function(cardData) {
   document.getElementById('modalCardMonthLimit').textContent   = fmtUsd(cardData.month_limit);
   
   // 产品码和持卡人信息
-  document.getElementById('modalCardProductCode').textContent = cardData.product_code || cardData.bin || '—';
+  document.getElementById('modalCardProductCode').textContent = PRODUCT_DISPLAY_NAMES[cardData.product_code] || cardData.product_code || cardData.bin || '—';
   let holderName = '';
   if (cardData.first_name && cardData.last_name) {
     holderName = `${cardData.first_name} ${cardData.last_name}`;
@@ -7186,7 +7194,7 @@ async function crLoad() {
         `<td class="col-check">${isPending ? `<input type="checkbox" class="cr-checkbox" id="crCheck_${a.id}" onchange="crToggleSelect(${a.id})" ${checked}>` : ""}</td>` +
         `<td class="col-id">#${a.id}</td>` +
         `<td class="col-applicant"><div class="cr-applicant-name">${a.user_name || "-"}</div><div class="cr-applicant-email">${a.user_email || ""}</div></td>` +
-        `<td class="col-product"><span class="cr-tag" style="background:#1a2340;color:var(--text2)">${a.product_code || "-"}</span></td>` +
+        `<td class="col-product"><span class="cr-tag" style="background:#1a2340;color:var(--text2)">${PRODUCT_DISPLAY_NAMES[a.product_code] || a.product_code || "-"}</span></td>` +
         `<td class="col-holder">${(a.first_name || "") + " " + (a.last_name || "")}</td>` +
         `<td class="col-amount">$${Number(a.topup_amount || 0).toFixed(2)} ×${a.quantity||1}张</td>` +
         `<td class="col-status"><span class="cr-tag ${sc}">${st}</span>${a.reject_reason ? `<div style="font-size:.75rem;color:#ff5f5f;margin-top:4px">原因: ${a.reject_reason}</div>` : ""}</td>` +
