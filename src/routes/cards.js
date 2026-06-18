@@ -139,11 +139,12 @@ router.get('/', async (req, res, next) => {
     
     // 查询用户的所有卡片（从数据库直接获取）
     const cards = db.prepare(`
-      SELECT 
+      SELECT
         id, card_id, card_number, product_code, label, card_type, status,
         available_amount, expiry_month, expiry_year, cvv,
+        single_limit, day_limit, month_limit,
         created_at, updated_at
-      FROM cards 
+      FROM cards
       WHERE user_id = ?
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
@@ -173,15 +174,37 @@ router.get('/:card_id', async (req, res, next) => {
   try {
     const { card_id } = req.params;
 
-    // 检查归属（管理员可查所有）
-    if (req.user.role !== 'admin') {
-      const owned = db.prepare('SELECT id FROM cards WHERE card_id = ? AND user_id = ?')
-        .get(card_id, req.user.id);
-      if (!owned) return res.status(403).json({ code: 403, msg: '无权限' });
+    // 先查本地基础数据（product_code / label / 限额 等上游不一定返回的字段）
+    let localCard = null;
+    const localSql = `
+      SELECT c.*, u.name as user_name, u.email as user_email
+      FROM cards c JOIN users u ON u.id = c.user_id
+      WHERE c.card_id = ?
+    `;
+    if (req.user.role === 'admin') {
+      localCard = db.prepare(localSql).get(card_id);
+    } else {
+      localCard = db.prepare(localSql + ' AND c.user_id = ?').get(card_id, req.user.id);
     }
+    if (!localCard) return res.status(403).json({ code: 403, msg: '无权限或卡片不存在' });
 
+    // 实时从上游拉取完整详情（卡号/CVV/有效期/限额/账单地址）
     const detail = await sdk.cardDetail(card_id);
-    res.json({ code: 0, msg: 'ok', data: detail });
+    // 排除 detail.user_name（持卡人姓名）— 避免覆盖 localCard.user_name（用户真名）
+    const { user_name: _ignored, ...detailSafe } = detail;
+
+    // 合并：上游字段优先（实时），本地字段兜底（上游没返回的如 product_code）
+    res.json({
+      code: 0, msg: 'ok',
+      data: {
+        ...localCard,        // 本地基础（product_code, label, user_email, user_name 用户真名 等）
+        ...detailSafe,       // 上游实时（卡号/CVV/有效期/限额/账单地址）
+        // 重新生成 expire 字符串（兼容 admin 端格式）
+        expire: (detail.expiry_month || localCard.expiry_month) && (detail.expiry_year || localCard.expiry_year)
+          ? String(detail.expiry_month || localCard.expiry_month).padStart(2, '0') + '/' + String(detail.expiry_year || localCard.expiry_year).slice(-2)
+          : detail.expire || null,
+      }
+    });
   } catch (err) {
     next(err);
   }

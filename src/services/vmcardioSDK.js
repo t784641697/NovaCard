@@ -158,6 +158,28 @@ class VmcardioSDK {
         r.expiry_year = 2000 + parseInt(m[2], 10);
       }
     }
+    // 上游 limit={single_limit, day_limit, month_limit, total_limit, remaining_*}
+    // → 拍平到顶层（数据库列 & 前端都按顶层字段读取）
+    if (r.limit && typeof r.limit === 'object') {
+      const f = r.limit;
+      r.single_limit  = f.single_limit  ?? r.single_limit  ?? 0;
+      r.day_limit     = f.day_limit     ?? r.day_limit     ?? 0;
+      r.month_limit   = f.month_limit   ?? r.month_limit   ?? 0;
+      r.total_limit   = f.total_limit   ?? r.total_limit   ?? 0;
+      r.remaining_day_limit   = f.remaining_day_limit   ?? r.remaining_day_limit   ?? 0;
+      r.remaining_month_limit = f.remaining_month_limit ?? r.remaining_month_limit ?? 0;
+    }
+    // 上游 card_address={address_line_one, address_line_two, city, state, country, post_code}
+    // → 拍平到顶层（前端 / 一键复制按顶层字段读）
+    if (r.card_address && typeof r.card_address === 'object') {
+      const a = r.card_address;
+      r.address_line_one = a.address_line_one ?? r.address_line_one ?? '';
+      r.address_line_two = a.address_line_two ?? r.address_line_two ?? '';
+      r.city             = a.city             ?? r.city             ?? '';
+      r.state            = a.state            ?? r.state            ?? '';
+      r.country          = a.country          ?? r.country          ?? '';
+      r.post_code        = a.post_code        ?? r.post_code        ?? '';
+    }
     return r;
   }
 

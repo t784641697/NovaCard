@@ -1757,11 +1757,13 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           logger.warn(`[approve] cardDetail ${realCardId} 失败: ${e.message}（占位记录已写入，可后续同步）`);
         }
         db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status,
-          card_number, expiry_month, expiry_year, cvv, card_type, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, nowiso(), nowiso())`).run(
+          card_number, expiry_month, expiry_year, cvv, card_type,
+          single_limit, day_limit, month_limit, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, nowiso(), nowiso())`).run(
           realCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Virtual Card',
           detail?.card_number || '', detail?.expiry_month || 0, detail?.expiry_year || 0,
-          detail?.cvv || '', detail?.card_type || 'save'
+          detail?.cvv || '', detail?.card_type || 'save',
+          detail?.single_limit || 0, detail?.day_limit || 0, detail?.month_limit || 0
         );
         createdCards.push(realCardId);
       } catch (err) {
