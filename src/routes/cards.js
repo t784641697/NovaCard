@@ -565,6 +565,8 @@ const HARDCODED_PRODUCTS = [
   // 重新组织字段：metadata 子对象存放描述/限额/适用平台
   product_code: p.product_code,
   bin: p.bin,
+  bins: p.bins,                  // G5554LC 等多 BIN 卡段：['555671', '544015']
+  upstream_product_code: p.upstream_product_code,  // 兼容旧 G 前缀的 sandbox 名
   issuing_area: p.issuing_area,
   card_type: p.card_type,
   type: p.type,
