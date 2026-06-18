@@ -673,10 +673,11 @@ select.form-control option{background:var(--bg3);}
 }
 .bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
 /* 回归基础布局：3 行 */
-.bin-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-.bin-bins{display:flex;align-items:center;gap:1px;flex-wrap:wrap;}
-.bin-remaining{font-size:.7rem;color:var(--text2);background:var(--bg2);padding:2px 8px;border-radius:8px;font-weight:600;}
-.bin-row-mid{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.bin-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.bin-bins{display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-family:monospace;font-size:.82rem;color:var(--text);font-weight:700;}
+.bin-prefix{color:var(--text2);font-weight:600;margin-right:3px;}
+.bin-country{font-size:.78rem;color:var(--text2);font-weight:600;}
+.bin-row-mid{display:flex;justify-content:space-between;align-items:center;margin-bottom:0;}
 .bin-name{font-family:monospace;font-weight:700;font-size:.82rem;color:var(--text);}
 .bin-network{font-weight:700;font-family:monospace;font-size:.78rem;}
 .bin-row-bot{font-size:.78rem;color:var(--text2);}
@@ -2927,21 +2928,19 @@ function renderBins(list, filter) {
     }
     return `<span class="bin-code">${s}</span>`;
   }
-  // 回归基础：只显示 BIN + 名称 + 网络 + 国家 + 剩余数
+  // 回归基础：BIN段 + 国家 + 产品代码 + 网络
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
     const country = COUNTRY_MAP[p.issuing_area] || p.issuing_area || '';
-    const remaining = p.remaining_open_card_num || 0;
     return `<div class="bin-card" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})">
       <div class="bin-row-top">
-        <div class="bin-bins">${formatBin(p.bin)}</div>
-        <div class="bin-remaining">剩 ${remaining}</div>
+        <div class="bin-bins"><span class="bin-prefix">卡BIN:</span>${formatBin(p.bin)}</div>
+        <div class="bin-country">🌏 ${country}</div>
       </div>
       <div class="bin-row-mid">
         <span class="bin-name">${p.product_code}</span>
         <span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
       </div>
-      <div class="bin-row-bot">📍 ${country}</div>
     </div>`;
   }).join('');
 }
