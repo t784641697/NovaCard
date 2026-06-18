@@ -675,8 +675,8 @@ select.form-control option{background:var(--bg3);}
 /* 回归基础布局：3 行 */
 .bin-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
 .bin-bins{display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-family:monospace;font-size:.82rem;color:var(--text);font-weight:700;}
-.bin-prefix{color:var(--text2);font-weight:600;margin-right:3px;}
-.bin-country{font-size:.78rem;color:var(--text2);font-weight:600;}
+.bin-prefix{color:var(--text);font-weight:600;margin-right:3px;}
+.bin-country{font-size:.82rem;color:var(--text);font-weight:600;display:flex;align-items:center;gap:4px;}
 .bin-row-mid{display:flex;justify-content:space-between;align-items:center;margin-bottom:0;}
 .bin-name{font-family:monospace;font-weight:700;font-size:.82rem;color:var(--text);}
 .bin-network{font-weight:700;font-family:monospace;font-size:.78rem;}
@@ -2919,6 +2919,9 @@ function renderBins(list, filter) {
   const COUNTRY_MAP = {
     'Hong Kong SAR':'香港','United States':'美国','United Kingdom':'英国','Singapore':'新加坡',
   };
+  const COUNTRY_FLAGS = {
+    'Hong Kong SAR':'🇭🇰','United States':'🇺🇸','United Kingdom':'🇬🇧','Singapore':'🇸🇬',
+  };
   // 拆分 BIN 显示：12 位通常是 2 个 6 位 BIN 随机分配（无法指定）
   function formatBin(bin) {
     if (!bin) return '—';
@@ -2935,10 +2938,10 @@ function renderBins(list, filter) {
     return `<div class="bin-card" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})">
       <div class="bin-row-top">
         <div class="bin-bins"><span class="bin-prefix">卡BIN:</span>${formatBin(p.bin)}</div>
-        <div class="bin-country">🌏 ${country}</div>
+        <div class="bin-country"><span class="bin-flag">${COUNTRY_FLAGS[p.issuing_area] || "🏳️"}</span><span>${country}</span></div>
       </div>
       <div class="bin-row-mid">
-        <span class="bin-name">${p.product_code}</span>
+        <span class="bin-prefix">产品码</span><span class="bin-name">${p.product_code}</span>
         <span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
       </div>
     </div>`;
