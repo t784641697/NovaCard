@@ -67,10 +67,10 @@ router.post('/', createCardLimiter, async (req, res, next) => {
       return res.status(400).json({ code: 400, msg: `余额不足。需要 $${totalCost.toFixed(2)}（开卡费 $${cardCreationFee.toFixed(2)} + 充值 $${totalAmount.toFixed(2)}），当前余额 $${userBalance.toFixed(2)}` });
     }
 
-    // 通过余额服务扣除开卡费（计入 total_spend 和 total_fees）
+    // 通过余额服务扣除开卡费（amount=0，只扣 fee；topup 走 line 80 单独冻结，避免重复扣款）
     const spendResult = BalanceService.recordSpend(
       req.user.id,
-      totalAmount, // 充值金额计入消费
+      0, // topup 不计入消费（由下面 UPDATE 冻结）
       'card_creation',
       cardCreationFee,
       `申请 ${qty} 张虚拟卡 ${product_code || ''}，每张充值 $${topupAmt}`
