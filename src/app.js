@@ -143,6 +143,15 @@ if (fs.existsSync(frontendPath)) {
   // 提供其他静态资源（CSS、JS等）也禁用缓存
   app.use('/static', noCache, express.static(frontendDir));
   logger.info('📁 前端静态文件服务已启用：' + frontendDir);
+
+  // 临时：项目备份下载服务（2026-06-18 一次性使用，下完就删）
+  const downloadsDir = path.join(__dirname, '..', 'public', 'downloads');
+  if (fs.existsSync(downloadsDir)) {
+    app.use('/downloads', express.static(downloadsDir, {
+      setHeaders: (res) => { res.setHeader('Content-Disposition', 'attachment'); }
+    }));
+    logger.info('📦 临时下载服务已启用：/downloads/');
+  }
 } else {
   logger.warn('⚠️  前端文件未找到：' + frontendPath);
 }
