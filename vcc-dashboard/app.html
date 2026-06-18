@@ -4434,15 +4434,22 @@ function renderCmList(cards) {
 }
 
 // 卡片管理 — 充值弹窗
-window.cmRechargeCard = function(cardId) {
-  // 复用已有的充值逻辑 or 弹一个简单 prompt
-  const amt = prompt('请输入充值金额（USD）：');
-  if (!amt || isNaN(Number(amt)) || Number(amt) <= 0) { toast('❌ 请输入有效金额'); return; }
-  apiFetch('/cards/recharge', { method:'POST', body: JSON.stringify({ card_id: cardId, amount: Number(amt) }) })
-    .then(r => {
-      if (r.code === 0) { toast('✅ 充值成功'); renderCardManage(); }
-      else toast('❌ ' + (r.msg||'充值失败'));
-    }).catch(() => toast('❌ 充值请求失败'));
+window.cmRechargeCard = async function(cardId) {
+  // 用项目已有 promptModal（深色主题，跟界面统一）替代浏览器原生 prompt
+  const raw = await promptModal({
+    title: '💰 卡片充值',
+    desc:  '请输入充值金额（USD），将从您的账户余额扣款。',
+    placeholder: '例：100'
+  });
+  // 取消：promptModalCancel 返回 null，直接退出，不报错
+  if (raw === null) return;
+  const amt = Number(raw);
+  if (!raw.trim() || isNaN(amt) || amt <= 0) { toast('❌ 请输入有效金额'); return; }
+  try {
+    const r = await apiFetch('/cards/recharge', { method:'POST', body: JSON.stringify({ card_id: cardId, amount: amt }) });
+    if (r.code === 0) { toast('✅ 充值成功 $' + amt.toFixed(2)); renderCardManage(); }
+    else toast('❌ ' + (r.msg||'充值失败'));
+  } catch(e) { toast('❌ 充值请求失败'); }
 }
 
 // 卡片管理 — 冻结/解冻
@@ -7459,8 +7466,15 @@ async function trApprove(id) {
   const origAmt = Number(a.amount_usdt || 0);
   let usdtAmt = origAmt;
   if (!usdtAmt || usdtAmt <= 0) {
-    const inp = parseFloat(prompt('请输入入账 USDT 金额（USD）：') || '0');
-    if (!inp || inp <= 0) return toast('⚠️ 请输入有效金额');
+    // 用项目已有 promptModal（深色主题），取消返回 null 直接退出不报错
+    const inpRaw = await promptModal({
+      title: '💰 入账 USDT 金额',
+      desc:  '请输入实际入账 USDT 金额（USD）。',
+      placeholder: '例：100'
+    });
+    if (inpRaw === null) return;
+    const inp = parseFloat(inpRaw);
+    if (!inpRaw.trim() || isNaN(inp) || inp <= 0) return toast('⚠️ 请输入有效金额');
     usdtAmt = inp;
   }
   // 用后端按 user_id 算的 effective_* 字段做预览 — 跟 PATCH 实际扣费完全一致
