@@ -609,6 +609,10 @@ router.get('/meta/products', async (req, res, next) => {
         merged.push(hp);
       }
     }
+    // v1.0.21 ?raw=1: 跳过 HARDCODED 合并，直接返回上游 API 原始数据（调试用）
+    if (req.query.raw === '1') {
+      return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: apiList } });
+    }
     res.json({ code: 0, msg: 'ok', data: { ...result, list: merged } });
   } catch (err) {
     // API 调用失败时，至少返回硬编码列表
@@ -617,6 +621,17 @@ router.get('/meta/products', async (req, res, next) => {
       msg: 'ok',
       data: { list: HARDCODED_PRODUCTS },
     });
+  }
+});
+
+
+// v1.0.21 调试用: 永远返回上游 API 原始数据（不合并 HARDCODED）
+router.get('/meta/products/upstream', async (req, res, next) => {
+  try {
+    const result = await sdk.getProductCode();
+    res.json({ code: 0, msg: 'ok (upstream raw)', data: { ...result, list: (result && result.list) || [] } });
+  } catch (err) {
+    res.status(500).json({ code: 500, msg: 'upstream failed: ' + err.message });
   }
 });
 
