@@ -1735,7 +1735,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
 
         // 正式环境走 Merchant API：RSA 加密，product_code + amount + first/last_name + user_id
         //   v1.0.7 假设的 Web API (dev.vmcardio.com/web/createCard) 在正式环境不存在
-        //   v1.0.15 实测：vmapi.vmcardio.com/createCard + G5554LC 正式环境可正常开卡
+        //   v1.0.15 实测：vmapi.vmcardio.com/createCard + VC102（原 sandbox 名 G5554LC）正式环境可正常开卡
         // v1.0.17: 审批时传商户 KYC 默认账单地址，上游写入 card_address
         let cardBillingAddress = null;
         if (process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS) {

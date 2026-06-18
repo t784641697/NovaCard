@@ -1,4 +1,28 @@
 
+## v1.0.54 | 2026-06-18 | G5554LC 改名为 VC102（对齐上游）+ BIN 拆分显示
+
+### 背景
+- **G5554LC 是 sandbox 时期旧名**，正式环境上游后台 + API 已升级为 `VC102`（同名同 BIN 同功能）
+- 上游 `getProductCode` API 仍返回 `G5554LC`，但上游管理后台显示产品编码为 `VC102`（更短更规范）
+- G5554LC 的 `bin` 字段是 12 位 `555671544015`（**2 个 6 位 BIN 拼接**：555671 + 544015），其他 16 个卡段都是 6-8 位
+- 上游明确标注："两个卡 BIN 随机分配（无法指定）"——taoliang 拿到的是 555671 段
+
+### 改动（全栈联动）
+- **`src/routes/cards.js` HARDCODED_PRODUCTS**：`product_code: 'G5554LC'` → `'VC102'`，新增 `legacy_product_code: 'G5554LC'`（保留旧名兼容）
+- **`.map` 透传字段**：bins + legacy_product_code（之前 .map 白名单只 12 个字段，把拓展字段吞了）
+- **`src/routes/admin.js` createCard 调用**：`app.product_code` 取自数据库（card_applications 表），用 VC102 即可（数据库里 1 条 VC113，无 G5554LC 实际数据）
+- **`scripts/test_create_app.js`**：测试 product_code 改 VC102
+- **`vcc-dashboard/app.html` 注释 + 品牌缩写**：G5554LC 引用全部更新为 VC102
+
+### 前端显示优化
+- **卡段列表 BIN 显示**：`formatBin()` 函数 — 12 位自动拆成 `555671 / 544015` 显示，加 `/` 分隔符
+- **hover tooltip**：`BIN 段：555671（6位）` + `/（2 个 BIN 随机分配（无法指定））`
+- **CSS** `.bin-code`：`font-size .7rem` + `letter-spacing -.3px` + `min-width 60px` + 居中 → 12 位不再视觉突兀
+- **卡段详情 label**："卡段号" → "BIN 段（2 个 6 位，随机分配）"
+
+### 数据库迁移
+- **不需要**：当前 cards 表为空，card_applications 表只有 1 条 VC113（pending），无 G5554LC 实际数据
+
 ## v1.0.53 | 2026-06-18 | 卡片详情字段补全（限额单位修复 + 账单地址 + 持卡人）
 
 ### 修复

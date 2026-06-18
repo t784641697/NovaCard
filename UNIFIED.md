@@ -144,7 +144,7 @@ SQLite 生产库偶发索引损坏（`database disk image is malformed`），修
 |------|--------------------------------------|-----------------------------------|
 | 认证 | `app_id` + `app_secret` → AccessToken | JWT Session Token |
 | 传输 | RSA 加密 `{content: encrypted}` | 明文 JSON |
-| 创建卡片 | ❌ G5554LC 无权限 | ✅ 可用 |
+| 创建卡片 | ✅ 全部 17 个 product_code 均可（含 VC102/原 G5554LC） | ❌ 正式环境无此端点 |
 | 卡片查询 | ✅ `cardDetail`/`cardTransaction` | ❌ `/getCardList` 404 |
 | 当前用途 | 查询（余额/卡片详情/交易） | 创建卡片 |
 
@@ -625,7 +625,7 @@ pm2 start vcc-hub   # database.js 自动建表+迁移+种子
 |---|---|---|
 | 余额 | `available_amount`（不是 `available_balance`）| SQL 千万别写错 |
 | 币种 | 无列 | 固定 `USD` |
-| 品牌 | 无列 | 用 `product_code` 推断（G5554LC/VC113=Mastercard）|
+| 品牌 | 无列 | 用 `product_code` 推断（VC102/VC113/G5xx/G54xx/S2xx/S5xx=Mastercard）|
 
 ### 12.5 双入口触发矩阵
 
@@ -1255,3 +1255,17 @@ kill -9 30772
 - `transactions` 表的 `type='充值'` 记录必须含完整字段：`fee`, `net_amount`, `fee_type='topup'`
 - 重复提交防护：`recordTopup` 用 `request_id` 唯一索引去重
 - 重复点击同申请 → 第二次返回"该申请已处理"（不再重复扣费 + 写流水）
+
+### 21.7 卡段 product_code 命名规则（v1.0.19 修正）
+
+| 旧名 (sandbox) | 新名 (上游正式环境后台/API) | 备注 |
+|---|---|---|
+| `G5554LC` | **`VC102`** | v1.0.19 改名为 VC102，全栈联动 |
+| `G5321KC` 等 G 前缀 | 仍为 G 前缀 | 上游没改名，沿用 |
+| `S5395YL` 等 S 前缀 | 仍为 S 前缀 | 上游没改名，沿用 |
+
+- **业务名**用 `product_code`（如 `VC102`）
+- **兼容旧名**用 `legacy_product_code`（如 `G5554LC`），前端可选展示
+- **BIN 拆分字段**：上游 `bin` 字段是 12 位（`555671544015`），代表 2 个 6 位 BIN 拼接（`555671` + `544015`）随机分配
+- HARDCODED_PRODUCTS 数组必须保留 `bins: ['555671', '544015']` 字段，前端 `formatBin()` 自动识别 12 位并拆分为 `555671 / 544015` 显示
+- **G5554LC 历史数据**：v1.0.19 改名时本地 DB 无 G5554LC 实际卡数据（cards 表空），无需迁移

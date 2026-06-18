@@ -537,7 +537,7 @@ const COMMON_META = {
 };
 
 // 上游 17 个 product_code 实际清单（来自 getProductCode）
-// v1.0.18 修正：G5554LC=美国/BIN 555671544015（v1.0.7 沙盒时期硬编码错误）
+// v1.0.19 修正：G5554LC 是 sandbox 时期旧名，正式环境上游后台 + API 已升级为 VC102（同名同 BIN）
 const HARDCODED_PRODUCTS = [
   // HK 香港（10 个）
   { product_code: 'S5395YL', bin: '539502', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
@@ -556,8 +556,8 @@ const HARDCODED_PRODUCTS = [
   { product_code: 'S2350CX', bin: '235019', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
   { product_code: 'S2236CP', bin: '223600', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
   // US 美国（2 个）
-  // G5554LC (上游正式环境名：VC102) — 2 个 6 位 BIN 随机分配，bin 字段是上游把 2 个拼接成 12 位返回
-  { product_code: 'G5554LC', bin: '555671544015', bins: ['555671', '544015'], upstream_product_code: 'VC102', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
+  // VC102 (sandbox 旧名 G5554LC) — 2 个 6 位 BIN 随机分配，bin 字段是上游把 2 个拼接成 12 位返回
+  { product_code: 'VC102', bin: '555671544015', bins: ['555671', '544015'], legacy_product_code: 'G5554LC', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
   { product_code: 'G5237OH', bin: '52737560', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
   // SG 新加坡（1 个）
   { product_code: 'S5331GL', bin: '533171', issuing_area: 'Singapore', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.SG },
@@ -565,8 +565,8 @@ const HARDCODED_PRODUCTS = [
   // 重新组织字段：metadata 子对象存放描述/限额/适用平台
   product_code: p.product_code,
   bin: p.bin,
-  bins: p.bins,                  // G5554LC 等多 BIN 卡段：['555671', '544015']
-  upstream_product_code: p.upstream_product_code,  // 兼容旧 G 前缀的 sandbox 名
+  bins: p.bins,                  // VC102 等多 BIN 卡段：['555671', '544015']
+  legacy_product_code: p.legacy_product_code,  // 兼容旧 G 前缀的 sandbox 名（VC102 → G5554LC）
   issuing_area: p.issuing_area,
   card_type: p.card_type,
   type: p.type,
@@ -602,7 +602,7 @@ router.get('/meta/products', async (req, res, next) => {
         existing.available = true;
         // 透传硬编码里的拓展字段（bins、upstream_product_code 等）
         if (hp.bins)        existing.bins = hp.bins;
-        if (hp.upstream_product_code) existing.upstream_product_code = hp.upstream_product_code;
+        if (hp.legacy_product_code) existing.legacy_product_code = hp.legacy_product_code;
       } else {
         // API 没有该 BIN，添加硬编码产品
         merged.push(hp);

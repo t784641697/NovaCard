@@ -179,7 +179,8 @@ sudo systemctl restart nginx
 | v1.0.12 | 2026-06-02 | 卡段使用说明展示：后端 HARDCODED_PRODUCTS 扩充为全部10个可用卡段，增加 metadata（适用平台、验证类型、限额、禁止事项）；前端开卡 Step2 新增卡段提醒信息面板 |
 | v1.0.13 | 2026-06-04 | **RSA 密钥修复**：重新生成 merchant 密钥对（2048-bit），用户上传公钥到 vmcardio 后恢复正常解密；修复 `/api/admin/merchant-balance` 解析上游返回格式错误（result.balance → result.data.balance） |
 | v1.0.14 | 2026-06-17 | **AGENTS.md 生产服务器信息纠正**：之前误把已弃用的腾讯云 `43.135.26.36` 标为生产，实际生产是 Vultr 新加坡 `139.180.188.104` + Cloudflare + `nova-vcc.com`；同日修复"卡交易/卡结算金额配色按'卡'语义"（消费/清算红、退款/撤销绿）+ `Cache-Control: no-store` 防止 CDN/浏览器缓存旧 HTML |
-| v1.0.15 | 2026-06-18 | **正式环境开卡切回 Merchant API**：v1.0.7 假设的 Web API（dev.vmcardio.com/web/createCard）在正式环境不存在 — 正式环境 `vmcardio.com` 是 HTML 营销站，无 API endpoint。沙盒/Web API 仅 dev.vmcardio.com 有。改用正式环境 `vmapi.vmcardio.com/createCard`（Merchant API + RSA 加密），实测 G5554LC 正式环境可正常开卡，同步返回 `card_id`（无需异步发现）。删掉 `discoverWebCardIds` 流程。正式环境不再需要 `VMCARDIO_WEB_*` 配置 |
+| v1.0.15 | 2026-06-18 | **正式环境开卡切回 Merchant API**：v1.0.7 假设的 Web API（dev.vmcardio.com/web/createCard）在正式环境不存在 — 正式环境 `vmcardio.com` 是 HTML 营销站，无 API endpoint。沙盒/Web API 仅 dev.vmcardio.com 有。改用正式环境 `vmapi.vmcardio.com/createCard`（Merchant API + RSA 加密），实测 VC102（原 sandbox 名 G5554LC）正式环境可正常开卡，同步返回 `card_id`（无需异步发现）。删掉 `discoverWebCardIds` 流程。正式环境不再需要 `VMCARDIO_WEB_*` 配置 |
+| v1.0.19 | 2026-06-18 | **G5554LC 改名为 VC102（对齐上游）**：sandbox 时期旧名 `G5554LC` 在正式环境上游后台 + API 已升级为 `VC102`（同名同 BIN），全栈联动改名（HARDCODED_PRODUCTS、admin.js、app.html、scripts/test_create_app.js）；卡段列表前端 `formatBin()` 把 12 位 `bin` 拆成 2 个 6 位 `555671 / 544015` 显示 + tooltip 说明"2 个 BIN 随机分配（无法指定）" |
 
 ### 🔴 重要：双环境 API 架构说明（v1.0.15 修订）
 
