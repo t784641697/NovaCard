@@ -682,8 +682,8 @@ select.form-control option{background:var(--bg3);}
 .bin-name{font-family:monospace;font-weight:700;font-size:.82rem;color:var(--primary);}
 .bin-network{font-weight:700;font-family:monospace;font-size:.82rem;}
 .bin-row-bot{font-size:.82rem;color:var(--text2);}
-.bin-code{font-weight:700;font-family:monospace;color:var(--purple);font-size:.7rem;letter-spacing:-.3px;display:inline-block;min-width:54px;text-align:center;}
-.bin-split{color:var(--text2);margin:0 1px;font-weight:400;font-size:.65rem;}
+.bin-code{font-weight:700;font-family:monospace;color:var(--primary);font-size:.82rem;letter-spacing:0;display:inline-block;min-width:54px;text-align:center;}
+.bin-split{color:var(--text2);margin:0 1px;font-weight:400;font-size:.82rem;}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
@@ -2942,7 +2942,7 @@ function renderBins(list, filter) {
         <div class="bin-country"><span class="bin-flag">${COUNTRY_FLAGS[p.issuing_area] || "🏳️"}</span><span>${country}</span></div>
       </div>
       <div class="bin-row-mid">
-        <span class="bin-prefix">产品码</span><span class="bin-name">${p.product_code}</span>
+        <span class="bin-prefix">产品:</span><span class="bin-name">${p.product_code}</span>
         <span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
       </div>
     </div>`;
