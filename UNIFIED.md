@@ -1189,3 +1189,69 @@ kill -9 30772
 | 规范 | OpenAPI 3.0 |
 | 注释 | JSDoc `@swagger` 块, 6 个端点已覆盖 |
 | 组件 | ApiResponse, Transaction, AnomalyAlert schemas |
+
+## 21. 充值入账手续费体系 + 开卡流程全面修复（2026-06-18）
+
+### 21.1 fee_configs 费用类型
+
+| fee_type | description | 备注 |
+|----------|-------------|------|
+| `topup` | 入账手续费 | 充值入账扣费（v1.0.48 新增；曾用名"充值入账手续费"） |
+| `card_creation` | 开卡费 | 审批时扣 |
+| `transaction` | 交易手续费 | 消费入账扣 |
+| `refund` | 退款手续费 | |
+| `chargeback` | 拒付手续费 | |
+| `cross_border` | 跨境交易费 | |
+| `small_transaction` | 小额授权费 | |
+| `withdrawal` | 提现手续费 | |
+| `auth_reversal` | 撤销手续费 | |
+| `management` | 管理费 | |
+
+- seedFees 启动幂等（ON CONFLICT 跳过），日志更清晰
+- 新增 fee_type 时：① 插入 `fee_configs` ② 同步 `feeTypeMap`（前端）+ `app.html` ③ 更新本文档表
+
+### 21.2 用户级费率 user_fee_configs
+
+| 维度 | 实现 |
+|------|------|
+| 优先级 | 用户级 (user_fee_configs) > 全局 (fee_configs) |
+| 端点 | `GET /api/topup/fee-config` 返回当前用户生效费率（自动 fall back） |
+| 写入 | `setUserFeeConfig` 前端传 `is_active: 1/0`（**禁止 boolean**，SQLite 报错） |
+| 缓存 | 不缓存，每次申请实时查询（费率可能动态调整） |
+
+### 21.3 开卡流程 schema 与事务
+
+- `card_applications` 表必含列：`id, user_id, product_code, card_bin, first_name, last_name, topup_amount, quantity, fee_amount, status, reject_reason, card_id, created_at, updated_at`
+- `fee_amount` 列是 v1.0.4 重构时建表 SQL **漏列**，导致申请 500；v1.0.48 加 ALTER 兜底迁移
+- 申请扣费顺序（禁止重复扣）：① 申请时 `recordSpend(user_id, 0, fee_amount, '开卡费')` ② 申请时 `UPDATE balance -= fee_amount`；③ 审批扣 topup `UPDATE balance -= topup_amount * quantity`（**不要**再调 recordSpend，否则重复扣）
+- 开卡失败退款：fee + topup*quantity 一次性回滚到 balance（v1.0.48 修复只退 fee 的 bug）
+
+### 21.4 正式环境 vmcardio 架构（v1.0.15）
+
+| 维度 | 值 |
+|------|-----|
+| 域名 | `https://vmapi.vmcardio.com` |
+| 认证 | `app_id`+`app_secret` → `getAccessToken`（裸 token，**无 Bearer 前缀**） |
+| 传输 | RSA 加密 `{content: encrypted}`（**不是 Apifox 文档 cURL 示例的明文 JSON**） |
+| createCard 字段 | `product_code` / `amount` / `first_name` / `last_name` / `user_id` |
+| IP 白名单 | Vultr 真实 IPv4 `139.180.188.104`（SDK 强制 IPv4 避免 IPv6 误中） |
+| 错误码 | `400005 = Ip Invalid` / `400 = field X is not set` / `700002 = Invalid Product Code` |
+
+- **沙盒 vs 正式**：dev.vmcardio.com = 沙盒（有 Web API）；vmcardio.com = 正式（**无 Web API**，HTML 营销站）
+- **关键事实**：不要被 Apifox 文档 cURL 示例误导，**正式环境也是 RSA 加密**
+- SDK `_getToken()` 缓存 60s 提前量，AccessToken 复用避免每次重拿
+- RSA 密钥：请求用 `vmcardio_platform_public.pem` 加密；响应用 `merchant_private.pem` 解密
+- 缺失或密钥不匹配时：响应 `700002 Invalid Product Code`（实际是解密失败，但服务端不区分错误）
+
+### 21.5 前端 promptModal 规范
+
+- ❌ **禁止**使用浏览器原生 `prompt()` / `confirm()`（样式丑、与项目不统一、有"取消时弹错误"bug）
+- ✅ **必须**用 `vcc-dashboard/app.html` 中的项目 `promptModal`
+- 适用场景：卡片充值金额输入、admin 审核备注、admin 拒绝原因等需要用户输入的弹窗
+- 关键：取消按钮**不**触发"操作失败"错误，仅在用户输入有效值并确认后才校验
+
+### 21.6 充值入账流水字段
+
+- `transactions` 表的 `type='充值'` 记录必须含完整字段：`fee`, `net_amount`, `fee_type='topup'`
+- 重复提交防护：`recordTopup` 用 `request_id` 唯一索引去重
+- 重复点击同申请 → 第二次返回"该申请已处理"（不再重复扣费 + 写流水）

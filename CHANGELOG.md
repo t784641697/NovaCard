@@ -1,4 +1,57 @@
 
+## v1.0.51 | 2026-06-18 | 充值入账手续费体系 + 开卡流程全面修复
+
+**手续费精细化 + 开卡切回正式环境 Merchant API**
+
+### 充值入账手续费体系
+
+- **fee_configs 表加 `topup` 费用类型**：
+  - 重命名描述 `充值入账手续费` → `入账手续费`
+  - seedFees 启动幂等（ON CONFLICT 跳过），日志更清晰
+- **用户级费率 `user_fee_configs`**：
+  - `/api/topup/fee-config` 应用 `user_fee_configs` 个性化费率（用户级优先于全局）
+  - 修复 `setUserFeeConfig` 传 `is_active: true/false` boolean → SQLite 报错 bug（前端传 1/0 替代）
+- **USDT 模式费率实时预览**：
+  - 用户端充值申请页加"预计到账"实时预览（输入金额即算出扣费 + 实际到账）
+  - USDT 模式费率提示也拉取 `fee_configs` 实时显示，文案精简
+- **重复点击 bug 修复**：
+  - 修复"该申请已处理" + 漏写流水字段名 bug
+  - `recordSpend`/`recordIncome` 调用补全流水字段
+
+### 开卡流程全面修复
+
+- **card_applications 表补 `fee_amount` 列**（v1.0.4 重构时建表 SQL 漏了）：
+  - ALTER 兜底迁移已加容错
+  - 后端 INSERT 一直传 `fee_amount`，建表漏列导致 500 错误
+- **开卡重复扣费 bug**：
+  - approve 路由 `recordSpend(amount=totalAmount)` + `UPDATE balance-=totalAmount` 重复扣费
+  - 修复：`recordSpend(amount=0, fee=1)` + 保留 balance UPDATE
+- **开卡失败退 topup**：
+  - webCreateCard 失败时只退 fee（$1），不退 topup（$20）— 修复为退 fee + topup*quantity
+- **正式环境开卡切回 Merchant API（v1.0.15）**：
+  - v1.0.7 假设的 `dev.vmcardio.com/web/createCard` 在正式环境不存在（`vmcardio.com` 是 HTML 营销站，无 API endpoint）
+  - 切回 `vmapi.vmcardio.com/createCard`（Merchant API + RSA 加密）
+  - 实测 G5554LC 正式环境可正常开卡，同步返回 `card_id`（无需异步发现）
+  - 字段映射：`bin` → `product_code` / `customize_name` → `first_name` / `bind_uid`（假数据 22123）→ `user_id`（真实）
+  - 删掉 `discoverWebCardIds` 后台异步发现流程
+  - 删掉 `WEB-${bin}-${ts}` 占位 card_id，改用真实 `result.card_id`
+
+### UI 优化
+
+- **充值记录简化**：只显示"实际入账金额"，样式与时间字段一致
+- **promptModal 替换**：卡片充值/管理员审核弹窗用项目 `promptModal` 替代浏览器原生 `prompt`（前后端一致风格）
+- **账户流水加载失败修复**
+
+### 数据库迁移容错
+
+- ALTER 块从 `db.exec` 字符串内移到外面（之前 try 在 SQL 字符串里导致启动 crash）
+- `migrate/seedFees` 日志加强
+
+### AGENTS.md
+
+- 修订 v1.0.15：双环境 API 架构表 + "正式环境 Web API 不存在"关键事实
+
+
 ## v1.0.47 | 2026-06-17 | PM2 cluster 模式 + 日志轮转
 
 **生产环境高可用加固**
