@@ -672,6 +672,14 @@ select.form-control option{background:var(--bg3);}
   background:rgba(167,139,250,.07);
 }
 .bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
+/* 回归基础布局：3 行 */
+.bin-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.bin-bins{display:flex;align-items:center;gap:1px;flex-wrap:wrap;}
+.bin-remaining{font-size:.7rem;color:var(--text2);background:var(--bg2);padding:2px 8px;border-radius:8px;font-weight:600;}
+.bin-row-mid{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.bin-name{font-family:monospace;font-weight:700;font-size:.82rem;color:var(--text);}
+.bin-network{font-weight:700;font-family:monospace;font-size:.78rem;}
+.bin-row-bot{font-size:.78rem;color:var(--text2);}
 .bin-code{font-weight:700;font-family:monospace;color:var(--purple);font-size:.7rem;letter-spacing:-.3px;display:inline-block;min-width:54px;text-align:center;}
 .bin-split{color:var(--text2);margin:0 1px;font-weight:400;font-size:.65rem;}
 .bin-info{font-size:.75rem;color:var(--text2);}
@@ -2896,66 +2904,20 @@ async function loadBins() {
 function renderBins(list, filter) {
   const grid = document.getElementById('binGrid');
   if (!grid) return;
-  let filtered = list.slice();
+  // 1. 先按上游 remaining_open_card_num 过滤掉"上游不让开"的卡段（=0）
+  let filtered = list.filter(p => (p.remaining_open_card_num || 0) > 0);
   // 网络筛选
   if (filter==='visa') filtered = filtered.filter(p=>/visa/i.test(p.network));
   else if (filter==='mc') filtered = filtered.filter(p=>/master|mc/i.test(p.network));
-  // 场景筛选
-  if (filter && filter.startsWith('scene:')) {
-    const sceneId = filter.split(':')[1];
-    const scene = SCENARIO_KEYS[sceneId];
-    if (scene) {
-      filtered = filtered.filter(p => {
-        const platforms = p.metadata?.applicable_platforms || '';
-        return scene.keywords.some(kw => platforms.includes(kw));
-      });
-    }
-  }
-  // 国家筛选
+  // 国家筛选（用上游真实 issuing_area 字段）
   if (filter && filter.startsWith('country:')) {
-    const countryId = filter.split(':')[1];
-    const countryMap = {hk:'香港',uk:'英国',sg:'新加坡',us:'美国'};
-    filtered = filtered.filter(p => {
-      const country = p.metadata?.country || '';
-      return country === countryMap[countryId];
-    });
+    const countryMap = {hk:'Hong Kong SAR',uk:'United Kingdom',sg:'Singapore',us:'United States'};
+    filtered = filtered.filter(p => p.issuing_area === countryMap[filter.split(':')[1]]);
   }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
-  const PLATFORM_ICONS = {
-    facebook:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`},
-    twitter:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`},
-    telegram:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>`},
-    tiktok:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>`},
-    amazon:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.997 2.382c-3.034.666-6.435 2.334-8.75 4.983-1.488 1.702-2.437 3.669-2.62 6.035-.185 2.39.377 4.476 1.87 6.088.124.134.26.264.41.395-.803-.914-1.383-1.907-1.634-3.109-.324-1.537-.045-3.004.665-4.34.736-1.382 1.82-2.466 3.105-3.303 2.05-1.335 4.312-1.953 6.597-2.256 1.31-.173 2.622-.155 3.924.114 1.078.222 2.012.672 2.533 1.756.273.568.194 1.412.103 1.998-.03.198-.054.396-.08.594-.548 2.403-2.148 4.07-4.464 4.79-.587.183-1.152.172-1.637.071-.832-.174-1.122-.686-1.143-1.008-.025-.374.21-.72.438-.975.27-.303.546-.598.808-.906.457-.536.812-1.133.843-1.851a2.018 2.018 0 0 0-.225-.906c-.384-.802-.979-1.22-2.137-1.283-2.124-.117-4.08 1.082-4.904 2.801-.474.988-.605 2.367-.266 3.484.293.968 1.009 1.605 1.495 2.424.192.324.147.543.08.808-.48.878-1.836 1.246-2.992.77-.939-.388-1.517-1.098-1.729-2.14-.26-1.276-.024-2.575.45-3.778.834-2.119 2.319-3.7 4.209-4.728 1.803-.982 3.685-1.394 5.686-1.229 1.458.12 2.616.682 3.41 1.843.676.988.884 2.107.794 3.425-.064.948-.313 1.863-.735 2.711-.534 1.074-1.28 1.944-2.353 2.503-.602.313-1.233.469-1.915.436-.252-.012-.502-.036-.713-.108-.424-.146-.523-.341-.489-.529.038-.21.19-.351.318-.505.318-.385.633-.773.933-1.173.462-.617.826-1.28.998-2.114.109-.53.041-1.357-.317-1.821-.473-.612-1.422-.884-2.345-.717-1.037.187-1.789 1.119-2.122 1.939zm6.785 15.393c-2.417 2.335-6.915 3.655-10.52 2.642-1.626-.457-3.19-1.319-4.519-2.509-.224-.201-.09-.259.027-.228 1.845.492 3.81.767 5.718.67 1.953-.1 3.984-.66 5.674-1.689 1.168-.715 1.606-1.505 1.658-1.506.054-.004.277.134-.038.62z"/></svg>`},
-    shopify:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.168 1.862l-.665 4.256s-.29-.093-.69-.093c-1.216 0-2.867.73-2.867 2.708 0 .843.54 1.62 1.025 1.62.403 0 .812-.48 1.042-.793.216-.293.684-1.094.684-1.094l.663 4.04c0 3.46-3.128 5.54-6.657 5.54C3.6 18.65 0 17.134 0 12.053c0-5.514 4.44-8.157 8.523-8.157 1.5 0 2.643.344 3.645.344.637 0 .97-.378 1.216-1.025l.785-1.354Zm-3.069 5.16s-.414.633-.656.829c-.242.196-.355.096-.355.096s.149.64.149.901c0 .475-.37.854-.727.854s-.478-.38-.478-.38.445-1.065.755-1.438c.245-.294.68-.524 1.02-.524.14 0 .292.062.292.062v-.4Z"/></svg>`},
-    walmart:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-1.02 0-1.8.78-1.8 1.8v5.52L7.44 4.68c-.72-.72-1.92-.72-2.64 0-.72.72-.72 1.92 0 2.64l3.84 3.84h-5.52C1.8 11.16 1 11.94 1 12.96c0 1.02.78 1.8 1.8 1.8h5.52L4.8 18.6c-.72.72-.72 1.92 0 2.64.72.72 1.92.72 2.64 0l3.84-3.84v5.52c0 .18.12.36.24.48.18.12.36.24.54.24.12 0 .24 0 .36-.06.9-.24 1.26-1.32 1.02-2.22v-5.52l3.84 3.84c.36.36.84.54 1.32.54s.96-.18 1.32-.54c.72-.72.72-1.92 0-2.64l-3.84-3.84h5.52c1.02 0 1.8-.78 1.8-1.8 0-1.02-.78-1.8-1.8-1.8h-5.52l3.84-3.84c.72-.72.72-1.92 0-2.64-.72-.72-1.92-.72-2.64 0l-3.84 3.84V1.8c0-1.02-.78-1.8-1.8-1.8Z"/></svg>`},
-    alibaba:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.409 12.227c0 .467 0 .621-.194.855l-2.685 3.724c-.103.258-.258.362-.465.362h-2.376c-.414 0-.672-.258-.878-.672l-2.479-3.931c0-.207.05-.414.155-.518.052-.052.103-.052.155-.052h3.568c1.293 0 2.169-.362 2.843-1.344l1.604-2.428c0-.207.103-.31.258-.31h.776c.311 0 .414.155.311.414-.05.155-.05.31-.05.466v3.034zm-5.117-4.243l-.62-1.035c-.62-1.035-1.138-1.344-2.066-1.344H9.02c.517.31 1.086.776 1.655 1.293.724.724 1.138 1.448 1.138 2.427 0 .982-.414 1.706-1.138 2.43-.569.517-1.138.983-1.655 1.294a13.45 13.45 0 0 0 3.414.466h.259l.31-.363c.872-1.009 1.345-2.322 1.655-3.634.052-.259.104-.466.104-.672 0-.362-.156-.672-.466-.862h.207zM6.995 11.31c-.258-.258-.569-.517-.878-.724-.362-.259-.569-.466-.569-.828 0-.259.103-.518.362-.724a4.74 4.74 0 0 1 1.086-.621c.259-.104.517-.207.672-.362.879-.879 1.19-1.86 1.293-2.89H4.024c-.362 0-.621.156-.776.518L1.387 10.28c-.052.155-.052.207-.052.362 0 .311.155.466.466.466h4.754c.155 0 .31-.104.44-.233v-.103c0-.104-.052-.259-.207-.362-.104-.103-.207-.207-.362-.414.155.104.362.207.569.414z"/></svg>`},
-    aliexpress:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.108 6.686c0-.027-.001-.054 0-.081 1.556-.08 3.184.112 4.677.699.693.291 1.341.726 1.804 1.339.281.358.452.785.532 1.233.108.613.059 1.239-.143 1.821-.617 1.703-2.034 2.936-3.727 3.381-1.869.484-3.731.18-5.484-.55-.081-.033-.161-.069-.24-.105.011-.174.04-.347.036-.522-.008-.54-.004-1.08-.003-1.619 0-.066.003-.133.008-.199.1.043.195.094.298.117 1.539.35 3.062.109 4.295-.817.231-.175.46-.356.628-.598.396-.572.425-1.268.125-1.86-.306-.622-.794-1.081-1.46-1.337-.302-.115-.618-.159-.938-.171-.136-.003-.274.119-.39.044-.083-.058-.08-.19-.074-.292zM5.01 8.42c.024-.087.045-.177.076-.263.508-1.368 1.709-2.134 3.086-2.349 2.054-.327 3.978.229 5.637 1.291.026.09.049.181.076.271-.232-.115-.478-.199-.725-.253-.897-.193-1.756-.146-2.568.264-.676.341-1.169.865-1.459 1.583-.161.398-.228.818-.185 1.245.008.087.016.173.03.269-.041-.023-.078-.039-.112-.059-1.123-.661-2.193-1.406-2.936-2.534-.186-.281-.336-.579-.387-.915-.029-.177-.02-.354-.033-.549z"/></svg>`},
-    google:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>`},
-    openai:{svg:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0-.7427 5.96 5.9847 5.9847 0 0 0 2.806 9.3108 6.0462 6.0462 0 0 0 6.6675-1.0871 5.999 5.999 0 0 0 10.448-3.2221 5.9847 5.9847 0 0 0 2.1201-4.2426zm0 0"/></svg>`},
-  };
-  function getIcons(s) {
-    if (!s) return '';
-    const lc = s.toLowerCase();
-    const platforms = Object.entries(PLATFORM_ICONS);
-    const matched = new Set();
-    const result = [];
-    for (const [k,v] of platforms) {
-      if (lc.includes(k) || (k==='openai' && lc.includes('ai/agent'))) {
-        if (matched.has(v.svg)) continue;
-        matched.add(v.svg);
-        result.push(`<span class="pi" title="${k}">${v.svg}</span>`);
-      }
-    }
-    return result.join('');
-  }
   const COUNTRY_MAP = {
     'Hong Kong SAR':'香港','United States':'美国','United Kingdom':'英国','Singapore':'新加坡',
-    'Hong Kong':'香港','USA':'美国','UK':'英国','SG':'新加坡','US':'美国',
   };
-  function countryName(p) {
-    return p.metadata?.country || COUNTRY_MAP[p.issuing_area] || p.issuing_area || '';
-  }
   // 拆分 BIN 显示：12 位通常是 2 个 6 位 BIN 随机分配（无法指定）
   function formatBin(bin) {
     if (!bin) return '—';
@@ -2965,42 +2927,40 @@ function renderBins(list, filter) {
     }
     return `<span class="bin-code">${s}</span>`;
   }
+  // 回归基础：只显示 BIN + 名称 + 网络 + 国家 + 剩余数
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
-    const isAvailable = p.available === true;
-    const hasDualBin = Array.isArray(p.bins) && p.bins.length > 1;
-    return `<div class="bin-card${isAvailable?'':' disabled'}"${isAvailable?' onclick="selectBin('+JSON.stringify(p).replace(/"/g,'&quot;')+')"':''}>
-      <div class="flex items-center gap-2 mb-1" style="white-space:nowrap">
-        ${formatBin(p.bin)}
-        ${hasDualBin?'<span class="badge-mini" title="2 个 BIN 随机分配（无法指定）">随机</span>':''}
+    const country = COUNTRY_MAP[p.issuing_area] || p.issuing_area || '';
+    const remaining = p.remaining_open_card_num || 0;
+    return `<div class="bin-card" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+      <div class="bin-row-top">
+        <div class="bin-bins">${formatBin(p.bin)}</div>
+        <div class="bin-remaining">剩 ${remaining}</div>
       </div>
-      <div class="flex items-center gap-2 mb-1" style="font-size:.78rem;color:var(--text2);white-space:nowrap">
-        <span>📍 ${countryName(p)}</span>
-        <span style="font-weight:700;font-family:monospace;color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
+      <div class="bin-row-mid">
+        <span class="bin-name">${p.product_code}</span>
+        <span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
       </div>
-      <div class="platform-icons-row mt-1">${getIcons(p.metadata?.applicable_platforms)}</div>
-      ${!isAvailable?'<span class="card-badge">暂不可用</span>':''}
+      <div class="bin-row-bot">📍 ${country}</div>
     </div>`;
   }).join('');
 }
 
 function selectBin(p) {
-  if (p.available !== true) return;
+  // 原始数据模式下，只检查上游 remaining_open_card_num
+  if ((p.remaining_open_card_num || 0) <= 0) return;
   _selectedBin = p;
 
-  // 填充提醒信息
-  const meta = p.metadata || {};
+  // 填充提醒信息（仅显示上游 API 真实返回的字段）
   const grid = document.getElementById('reminderGrid');
   if (grid) {
     const rows = [
-      { label: '国家 / 地区',   value: meta.country || p.issuing_area || '—' },
-      { label: 'BIN 段（2 个 6 位，随机分配）', value: (p.bin && p.bin.length === 12) ? `${p.bin.slice(0,6)} / ${p.bin.slice(6)}` : (p.bin || '—') },
-      { label: '卡片类型',      value: meta.card_type || p.network || '—' },
-      { label: '适用平台',      value: meta.applicable_platforms || '—' },
-      { label: '验证类型',      value: meta.verification || '—' },
-      { label: '单笔消费限额（$）', value: meta.single_limit ? '$' + Number(meta.single_limit).toLocaleString() : '—' },
-      { label: '每日消费限额（$）', value: meta.daily_limit ? '$' + Number(meta.daily_limit).toLocaleString() : '—' },
-      { label: '是否可多次充值',   value: meta.rechargeable ? '✅ 是' : '❌ 否' },
+      { label: '国家 / 地区', value: p.issuing_area || '—' },
+      { label: 'BIN 段',      value: (p.bin && p.bin.length === 12) ? `${p.bin.slice(0,6)} / ${p.bin.slice(6)}` : (p.bin || '—') },
+      { label: '卡片类型',    value: p.type || '—' },
+      { label: '网络',        value: p.network || '—' },
+      { label: '介质',        value: p.media || '—' },
+      { label: '可开张数',    value: (p.remaining_open_card_num ?? '—') + ' 张' },
     ];
     grid.innerHTML = rows.map(r =>
       `<div class="reminder-item">
@@ -3008,16 +2968,6 @@ function selectBin(p) {
         <span class="reminder-value">${r.value}</span>
       </div>`
     ).join('');
-
-    // 添加禁止事项
-    if (meta.prohibitions && meta.prohibitions.length) {
-      const prohibEl = document.createElement('div');
-      prohibEl.className = 'reminder-prohib';
-      prohibEl.innerHTML = '<span class="reminder-label">🚫 禁止事项</span><div class="reminder-prohib-list">' +
-        meta.prohibitions.map(p => `<span class="prohib-tag">${p}</span>`).join('') +
-        '</div>';
-      grid.appendChild(prohibEl);
-    }
   }
   document.getElementById('applyReminderPanel').style.display = '';
 
