@@ -1773,7 +1773,9 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
       db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
         .run('开卡失败: ' + (lastError?.message || '未知错误'), id);
       // 退还费用
-      db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(app.fee_amount, app.user_id);
+      const totalRefund = (app.fee_amount || 0) + (app.topup_amount || 0) * Math.max(1, Number(app.quantity) || 1);
+      db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(totalRefund, app.user_id);
+      logger.info(`[WebCreate] 审批失败已退还 fee+topup $${totalRefund} → user_id=${app.user_id}`);
       res.status(422).json({ code: 422, msg: '开卡失败: ' + (lastError?.message || '未知错误') });
     }
   } catch (err) {
