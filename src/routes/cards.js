@@ -504,33 +504,31 @@ router.get('/:cardId/fb-codes', async (req, res, next) => {
 });
 
 // ── 产品码列表（开卡选项）────────────────────────────────────────────────
-// 硬编码已知产品（Web API 独有的卡段可能不会被 Merchant API 返回）
-// 地区模板（按上游 17 个 product_code 实际国家分组）
+// 地区模板：每个国家一个 metadata 模板
 const REGION_META = {
   HK: {
     country: '香港',
-    description: '香港Mastercard',
     applicable_platforms: 'Facebook, Google, Amazon, Shopify, Walmart, Alibaba, AliExpress 等',
   },
   UK: {
     country: '英国',
-    description: '英国Mastercard',
     applicable_platforms: 'Facebook, Google, Amazon, Shopify, Walmart, Alibaba, AliExpress, OpenAI 等',
   },
   US: {
     country: '美国',
-    description: '美国Mastercard',
     applicable_platforms: 'Facebook, Google, TikTok, Amazon, AI/Agent 工具 等',
   },
   SG: {
     country: '新加坡',
-    description: '新加坡Mastercard',
     applicable_platforms: 'Facebook, Google, OpenAI, Twitter, Telegram 等',
   },
 };
 
+// 通用元数据（每个卡段都有）
 const COMMON_META = {
+  network: 'Mastercard',
   card_type: 'Mastercard',
+  type: 'save',
   verification: '无需AVS验证、无需3DS',
   single_limit: 10000,
   daily_limit: 100000,
@@ -539,9 +537,9 @@ const COMMON_META = {
 };
 
 // 上游 17 个 product_code 实际清单（来自 getProductCode）
-// 注：v1.0.18 修正 G5554LC（美国/BIN 555671544015）+ 补全其他 12 个卡段
+// v1.0.18 修正：G5554LC=美国/BIN 555671544015（v1.0.7 沙盒时期硬编码错误）
 const HARDCODED_PRODUCTS = [
-  // HK 香港（7 个）
+  // HK 香港（10 个）
   { product_code: 'S5395YL', bin: '539502', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
   { product_code: 'G55832SI', bin: '558325', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
   { product_code: 'G5450SU', bin: '54502000', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
@@ -562,7 +560,27 @@ const HARDCODED_PRODUCTS = [
   { product_code: 'G5237OH', bin: '52737560', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
   // SG 新加坡（1 个）
   { product_code: 'S5331GL', bin: '533171', issuing_area: 'Singapore', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.SG },
-].map(p => ({ network: 'Mastercard', type: 'save', ...p }));
+].map(p => ({
+  // 重新组织字段：metadata 子对象存放描述/限额/适用平台
+  product_code: p.product_code,
+  bin: p.bin,
+  issuing_area: p.issuing_area,
+  card_type: p.card_type,
+  type: p.type,
+  network: p.network,
+  card_price: p.card_price,
+  available: p.available,
+  description: p.country + ' Mastercard 虚拟储蓄卡',
+  metadata: {
+    country: p.country,
+    applicable_platforms: p.applicable_platforms,
+    verification: p.verification,
+    single_limit: p.single_limit,
+    daily_limit: p.daily_limit,
+    rechargeable: p.rechargeable,
+    prohibitions: p.prohibitions,
+  },
+}));
 
 
 router.get('/meta/products', async (req, res, next) => {
@@ -575,12 +593,12 @@ router.get('/meta/products', async (req, res, next) => {
     for (const hp of HARDCODED_PRODUCTS) {
       const existing = merged.find(m => m.bin === hp.bin);
       if (existing) {
-        // API 已有该 BIN，用硬编码补充字段
+        // API 已有该 BIN，用硬编码补充 metadata
         existing.metadata = hp.metadata;
-        if (!existing.description) existing.description = hp.description;
+        existing.description = hp.description;
         existing.available = true;
       } else {
-        // API 没有该 BIN，添加硬编码产品（标记可用/不可用由自身决定）
+        // API 没有该 BIN，添加硬编码产品
         merged.push(hp);
       }
     }
