@@ -2884,7 +2884,7 @@ function filterBin(f) {
 async function loadBins() {
   if (_productList) { renderBins(_productList, _binFilter); return; }
   try {
-    const res = await apiFetch('/cards/meta/products');
+    const res = await apiFetch('/cards/meta/products?raw=1');
     if (res.code!==0) { document.getElementById('binGrid').innerHTML='<div style="color:var(--red)">'+res.msg+'</div>'; return; }
     _productList = res.data?.list||[];
     renderBins(_productList, _binFilter);
