@@ -5268,11 +5268,11 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
 }
 
 async function openCardTransactionsModal(cardId) {
-  if (_me?.role !== 'admin') return;
   if (!cardId) return;
+  // v1.0.17: 移除 admin 限制，普通用户可查看自己卡的流水
   // 拉取卡片信息用于头部（直接 fetch，绕开不存在的 apiGet）
   const token = localStorage.getItem('vcc_token') || '';
-  const resp = await fetch('/api/admin/cards/' + encodeURIComponent(cardId) + '/info', {
+  const resp = await fetch('/api/cards/' + encodeURIComponent(cardId) + '/info', {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   if (!resp.ok) {
@@ -5516,8 +5516,8 @@ async function loadUserTransactions() {
 
   // 端点（按 mode 选 user 路由 或 card 路由）
   const endpoint = s.mode === 'card'
-    ? `/admin/cards/${encodeURIComponent(s.cardId)}/transactions?` + qs.toString()
-    : `/admin/users/${s.userId}/transactions?` + qs.toString();
+    ? `/api/cards/${encodeURIComponent(s.cardId)}/transactions?` + qs.toString()
+    : `/api/admin/users/${s.userId}/transactions?` + qs.toString();
   const subjectName = s.mode === 'card' ? '该卡片' : '该用户';
 
   try {
@@ -5613,8 +5613,8 @@ async function exportUserTransactionsCSV() {
     // 端点（按 mode 选 user 路由 或 card 路由）
     const idForFile = s.mode === 'card' ? s.cardId : s.userId;
     const path = (s.mode === 'card'
-      ? `/admin/cards/${encodeURIComponent(s.cardId)}/transactions?`
-      : `/admin/users/${s.userId}/transactions?`) + qs.toString();
+      ? `/api/cards/${encodeURIComponent(s.cardId)}/transactions?`
+      : `/api/admin/users/${s.userId}/transactions?`) + qs.toString();
     // 直接 fetch 拿原始响应（保留 CSV 文本 + Content-Disposition）
     const token = localStorage.getItem('vcc_token') || '';
     const url = API_BASE + path;

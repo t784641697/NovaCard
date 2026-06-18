@@ -319,6 +319,91 @@ router.post('/:card_id/recharge', async (req, res, next) => {
 });
 
 // ── 删卡 ──────────────────────────────────────────────────────────────────
+/**
+ * GET /api/cards/:cardId/info
+ *   轻量级卡片信息（用于"按卡看消费"弹窗头部展示）
+ *   不调上游 SDK，仅查本地 DB
+ *   普通用户只能查自己的卡
+ */
+router.get('/:cardId/info', (req, res) => {
+  const cardId = req.params.cardId;
+  if (!cardId) return res.status(400).json({ code: 400, msg: '无效的卡片ID' });
+  const card = db.prepare(`
+    SELECT id, card_id, card_number, status, available_amount, product_code, label, user_id
+    FROM cards WHERE card_id = ?
+  `).get(cardId);
+  if (!card) return res.status(404).json({ code: 404, msg: '卡片不存在' });
+  if (req.user.role !== 'admin' && card.user_id !== req.user.id) {
+    return res.status(403).json({ code: 403, msg: '无权限查看该卡' });
+  }
+  const owner = card.user_id
+    ? db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(card.user_id)
+    : null;
+  res.json({
+    code: 0, msg: 'ok',
+    data: {
+      card_id:          card.card_id,
+      card_number:      card.card_number,
+      brand:            card.product_code || card.label || 'CARD',
+      status:           card.status,
+      available_balance: card.available_amount,
+      currency:         card.currency || 'USD',
+      owner:            owner ? { id: owner.id, name: owner.name, email: owner.email } : null
+    }
+  });
+});
+
+/**
+ * GET /api/cards/:cardId/transactions
+ *   查询某张卡的刷卡流水（来自 vmcardio 上游 cardTransaction）
+ *   普通用户只能查自己的卡
+ */
+router.get('/:cardId/transactions', async (req, res) => {
+  const cardId = req.params.cardId;
+  if (!cardId) return res.status(400).json({ code: 400, msg: '无效的卡片ID' });
+
+  const card = db.prepare(`
+    SELECT id, card_id, card_number, status, available_amount, product_code, label, user_id
+    FROM cards WHERE card_id = ?
+  `).get(cardId);
+  if (!card) return res.status(404).json({ code: 404, msg: '卡片不存在' });
+  if (req.user.role !== 'admin' && card.user_id !== req.user.id) {
+    return res.status(403).json({ code: 403, msg: '无权限查看该卡流水' });
+  }
+  const owner = card.user_id
+    ? db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(card.user_id)
+    : null;
+
+  const { type, start_date, end_date, page = 1, page_size = 50 } = req.query;
+  try {
+    const params = { card_id: cardId, page: Number(page), pageSize: Number(page_size) };
+    if (type) params.type = type;
+    if (start_date) params.start_date = start_date;
+    if (end_date) params.end_date = end_date;
+    const data = await sdk.cardTransaction(params);
+    res.json({
+      code: 0, msg: 'ok',
+      data: {
+        card: {
+          id: card.id, card_id: card.card_id, card_number: card.card_number,
+          status: card.status, available_amount: card.available_amount,
+          product_code: card.product_code, label: card.label
+        },
+        owner: owner ? { id: owner.id, email: owner.email, name: owner.name } : null,
+        list: data.list || [],
+        total: data.total || (data.list || []).length,
+        page: Number(page),
+        pageSize: Number(page_size)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ code: 500, msg: '查询流水失败: ' + (err.message || '') });
+  }
+});
+
+/**
+ * GET /api/cards/:card_id             - 删卡
+ */
 router.delete('/:card_id', async (req, res, next) => {
   try {
     const { card_id } = req.params;
