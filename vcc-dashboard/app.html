@@ -672,11 +672,12 @@ select.form-control option{background:var(--bg3);}
   background:rgba(167,139,250,.07);
 }
 .bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
-.bin-code{font-weight:700;font-family:monospace;color:var(--purple);font-size:.7rem;letter-spacing:-.3px;display:inline-block;min-width:60px;text-align:center;}
-.bin-split{color:var(--text2);margin:0 2px;font-weight:400;}
+.bin-code{font-weight:700;font-family:monospace;color:var(--purple);font-size:.7rem;letter-spacing:-.3px;display:inline-block;min-width:54px;text-align:center;}
+.bin-split{color:var(--text2);margin:0 1px;font-weight:400;font-size:.65rem;}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
+.badge-mini{display:inline-block;font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(167,139,250,.15);color:var(--purple);font-weight:600;letter-spacing:0;}
 .platform-icons-row{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;align-items:center;}
 .platform-icons-row .pi{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:3px;border-radius:4px;opacity:.7;background:rgba(167,139,250,.12);transition:opacity .15s,background .15s;}
 .platform-icons-row .pi svg{width:100%;height:100%;fill:currentColor;}
@@ -2959,13 +2960,15 @@ function renderBins(list, filter) {
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
     const isAvailable = p.available === true;
+    const hasDualBin = Array.isArray(p.bins) && p.bins.length > 1;
     return `<div class="bin-card${isAvailable?'':' disabled'}"${isAvailable?' onclick="selectBin('+JSON.stringify(p).replace(/"/g,'&quot;')+')"':''}>
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
-          ${formatBin(p.bin)}
-          <span style="font-size:.8rem;color:var(--text2)">${countryName(p)}</span>
-          <span style="font-size:.8rem;font-weight:700;font-family:monospace;color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
-        </div>
+      <div class="flex items-center gap-2 mb-1" style="white-space:nowrap">
+        ${formatBin(p.bin)}
+        ${hasDualBin?'<span class="badge-mini" title="2 个 BIN 随机分配（无法指定）">随机</span>':''}
+      </div>
+      <div class="flex items-center gap-2 mb-1" style="font-size:.78rem;color:var(--text2);white-space:nowrap">
+        <span>📍 ${countryName(p)}</span>
+        <span style="font-weight:700;font-family:monospace;color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
       </div>
       <div class="platform-icons-row mt-1">${getIcons(p.metadata?.applicable_platforms)}</div>
       ${!isAvailable?'<span class="card-badge">暂不可用</span>':''}

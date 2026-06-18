@@ -540,27 +540,27 @@ const COMMON_META = {
 // v1.0.19 修正：G5554LC 是 sandbox 时期旧名，正式环境上游后台 + API 已升级为 VC102（同名同 BIN）
 const HARDCODED_PRODUCTS = [
   // HK 香港（10 个）
-  { product_code: 'S5395YL', bin: '539502', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'G55832SI', bin: '558325', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'G5450SU', bin: '54502000', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'S5258LL', bin: '525847', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'G5449LJ', bin: '54492360', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'G5449IC', bin: '54493747', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'G5321KC', bin: '53211359', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'G5324FV', bin: '53240691', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'S5395PL', bin: '539578', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
-  { product_code: 'S5257PM', bin: '525797', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.HK },
+  { product_code: 'S5395YL', bin: '539502', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'G55832SI', bin: '558325', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'G5450SU', bin: '54502000', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'S5258LL', bin: '525847', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'G5449LJ', bin: '54492360', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'G5449IC', bin: '54493747', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'G5321KC', bin: '53211359', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'G5324FV', bin: '53240691', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'S5395PL', bin: '539578', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
+  { product_code: 'S5257PM', bin: '525797', issuing_area: 'Hong Kong SAR', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.HK },
   // UK 英国（4 个）
-  { product_code: 'S2460OL', bin: '246001', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
-  { product_code: 'S2380AL', bin: '238003', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
-  { product_code: 'S2350CX', bin: '235019', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
-  { product_code: 'S2236CP', bin: '223600', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
+  { product_code: 'S2460OL', bin: '246001', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
+  { product_code: 'S2380AL', bin: '238003', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
+  { product_code: 'S2350CX', bin: '235019', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
+  { product_code: 'S2236CP', bin: '223600', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.UK },
   // US 美国（2 个）
   // VC102 (sandbox 旧名 G5554LC) — 2 个 6 位 BIN 随机分配，bin 字段是上游把 2 个拼接成 12 位返回
   { product_code: 'VC102', bin: '555671544015', bins: ['555671', '544015'], legacy_product_code: 'G5554LC', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
-  { product_code: 'G5237OH', bin: '52737560', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
+  { product_code: 'G5237OH', bin: '52737560', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.US },
   // SG 新加坡（1 个）
-  { product_code: 'S5331GL', bin: '533171', issuing_area: 'Singapore', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.SG },
+  { product_code: 'S5331GL', bin: '533171', issuing_area: 'Singapore', ...COMMON_META, card_price: '1.50', available: false, ...REGION_META.SG },
 ].map(p => ({
   // 重新组织字段：metadata 子对象存放描述/限额/适用平台
   product_code: p.product_code,
