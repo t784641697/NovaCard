@@ -2796,10 +2796,7 @@ async function renderApply() {
             <button class="btn btn-outline btn-sm" id="sceneEcom"   onclick="filterBin('scene:ecom')"   style="font-size:.75rem">🛒 电商</button>
             <button class="btn btn-outline btn-sm" id="sceneAi"     onclick="filterBin('scene:ai')"     style="font-size:.75rem">🤖 AI订阅</button>
             <span style="width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 4px"></span>
-            <button class="btn btn-outline btn-sm" id="countryHK"  onclick="filterBin('country:hk')"   style="font-size:.75rem">🇭🇰 香港</button>
-            <button class="btn btn-outline btn-sm" id="countryUK"  onclick="filterBin('country:uk')"   style="font-size:.75rem">🇬🇧 英国</button>
-            <button class="btn btn-outline btn-sm" id="countrySG"  onclick="filterBin('country:sg')"   style="font-size:.75rem">🇸🇬 新加坡</button>
-            <button class="btn btn-outline btn-sm" id="countryUS"  onclick="filterBin('country:us')"   style="font-size:.75rem">🇺🇸 美国</button>
+            <span id="binCountryFilters" class="flex gap-2 flex-wrap" data-dynamic-region="country"></span>
           </div>
         </div>
         <div id="binGrid" class="bin-grid">
@@ -2864,6 +2861,33 @@ const SCENARIO_KEYS = {
   ai:     { label: 'AI订阅',   keywords: ['OpenAI','AI/Agent'] },
 };
 
+// 从 apiList 动态提取所有出现过的国家（基于后端 normalizer 返回的 issuing_area_code/name/flag）
+// 未来上游新增任何国家,JS 自动从 list 里提取并渲染,无需改代码
+let _availableCountries = [];  // [{code, name, flag}]
+
+function _extractCountries(list) {
+  const map = {};
+  list.forEach(p => {
+    const code = p.issuing_area_code;
+    if (code && !map[code]) {
+      map[code] = {
+        code,
+        name: p.issuing_area_name || code,
+        flag: p.issuing_area_flag || '🏳️',
+      };
+    }
+  });
+  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+}
+
+function _renderCountryFilters() {
+  const box = document.getElementById('binCountryFilters');
+  if (!box) return;
+  box.innerHTML = _availableCountries.map(c =>
+    `<button class="btn btn-outline btn-sm bin-country-btn" data-country="${c.code}" onclick="filterBin('country:${c.code.toLowerCase()}')" style="font-size:.75rem">${c.flag} ${c.name}</button>`
+  ).join('');
+}
+
 let _binFilter = 'all';
 function filterBin(f) {
   _binFilter = f;
@@ -2874,8 +2898,9 @@ function filterBin(f) {
   Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.remove('btn-primary'));
   Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.add('btn-outline'));
   // 国家按钮重置
-  ['HK','UK','SG','US'].forEach(n=>document.getElementById('country'+n)?.classList.remove('btn-primary'));
-  ['HK','UK','SG','US'].forEach(n=>document.getElementById('country'+n)?.classList.add('btn-outline'));
+  // 动态国家按钮(用类选择器,无需硬编码国家列表)
+  document.querySelectorAll('.bin-country-btn').forEach(b=>b.classList.remove('btn-primary'));
+  document.querySelectorAll('.bin-country-btn').forEach(b=>b.classList.add('btn-outline'));
   // 高亮选中
   if (f==='all') document.getElementById('binAll')?.classList.replace('btn-outline','btn-primary');
   else if (f==='visa') document.getElementById('binVisa')?.classList.replace('btn-outline','btn-primary');
@@ -2885,18 +2910,21 @@ function filterBin(f) {
     const id = 'scene'+s.charAt(0).toUpperCase()+s.slice(1);
     document.getElementById(id)?.classList.replace('btn-outline','btn-primary');
   } else if (f.startsWith('country:')) {
-    const s = f.split(':')[1].toUpperCase();
-    document.getElementById('country'+s)?.classList.replace('btn-outline','btn-primary');
+    // 国家高亮（通过 data-country 属性匹配,无需硬编码）
+    const code = f.split(':')[1].toUpperCase();
+    document.querySelector(`.bin-country-btn[data-country="${code}"]`)?.classList.replace('btn-outline','btn-primary');
   }
   if (_productList) renderBins(_productList, f);
 }
 
 async function loadBins() {
-  if (_productList) { renderBins(_productList, _binFilter); return; }
   try {
     const res = await apiFetch('/cards/meta/products?raw=1');
     if (res.code!==0) { document.getElementById('binGrid').innerHTML='<div style="color:var(--red)">'+res.msg+'</div>'; return; }
     _productList = res.data?.list||[];
+    // 1.21: 动态提取国家列表并渲染筛选项
+    _availableCountries = _extractCountries(_productList);
+    _renderCountryFilters();
     renderBins(_productList, _binFilter);
   } catch(e) {
     if (e.message!=='Unauthorized') document.getElementById('binGrid').innerHTML='<div style="color:var(--red)">加载失败</div>';
@@ -2911,11 +2939,10 @@ function renderBins(list, filter) {
   // 网络筛选
   if (filter==='visa') filtered = filtered.filter(p=>/visa/i.test(p.network));
   else if (filter==='mc') filtered = filtered.filter(p=>/master|mc/i.test(p.network));
-  // 国家筛选（用上游真实 issuing_area 字段）
+  // 国家筛选（动态:filterBin 传 'country:HK'/'country:GB' 等 ISO 码,直接匹配后端 normalizer 字段）
   if (filter && filter.startsWith('country:')) {
-    // v1.0.22 用后端标准化的 ISO 码筛选（不再依赖上游原始字符串）
-    const countryCode = {hk:'HK',uk:'GB',sg:'SG',us:'US'}[filter.split(':')[1]];
-    filtered = filtered.filter(p => p.issuing_area_code === countryCode);
+    const code = filter.split(':')[1].toUpperCase();
+    filtered = filtered.filter(p => p.issuing_area_code === code);
   }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
   // 拆分 BIN 显示：12 位通常是 2 个 6 位 BIN 随机分配（无法指定）
