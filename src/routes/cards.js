@@ -596,12 +596,13 @@ router.get('/meta/products', async (req, res, next) => {
     for (const hp of HARDCODED_PRODUCTS) {
       const existing = merged.find(m => m.bin === hp.bin);
       if (existing) {
-        // API 已有该 BIN，用硬编码补充 metadata + 拓展字段（bins、upstream_product_code 等）
-        existing.metadata = hp.metadata;
-        existing.description = hp.description;
-        existing.available = true;
-        // 透传硬编码里的拓展字段（bins、upstream_product_code 等）
-        if (hp.bins)        existing.bins = hp.bins;
+        // API 已有该 BIN：用硬编码的 product_code 覆盖（v1.0.19 G5554LC → VC102）
+        existing.product_code      = hp.product_code;
+        existing.metadata          = hp.metadata;
+        existing.description       = hp.description;
+        existing.available         = true;
+        // 透传硬编码里的拓展字段（bins、legacy_product_code 等）
+        if (hp.bins)               existing.bins = hp.bins;
         if (hp.legacy_product_code) existing.legacy_product_code = hp.legacy_product_code;
       } else {
         // API 没有该 BIN，添加硬编码产品
