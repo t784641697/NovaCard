@@ -1,5 +1,34 @@
 
-## v1.0.54 | 2026-06-18 | G5554LC 改名为 VC102（对齐上游）+ BIN 拆分显示
+## v1.0.55 | 2026-06-18 | HARDCODED 精简为业务控制层（API 优先 + 业务覆盖架构）
+
+### 🔴 重大架构调整
+- **v1.0.19 误判修复**：上游 API 真实 product_code 仍是 G5554LC（不是 VC102），VC102 是上游后台界面改过名
+  - admin.js 审批时传 'VC102' 给 API 会被拒绝（API 只认 G5554LC）
+  - 改回 G5554LC 作为业务名，用 display_name=VC102 作为前端友好别名
+- **HARDCODED_PRODUCTS 精简**：从 60+ 字段的「数据补全」改为「业务控制层」，只保留 4 个维度
+  - `business.available`: 用户可申请（true=可选，false=灰显）
+  - `business.featured`: 推荐标记（前端加 ⭐ 徽章）
+  - `business.priority`: 排序权重
+  - `business.custom_message`: 自定义文案
+  - `display_name`: 友好别名（前端展示用）
+- **数据来源分层**：
+  - **基础数据层**（bin/network/type/media/issuing_area/remaining_open_card_num）→ 100% 来自上游 API
+  - **业务控制层**（available/featured/priority/custom_message）→ HARDCODED 覆盖
+  - 合并策略：API 优先 + HARDCODED 业务覆盖
+- **新增调试接口**：
+  - `?raw=1`: 跳过 HARDCODED 合并，返回上游 API 原始数据
+  - `/api/cards/meta/products/upstream`: 永远返回上游原始数据
+- **fallback 调整**：上游 API 失败时返回 503（不再用残缺的 HARDCODED 作为 fallback）
+
+### 🐛 Bug 修复
+- **admin.js approve 兼容性**：v1.0.19 误改名为 VC102 会导致开卡失败，改回 G5554LC
+- **CDN/浏览器缓存**：之前 Vultr Nginx `Cache-Control: no-store` 已生效；前端 HARD refresh (Ctrl+Shift+R) 即可
+
+### 📝 文档同步
+- AGENTS.md v1.0.21 修复记录
+- UNIFIED.md §21.7 卡段命名规则更新：业务名=G5554LC，显示名=VC102
+- app.html 新增 PRODUCT_DISPLAY_NAMES 映射表（4 处展示用）
+
 
 ### 背景
 - **G5554LC 是 sandbox 时期旧名**，正式环境上游后台 + API 已升级为 `VC102`（同名同 BIN 同功能）

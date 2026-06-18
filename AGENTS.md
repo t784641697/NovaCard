@@ -222,3 +222,25 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 ```
 
 **历史问题**：`merchant_private.pem` 在 git 历史中从未被正确保存（一直存的是公钥或错误的私钥）。2026-06-04 重新生成密钥对后才修复。
+## v1.0.21 修复记录（2026-06-18）
+
+### 🔴 关键修复
+- **G5554LC 误改名 bug**：v1.0.19 误以为上游 API product_code 是 VC102，实际 API 仍叫 G5554LC（VC102 只是后台界面改名）
+  - admin.js 审批时传 'VC102' 给 API 会被拒绝（API 只认 G5554LC），开卡 100% 失败
+  - **修正**：HARDCODED 改回 G5554LC + display_name=VC102 别名
+
+### 🏗️ 架构调整
+- **HARDCODED 精简为业务控制层**（v1.0.19 的 metadata 模板 + description/applicable_platforms 等 60+ 字段已废弃）
+- **数据来源分层**：
+  - 基础数据（bin/network/type/media/issuing_area/remaining_open_card_num）→ 100% 来自上游 API
+  - 业务控制（available/featured/priority/custom_message）→ HARDCODED 覆盖
+- **新增调试接口**：
+  - `GET /api/cards/meta/products?raw=1` → 上游 API 原始数据
+  - `GET /api/cards/meta/products/upstream` → 永远上游原始数据
+- **fallback 调整**：上游 API 失败时返回 503（不再用残缺的 HARDCODED 作为 fallback）
+
+### 📝 代码位置
+- HARDCODED_PRODUCTS: `src/routes/cards.js` line 510-538
+- 合并逻辑: `src/routes/cards.js` line 540-572
+- fallback: `src/routes/cards.js` line 580-585
+- 前端 PRODUCT_DISPLAY_NAMES: `vcc-dashboard/app.html` line 1655-1660

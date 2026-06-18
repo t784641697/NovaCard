@@ -1269,3 +1269,48 @@ kill -9 30772
 - **BIN 拆分字段**：上游 `bin` 字段是 12 位（`555671544015`），代表 2 个 6 位 BIN 拼接（`555671` + `544015`）随机分配
 - HARDCODED_PRODUCTS 数组必须保留 `bins: ['555671', '544015']` 字段，前端 `formatBin()` 自动识别 12 位并拆分为 `555671 / 544015` 显示
 - **G5554LC 历史数据**：v1.0.19 改名时本地 DB 无 G5554LC 实际卡数据（cards 表空），无需迁移
+
+### 21.8 HARDCODED 业务控制层架构（v1.0.21）
+
+#### 背景
+- v1.0.18 之前 HARDCODED_PRODUCTS 是「数据补全」：60+ 字段（含 description、applicable_platforms 等 metadata），导致 HARDCODED 几乎成了上游 API 的影子
+- v1.0.19 误以为上游 API 返回了 `product_code=VC102`，把 HARDCODED 里的 G5554LC 改名 VC102
+- **实际**：上游 API 真实 product_code 仍是 G5554LC（VC102 只是后台界面改名），admin.js 审批时传 'VC102' 给 API 会被拒绝
+
+#### 调整后架构
+| 层级 | 数据来源 | 字段 |
+|------|---------|------|
+| 基础数据层 | 上游 API 100% | `bin` / `product_code` / `type` / `network` / `media` / `issuing_area` / `remaining_open_card_num` |
+| 业务控制层 | HARDCODED 覆盖 | `available` / `featured` / `priority` / `custom_message` |
+| 友好别名 | HARDCODED 透传 | `display_name`（前端展示用） |
+
+#### HARDCODED 17 项精简结构
+```js
+{ product_code: 'G5554LC',  // 业务名=API 真实名
+  business: {
+    available: true,        // 用户可申请
+    featured: true,         // 推荐
+    priority: 1000,         // 排序权重
+    custom_message: '🌟 AI/Agent 工具付费首选'  // 自定义文案
+  },
+  display_name: 'VC102'     // 友好别名（前端展示）
+}
+```
+
+#### 路由合并策略（`src/routes/cards.js` line 540-572）
+- API 为基础数据层 + HARDCODED.business 为业务控制层
+- 按 priority 降序排序
+- `?raw=1` 跳过合并返回原始 API
+- `/meta/products/upstream` 永远返回上游原始数据
+- API 失败时返回 503（不再用残缺 HARDCODED 兜底）
+
+#### 前端 PRODUCT_DISPLAY_NAMES 映射
+- 位置：`vcc-dashboard/app.html` line 1655-1665
+- 4 处展示：交易流水、申请列表、卡片详情、管理员审批
+- **不替换位置**：selectBin 提交时存 product_code（必须 API 真实名）
+- **不替换位置**：管理员审批搜索 `product.toLowerCase()`（用 API 真实名匹配）
+
+#### ⚠️ 命名铁律
+- **业务名/存储值** = `product_code`（API 真实名，如 G5554LC）→ createCard/数据库/搜索匹配
+- **展示值** = `display_name`（友好别名，如 VC102）→ 4 个 UI 显示位置
+- **禁止**把业务名直接展示给用户（必须走 PRODUCT_DISPLAY_NAMES 映射）
