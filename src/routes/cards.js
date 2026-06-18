@@ -545,7 +545,17 @@ router.get('/meta/products', async (req, res, next) => {
 
     // v1.0.21 ?raw=1: 跳过 HARDCODED 合并，直接返回上游 API 原始数据（调试用）
     if (req.query.raw === '1') {
-      return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: apiList } });
+      // ?raw=1: 跳过 HARDCODED 合并，但仍附加国家标准化字段（供前端展示）
+      const listWithNorm = apiList.map(p => {
+        const country = normalizeCountry(p.issuing_area);
+        return {
+          ...p,
+          issuing_area_code: country.code,
+          issuing_area_name: country.name,
+          issuing_area_flag: country.flag,
+        };
+      });
+      return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: listWithNorm } });
     }
 
     // v1.0.21 合并策略：上游 API 为基础数据层 + HARDCODED 业务控制层
