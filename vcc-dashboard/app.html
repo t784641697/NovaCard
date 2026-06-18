@@ -673,6 +673,7 @@ select.form-control option{background:var(--bg3);}
 }
 .bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
 .bin-code{font-weight:700;font-family:monospace;color:var(--purple);font-size:.7rem;letter-spacing:-.3px;display:inline-block;min-width:60px;text-align:center;}
+.bin-split{color:var(--text2);margin:0 2px;font-weight:400;}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
@@ -2946,13 +2947,22 @@ function renderBins(list, filter) {
   function countryName(p) {
     return p.metadata?.country || COUNTRY_MAP[p.issuing_area] || p.issuing_area || '';
   }
+  // 拆分 BIN 显示：12 位通常是 2 个 6 位 BIN 随机分配（无法指定）
+  function formatBin(bin) {
+    if (!bin) return '—';
+    const s = String(bin);
+    if (s.length === 12) {
+      return `<span class="bin-code" title="BIN 段：${s.slice(0,6)}（6位）">${s.slice(0,6)}</span><span class="bin-split" title="2 个 BIN 随机分配（无法指定）">/</span><span class="bin-code" title="BIN 段：${s.slice(6)}（6位）">${s.slice(6)}</span>`;
+    }
+    return `<span class="bin-code">${s}</span>`;
+  }
   grid.innerHTML = filtered.map(p=>{
     const isVisa = /visa/i.test(p.network);
     const isAvailable = p.available === true;
     return `<div class="bin-card${isAvailable?'':' disabled'}"${isAvailable?' onclick="selectBin('+JSON.stringify(p).replace(/"/g,'&quot;')+')"':''}>
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
-          <span class="bin-code" title="BIN 段：${p.bin}（${(p.bin||'').length}位）">${p.bin}</span>
+          ${formatBin(p.bin)}
           <span style="font-size:.8rem;color:var(--text2)">${countryName(p)}</span>
           <span style="font-size:.8rem;font-weight:700;font-family:monospace;color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
         </div>
@@ -2966,7 +2976,6 @@ function renderBins(list, filter) {
 function selectBin(p) {
   if (p.available !== true) return;
   _selectedBin = p;
-  // 已移除卡段信息栏
 
   // 填充提醒信息
   const meta = p.metadata || {};
@@ -2974,7 +2983,7 @@ function selectBin(p) {
   if (grid) {
     const rows = [
       { label: '国家 / 地区',   value: meta.country || p.issuing_area || '—' },
-      { label: 'BIN 段（前 N 位）', value: p.bin || '—' },
+      { label: 'BIN 段（2 个 6 位，随机分配）', value: (p.bin && p.bin.length === 12) ? `${p.bin.slice(0,6)} / ${p.bin.slice(6)}` : (p.bin || '—') },
       { label: '卡片类型',      value: meta.card_type || p.network || '—' },
       { label: '适用平台',      value: meta.applicable_platforms || '—' },
       { label: '验证类型',      value: meta.verification || '—' },

@@ -556,7 +556,8 @@ const HARDCODED_PRODUCTS = [
   { product_code: 'S2350CX', bin: '235019', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
   { product_code: 'S2236CP', bin: '223600', issuing_area: 'United Kingdom', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.UK },
   // US 美国（2 个）
-  { product_code: 'G5554LC', bin: '555671544015', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
+  // G5554LC (上游正式环境名：VC102) — 2 个 6 位 BIN 随机分配，bin 字段是上游把 2 个拼接成 12 位返回
+  { product_code: 'G5554LC', bin: '555671544015', bins: ['555671', '544015'], upstream_product_code: 'VC102', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
   { product_code: 'G5237OH', bin: '52737560', issuing_area: 'United States', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.US },
   // SG 新加坡（1 个）
   { product_code: 'S5331GL', bin: '533171', issuing_area: 'Singapore', ...COMMON_META, card_price: '1.50', available: true, ...REGION_META.SG },
@@ -593,10 +594,13 @@ router.get('/meta/products', async (req, res, next) => {
     for (const hp of HARDCODED_PRODUCTS) {
       const existing = merged.find(m => m.bin === hp.bin);
       if (existing) {
-        // API 已有该 BIN，用硬编码补充 metadata
+        // API 已有该 BIN，用硬编码补充 metadata + 拓展字段（bins、upstream_product_code 等）
         existing.metadata = hp.metadata;
         existing.description = hp.description;
         existing.available = true;
+        // 透传硬编码里的拓展字段（bins、upstream_product_code 等）
+        if (hp.bins)        existing.bins = hp.bins;
+        if (hp.upstream_product_code) existing.upstream_product_code = hp.upstream_product_code;
       } else {
         // API 没有该 BIN，添加硬编码产品
         merged.push(hp);
