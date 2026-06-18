@@ -2937,7 +2937,7 @@ function renderBins(list, filter) {
     const isVisa = /visa/i.test(p.network);
     const country = COUNTRY_MAP[p.issuing_area] || p.issuing_area || '';
     return `<div class="bin-card" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-      <span class="bin-prefix">卡BIN:</span><span class="bin-bins">${formatBin(p.bin)}</span><span class="bin-country"><span class="bin-flag">${COUNTRY_FLAGS[p.issuing_area] || "🏳️"}</span><span>${country}</span></span>
+      <span class="bin-prefix">卡段:</span><span class="bin-bins">${formatBin(p.bin)}</span><span class="bin-country"><span class="bin-flag">${COUNTRY_FLAGS[p.issuing_area] || "🏳️"}</span><span>${country}</span></span>
       <span class="bin-prefix">产品:</span><span class="bin-name">${p.product_code}</span><span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
     </div>`;
   }).join('');
