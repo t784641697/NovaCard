@@ -1733,22 +1733,25 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         // 姓名中去掉数字（vmcardio 不支持数字）
         const sanitizeName = (name) => (name || '').replace(/[0-9]/g, '').trim() || 'User';
 
-        const result = await sdk.webCreateCard({
-          bin:               app.product_code || app.card_bin,
-          amount:            topupAmt,
-          create_num:        1,
-          customize_name:    sanitizeName(app.first_name),
-          customize_last_name: sanitizeName(app.last_name),
-          bind_uid:          22123,
-          user_name:         'taoliang.light@gmail.com',
-          alias:             app.label || '',
+        // 正式环境走 Merchant API：RSA 加密，product_code + amount + first/last_name + user_id
+        //   v1.0.7 假设的 Web API (dev.vmcardio.com/web/createCard) 在正式环境不存在
+        //   v1.0.15 实测：vmapi.vmcardio.com/createCard + G5554LC 正式环境可正常开卡
+        const result = await sdk.createCard({
+          product_code: app.product_code || app.card_bin,
+          amount:       topupAmt,
+          first_name:   sanitizeName(app.first_name),
+          last_name:    sanitizeName(app.last_name),
+          user_id:      String(app.user_id),
         });
-        // 立即创建本地卡片记录，用户可立即看到此卡
-        const localCardId = `WEB-${app.product_code || app.card_bin || app.product_code}-${Date.now()}-${i}`;
+        const realCardId = result.card_id;
+        if (!realCardId) {
+          throw new Error('上游未返回 card_id');
+        }
+        // 插入真实 card_id，后续通过 cardDetail 拉取卡号/CVV/有效期
         db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', nowiso(), nowiso())`).run(
-          localCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Web Card'
+          realCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Virtual Card'
         );
-        createdCards.push(localCardId);
+        createdCards.push(realCardId);
       } catch (err) {
         lastError = err;
         break;
@@ -1760,14 +1763,15 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     if (createdCards.length > 0) {
       db.prepare(`UPDATE card_applications SET card_id = ?, status = 'approved', updated_at = nowiso() WHERE id = ?`)
         .run(createdCards.join(','), id);
-      // 后台异步发现：尝试补齐上游 card_id（非阻塞）
-      discoverWebCardIds(id, app, createdCards).catch(err => {
-        logger.error('[WebCreate] Card discovery error:', err.message);
-      });
       res.json({
         code: 0,
-        msg: `已成功提交 ${createdCards.length}/${qty} 张卡片的开卡请求（异步处理，约10-20秒完成），请稍后同步卡片列表查看`,
-        data: { total: qty, success: createdCards.length, application_id: id }
+        msg: `已成功创建 ${createdCards.length}/${qty} 张卡片（card_id 已写入本地，详情可点同步按钮拉取）`,
+        data: {
+          total: qty,
+          success: createdCards.length,
+          application_id: id,
+          card_ids: createdCards,
+        }
       });
     } else {
       db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
