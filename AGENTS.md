@@ -179,19 +179,20 @@ sudo systemctl restart nginx
 | v1.0.12 | 2026-06-02 | 卡段使用说明展示：后端 HARDCODED_PRODUCTS 扩充为全部10个可用卡段，增加 metadata（适用平台、验证类型、限额、禁止事项）；前端开卡 Step2 新增卡段提醒信息面板 |
 | v1.0.13 | 2026-06-04 | **RSA 密钥修复**：重新生成 merchant 密钥对（2048-bit），用户上传公钥到 vmcardio 后恢复正常解密；修复 `/api/admin/merchant-balance` 解析上游返回格式错误（result.balance → result.data.balance） |
 | v1.0.14 | 2026-06-17 | **AGENTS.md 生产服务器信息纠正**：之前误把已弃用的腾讯云 `43.135.26.36` 标为生产，实际生产是 Vultr 新加坡 `139.180.188.104` + Cloudflare + `nova-vcc.com`；同日修复"卡交易/卡结算金额配色按'卡'语义"（消费/清算红、退款/撤销绿）+ `Cache-Control: no-store` 防止 CDN/浏览器缓存旧 HTML |
+| v1.0.15 | 2026-06-18 | **正式环境开卡切回 Merchant API**：v1.0.7 假设的 Web API（dev.vmcardio.com/web/createCard）在正式环境不存在 — 正式环境 `vmcardio.com` 是 HTML 营销站，无 API endpoint。沙盒/Web API 仅 dev.vmcardio.com 有。改用正式环境 `vmapi.vmcardio.com/createCard`（Merchant API + RSA 加密），实测 G5554LC 正式环境可正常开卡，同步返回 `card_id`（无需异步发现）。删掉 `discoverWebCardIds` 流程。正式环境不再需要 `VMCARDIO_WEB_*` 配置 |
 
-### 🔴 重要：双 API 架构说明
+### 🔴 重要：双环境 API 架构说明（v1.0.15 修订）
 
-| 特性 | Merchant API (`sandbox-api.vmcardio.com`) | Web API (`dev.vmcardio.com/web/`) |
-|------|------------------------------------------|-----------------------------------|
-| 认证 | `app_id` + `app_secret` → AccessToken | JWT Session Token（localStorage `auth.jwtToken`） |
-| 传输 | RSA 加密 `{content: encrypted}` | 明文 JSON |
-| 创建卡片 | 参数：`product_code`/`first_name`/`last_name`/`user_id` | 参数：`bin`/`customize_name`/`customize_last_name`/`bind_uid`/`user_name` |
-| 卡片列表 | ❌ `/cardList` 404 | ✅ `/web/createCard` 可创建，但 `/web/getCardList` 需另寻 |
-| 产品权限 | G5554LC 无开卡权限 | G5554LC 可正常开卡 |
-| 当前用途 | 查询（cardDetail/freezeCard/rechargeCard 等） | 创建卡片（webCreateCard） |
+| 特性 | 沙盒 Merchant API (`sandbox-api.vmcardio.com`) | 沙盒 Web API (`dev.vmcardio.com/web/`) | 正式环境 Merchant API (`vmapi.vmcardio.com`) | 正式环境 Web API |
+|------|------------------------------------------|-----------------------------------|--------------------------------------|-----------------|
+| 认证 | `app_id`+`app_secret` → AccessToken | JWT Session Token | `app_id`+`app_secret` → AccessToken | ❌ **不存在** |
+| 传输 | RSA 加密 `{content: encrypted}` | 明文 JSON | RSA 加密 `{content: encrypted}` | — |
+| 创建卡片参数 | `product_code`/`first_name`/`last_name`/`user_id` | `bin`/`customize_name`/`customize_last_name`/`bind_uid` | `product_code`/`first_name`/`last_name`/`user_id` | — |
+| 当前用途 | 沙盒测试 | 沙盒测试 | **正式环境开卡+查询（v1.0.15+）** | — |
 
-> **Token 来源**：登录 sandbox.vmcardio.com → F12 → Application → Local Storage → `auth.jwtToken` → 写入 `.env` `VMCARDIO_WEB_TOKEN`
+> **关键事实**：`vmcardio.com`（生产域名）是 HTML 营销站（OpenResty + Cloudflare），**无任何 API endpoint**。任何 `/web/...` 路径都返回 301/404/405。
+> 正式环境所有 API 都在 `vmapi.vmcardio.com`（Merchant API，RSA 加密）。
+> 完整接口列表见 Apifox 文档 `https://vmcardio.com/apidocuments/6664456m0`。
 
 ### 🔴 重要：RSA 密钥管理
 
