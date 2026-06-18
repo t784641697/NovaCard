@@ -1,4 +1,21 @@
 
+## v1.0.53 | 2026-06-18 | 卡片详情字段补全（限额单位修复 + 账单地址 + 持卡人）
+
+### 修复
+- `vmcardioSDK.cardDetail`：**拍平**上游嵌套结构 → 顶层字段
+  - `limit.{single,day,month,total,remaining_*}_limit` → 顶层 `single_limit / day_limit / month_limit` 等
+  - `card_address.{address_line_*, city, state, country, post_code}` → 顶层 6 个字段
+  - 解决 admin.js line 1174-1176 读 `detail.single_limit` 始终 undefined 的 bug
+- `cards.js GET /api/cards/:card_id`：合并 `localCard`（product_code / user_name / user_email）+ `detail`（实时），排除 `detail.user_name`（持卡人英文名）覆盖 `localCard.user_name`（用户真名）
+- `cards.js GET /api/cards` 列表：SELECT 加 `single_limit, day_limit, month_limit`
+- `admin.js approve`：审批时存 `single_limit / day_limit / month_limit`
+- 前端 `fmtAmt`：限额单位**分→美元**（上游原始单位是分，UI 显示要 /100）；余额保持美元
+
+### 行为变更
+- **持卡人显示**：前端优先 `first_name + last_name` → 显示"tao liang"（这是**卡的**持卡人英文名，不是用户的真名）
+- **账单地址**：上游 card_address 申请时**未要求填**，所有字段空 → 显示 `—`（需前端申请表单加账单地址字段才能解决）
+- **一键复制账单地址**：账单地址是空字符串，复制了空（根因同上）
+
 ## v1.0.52 | 2026-06-18 | 卡片详情/流水全员可见 + 卡号/CVV/有效期补全
 
 ### 后端

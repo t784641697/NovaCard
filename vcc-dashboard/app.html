@@ -6264,11 +6264,14 @@ window.showCardDetailModal = function(cardData) {
   setCopyFieldVal('modalCardExpiry', expiryDisplay, expiryCopy);
 
   // 余额和限额（null = 加载态）
-  const fmtAmt = (v) => loading || v === null || v === undefined ? '···' : `$${Number(v).toFixed(2)}`;
-  document.getElementById('modalCardBalance').textContent      = fmtAmt(cardData.available_amount);
-  document.getElementById('modalCardSingleLimit').textContent  = fmtAmt(cardData.single_limit);
-  document.getElementById('modalCardDayLimit').textContent     = fmtAmt(cardData.day_limit);
-  document.getElementById('modalCardMonthLimit').textContent   = fmtAmt(cardData.month_limit);
+  // 余额 available_amount 单位=美元
+  // 限额 single/day/month_limit 单位=**分**（上游原始单位），需 /100 转美元
+  const fmtUsd = (v) => loading || v === null || v === undefined ? '···' : `$${(Number(v) / 100).toFixed(2)}`;
+  const fmtUsdDirect = (v) => loading || v === null || v === undefined ? '···' : `$${Number(v).toFixed(2)}`;
+  document.getElementById('modalCardBalance').textContent      = fmtUsdDirect(cardData.available_amount);
+  document.getElementById('modalCardSingleLimit').textContent  = fmtUsd(cardData.single_limit);
+  document.getElementById('modalCardDayLimit').textContent     = fmtUsd(cardData.day_limit);
+  document.getElementById('modalCardMonthLimit').textContent   = fmtUsd(cardData.month_limit);
   
   // 产品码和持卡人信息
   document.getElementById('modalCardProductCode').textContent = cardData.product_code || cardData.bin || '—';
