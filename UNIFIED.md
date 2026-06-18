@@ -1314,3 +1314,118 @@ kill -9 30772
 - **业务名/存储值** = `product_code`（API 真实名，如 G5554LC）→ createCard/数据库/搜索匹配
 - **展示值** = `display_name`（友好别名，如 VC102）→ 4 个 UI 显示位置
 - **禁止**把业务名直接展示给用户（必须走 PRODUCT_DISPLAY_NAMES 映射）
+
+
+## 22. 卡段国家显示扩展性（v1.0.56 — 2026-06-19）
+
+### 22.1 设计原则
+- **后端统一标准化**：上游返回的国家字符串（"UK" / "USA" / "Hong Kong SAR" / 自由文本等）**必须**经过 `normalizeCountry()` 处理后再返回前端
+- **前端不维护国家映射表**：所有国家相关渲染（卡片国家、筛选项、国旗 emoji）**只**用后端标准化的 3 个字段
+  - `issuing_area_code` — ISO 3166-1 alpha-2 码（如 `HK` / `US` / `GB`）
+  - `issuing_area_name` — 短中文名（如 `香港` / `美国` / `英国`）
+  - `issuing_area_flag` — emoji 国旗（如 `🇭🇰` / `🇺🇸` / `🇬🇧`）
+
+### 22.2 后端 normalizer 架构
+
+| 步骤 | 处理 | 说明 |
+|------|------|------|
+| 1. ALIAS 兜底 | 查 `COUNTRY_ALIAS` 表 | 只覆盖非 ISO 自由文本：`UK` / `USA` / `U.S.` / `Hong Kong SAR` / `Macao SAR` / `Taiwan` / `PRC` / `Great Britain` / `Singapore` 等 |
+| 2. ISO 标准化 | `Intl.DisplayNames(['zh-CN'], {type:'region', style:'short'})` | 250+ ISO 国家自动短中文名（Node 18+ 内置，无需 polyfill） |
+| 3. 国旗生成 | ISO 字母偏移算法 | `String.fromCodePoint(0x1F1E6 + charCodeAt(i) - 65)` 无需 emoji 映射表 |
+
+### 22.3 集成位置
+- **正常分支**：`/api/cards/meta/products` 在合并 HARDCODED 后用 `apiList.map(p => ({...p, ...normalizeCountry(p.issuing_area)}))`
+- **`?raw=1` 分支**：同样需要包装（v1.0.56 第一次部署漏改，前端调的是 `?raw=1` 导致用户看不到中文+国旗）
+- **fallback**：上游 API 失败返回 503（不再用残缺 HARDCODED 兜底）
+
+### 22.4 添加新国家支持
+- ISO 国家（如 `JP` / `DE` / `FR` / `KR`）：**无需改代码**，`Intl.DisplayNames` 自动支持
+- 非 ISO 自由文本（如 `Mainland China` / `UAE`）：在 `COUNTRY_ALIAS` 加一行 `{from: 'Mainland China', code: 'CN'}`
+
+### 22.5 ❌ 反例
+- ❌ 前端硬编码 `COUNTRY_MAP = {'UK':'英国', 'USA':'美国', ...}` —— 不可扩展
+- ❌ 前端用 emoji 映射表 `COUNTRY_FLAGS = {'UK':'🇬🇧', ...}` —— 维护成本高
+- ❌ 单独在正常分支加 normalizer 但漏改 `?raw=1` 分支 —— 前端调 raw 时看不到效果
+
+---
+
+## 23. 地区筛选项动态化（v1.0.57 — 2026-06-19）
+
+### 23.1 设计原则
+- **筛选项来源**：必须是基于 apiList 实际返回的国家动态提取，**禁止**硬编码国家按钮
+- **HTML 容器**：所有动态筛选项放在 `id="binCountryFilters"` 容器内，由 JS 填充
+- **类选择器统一**：所有动态生成的筛选项 button 必带 `class="bin-country-btn"` + `data-country="<ISO>"` 属性
+
+### 23.2 必含 JS 函数（`vcc-dashboard/app.html`）
+
+#### `_availableCountries`
+```js
+let _availableCountries = [];  // 全局: [{code, name, flag}, ...]
+```
+
+#### `_extractCountries(list)`
+- 从 `list` 提取去重国家
+- 用后端标准化字段 `issuing_area_code/name/flag`
+- 按中文名 `localeCompare(zh-CN)` 排序
+
+```js
+function _extractCountries(list) {
+  const map = {};
+  list.forEach(p => {
+    const code = p.issuing_area_code;
+    if (code && !map[code]) {
+      map[code] = { code, name: p.issuing_area_name || code, flag: p.issuing_area_flag || '🏳️' };
+    }
+  });
+  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+}
+```
+
+#### `_renderCountryFilters()`
+- 渲染到 `#binCountryFilters` 容器
+- 每个 button 含 `class="bin-country-btn"` + `data-country="${c.code}"` + `onclick="filterBin('country:${c.code}')"`
+- 显示 `${c.flag} ${c.name}`
+
+### 23.3 `loadBins` 必含调用
+```js
+async function loadBins() {
+  const res = await apiFetch('/cards/meta/products?raw=1');
+  _productList = res.data?.list || [];
+  // 1.21: 动态提取国家列表并渲染筛选项
+  _availableCountries = _extractCountries(_productList);
+  _renderCountryFilters();
+  renderBins(_productList, _binFilter);
+}
+```
+
+### 23.4 `filterBin` 国家筛选规范
+
+| 操作 | 实现 |
+|------|------|
+| 重置所有国家按钮 | `document.querySelectorAll('.bin-country-btn').forEach(b => { ... })` |
+| 高亮选中按钮 | `document.querySelector('.bin-country-btn[data-country="${code}"]')?.classList.replace('btn-outline','btn-primary')` |
+
+#### ❌ 反例
+- ❌ `['HK','UK','SG','US'].forEach(n => document.getElementById('country'+n)...)` — 硬编码国家列表
+- ❌ `{hk:'HK',uk:'GB',sg:'SG',us:'US'}[filter.split(':')[1]]` — 短代码映射表
+- ❌ 用 button 的 `id` 找元素（动态生成的元素没有静态 id）
+
+### 23.5 `renderBins` 国家筛选规范
+
+```js
+// 国家筛选（动态：filterBin 传 'country:HK'/'country:GB' 等 ISO 码,直接匹配后端 normalizer 字段）
+if (filter && filter.startsWith('country:')) {
+  const code = filter.split(':')[1].toUpperCase();
+  filtered = filtered.filter(p => p.issuing_area_code === code);
+}
+```
+
+- **禁止**再用 `{hk:'HK',uk:'GB',sg:'SG',us:'US'}` 短代码映射
+- **必须**用 `p.issuing_area_code`（后端 normalizer 字段）与 filter 中的 ISO 码直接匹配
+
+### 23.6 添加新国家支持
+- 前提：上游 API 返回的国家字符串能被 §22 的 `normalizeCountry` 正确处理
+- 前端**无需改代码**：新增国家自动出现在筛选项 + 卡片渲染
+
+---
+

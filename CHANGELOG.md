@@ -1,4 +1,85 @@
 
+## v1.0.57 | 2026-06-19 | 地区筛选项动态化（自动适配上游国家列表）
+
+### 问题
+- 之前"可用卡段"页面的国家筛选项是 4 个硬编码按钮（HK/UK/SG/US），上游新增国家时前端需要手动改代码
+
+### 改动
+- **HTML 容器替换**（`vcc-dashboard/app.html` line 2798-2802）
+  - 移除 4 个硬编码 `<button id="countryHK/UK/SG/US">`
+  - 改为 `<span id="binCountryFilters" class="flex gap-2 flex-wrap">` 动态容器
+- **新增 `_extractCountries(list)`**（app.html line 2868）
+  - 从 apiList 提取去重国家：`{code, name, flag}`
+  - 用后端 normalizer 字段 `issuing_area_code/name/flag`
+  - 按中文名 `localeCompare(zh-CN)` 排序
+- **新增 `_renderCountryFilters()`**（app.html line 2883）
+  - 动态渲染 button：`<button class="bin-country-btn" data-country="${c.code}" onclick="filterBin('country:${code}')">${flag} ${name}</button>`
+- **`filterBin` 重构**（line 2892-2913）
+  - 移除 `['HK','UK','SG','US'].forEach(...)` 硬编码
+  - 改用 `document.querySelectorAll('.bin-country-btn').forEach(...)` 类选择器
+  - 高亮逻辑改用 `querySelector('.bin-country-btn[data-country="..."]')` 属性匹配
+- **`renderBins` 国家筛选简化**（line 2937-2941）
+  - 移除 `{hk:'HK',uk:'GB',sg:'SG',us:'US'}` 映射表
+  - 直接用 `p.issuing_area_code` 与 filter 中的 ISO 码匹配
+- **`loadBins` 加调用**（line 2918-2929）
+  - 拿到 `_productList` 后调用 `_extractCountries()` + `_renderCountryFilters()`
+  - 取消缓存分支（每次都重新提取，简化逻辑）
+
+### 验证
+- 线上 `https://nova-vcc.com/api/cards/meta/products?raw=1` 返回 17/17 卡段
+- 提取去重 4 个国家：🇸🇬 SG 新加坡 / 🇺🇸 US 美国 / 🇬🇧 GB 英国 / 🇭🇰 HK 香港
+- 部署 commit `354e5e4`
+
+### 扩展性
+- 上游新增任意国家 → 前端**无需改代码**，自动出现在国家筛选项
+- 命名用后端 normalizer 统一处理（中文名+emoji 国旗）
+
+---
+
+## v1.0.56 | 2026-06-19 | 卡段国家显示扩展性改造（country normalizer）
+
+### 问题
+- 之前前端硬编码 `COUNTRY_MAP` / `COUNTRY_FLAGS` 只覆盖 4 个全称（Hong Kong SAR / United States / United Kingdom / Singapore）
+- 上游返回 "UK" / "USA" / "Hong Kong" 等缩写/自由文本时 → fall back 到原始字符串（出现"UK"和"香港"混用）
+- 用户反馈：万一以后上游又出现其他不在映射表的国家怎么办，不够具备扩展性
+
+### 后端方案（核心）
+- **新建 `src/utils/country.js`**
+  - `normalizeCountry(raw)` 函数输入上游任意字符串，输出 `{code, name, flag}` 标准字段
+  - **第一步：ALIAS 兜底表**（只覆盖非 ISO 自由文本）：UK / USA / U.S. / Hong Kong SAR / Macao SAR / Taiwan / PRC / Great Britain / Singapore 等
+  - **第二步：`Intl.DisplayNames(['zh-CN'], {type:'region', style:'short'})`** → 250+ ISO 国家自动短中文名
+  - **第三步：ISO 字母偏移算法生成 emoji 国旗**（无需 emoji 映射表）
+    ```js
+    String.fromCodePoint(
+      0x1F1E6 + code.charCodeAt(0) - 65,  // regional indicator A
+      0x1F1E6 + code.charCodeAt(1) - 65   // regional indicator B
+    )
+    ```
+- **`src/routes/cards.js` 集成**
+  - `/meta/products` 正常分支：合并 HARDCODED 后用 `normalizeCountry` 包装
+  - **`/meta/products?raw=1` 分支**：补加 `apiList.map(p => normalizeCountry(p.issuing_area))`
+  - 顶部 require `const { normalizeCountry } = require('../utils/country');`
+
+### 前端
+- `app.html` `renderBins` 国家渲染
+  - 移除硬编码 `COUNTRY_MAP` / `COUNTRY_FLAGS`
+  - 改用后端标准化字段：`p.issuing_area_name || p.issuing_area || ''` + `p.issuing_area_flag || '🏳️'`
+
+### Bug 修复
+- **漏改 `?raw=1` 分支**：v1.0.56 第一次部署时只改了正常分支，前端调的是 `?raw=1` 所以用户看不到中文+国旗
+- 用户反馈"无痕模式也一样"才定位到此 bug → 补改后重新部署
+
+### 验证
+- 19/19 单元测试通过（"UK"→"英国"🇬🇧 / "JP"→"日本"🇯🇵 / "US"→"美国"🇺🇸 等）
+- 线上 `/meta/products?raw=1` 17/17 卡段都返回 `issuing_area_code/name/flag`
+- 部署 commit `8ac2960`
+
+### 扩展性
+- 上游返回任何国家字符串 → 后端 normalizer 自动处理
+- ALIAS 表只维护"非 ISO 自由文本"（UK/USA/Hong Kong 等），ISO 3166-1 全部由 `Intl.DisplayNames` 兜底
+
+---
+
 ## v1.0.55 | 2026-06-18 | HARDCODED 精简为业务控制层（API 优先 + 业务覆盖架构）
 
 ### 🔴 重大架构调整
