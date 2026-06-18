@@ -1,4 +1,19 @@
 
+## v1.0.52 | 2026-06-18 | 卡片详情/流水全员可见 + 卡号/CVV/有效期补全
+
+### 后端
+- `vmcardioSDK.cardDetail()`：上游 `expire="MM/YY"` 字符串解析为 `expiry_month=MM, expiry_year=20YY` 数字
+- `admin.approve`：审批通过后立即调 `cardDetail` 拉取真实卡号/CVV/有效期写入 `cards` 表（之前只存 `card_id`，用户看到 `**** **** **** ****` + 有效期 `—`）
+- 兼容性兜底：cardDetail 失败不阻塞审批（仅记 warn log，admin 可后续单独同步）
+
+### 前端
+- 卡号显示：fallback 从 `**** **** **** ****`（4 段全掩码）改为 `**** **** **** 7240`（用 `card_id.slice(-4)` 后四位）
+- "详情" / "流水" 按钮：从仅 admin 开放给所有用户
+- 有效期渲染：优先用 `c.expire` 字符串（如上游同步过来），fallback `expiry_month/year` 拼成 `MM/YY`
+
+### 数据修复
+- taoliang 名下卡 `XR2067511181878833152`（v1.0.15 之前创建，cards 表里 `card_number/cvv/expiry` 全 0）→ 用新 SDK 重跑 `cardDetail` 补全：`card_number=5556710542357240, cvv=938, expiry_month=5, expiry_year=2029`
+
 ## v1.0.51 | 2026-06-18 | 充值入账手续费体系 + 开卡流程全面修复
 
 **手续费精细化 + 开卡切回正式环境 Merchant API**
