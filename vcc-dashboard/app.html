@@ -672,7 +672,7 @@ select.form-control option{background:var(--bg3);}
   background:rgba(167,139,250,.07);
 }
 .bin-card.selected{border-color:var(--purple);box-shadow:0 0 0 3px rgba(167,139,250,.15);}
-.bin-code{font-weight:700;font-family:monospace;color:var(--purple);}
+.bin-code{font-weight:700;font-family:monospace;color:var(--purple);font-size:.7rem;letter-spacing:-.3px;display:inline-block;min-width:60px;text-align:center;}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
@@ -2952,7 +2952,7 @@ function renderBins(list, filter) {
     return `<div class="bin-card${isAvailable?'':' disabled'}"${isAvailable?' onclick="selectBin('+JSON.stringify(p).replace(/"/g,'&quot;')+')"':''}>
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
-          <span class="bin-code" style="font-size:.8rem">${p.bin}</span>
+          <span class="bin-code" title="BIN 段：${p.bin}（${(p.bin||'').length}位）">${p.bin}</span>
           <span style="font-size:.8rem;color:var(--text2)">${countryName(p)}</span>
           <span style="font-size:.8rem;font-weight:700;font-family:monospace;color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
         </div>
@@ -2974,7 +2974,7 @@ function selectBin(p) {
   if (grid) {
     const rows = [
       { label: '国家 / 地区',   value: meta.country || p.issuing_area || '—' },
-      { label: '卡段号',       value: p.bin || '—' },
+      { label: 'BIN 段（前 N 位）', value: p.bin || '—' },
       { label: '卡片类型',      value: meta.card_type || p.network || '—' },
       { label: '适用平台',      value: meta.applicable_platforms || '—' },
       { label: '验证类型',      value: meta.verification || '—' },
