@@ -4279,12 +4279,12 @@ async function loadCmList(forceRefresh = false) {
   renderCmList(cards);
 }
 
-// 管理员查看卡片详情
-window.showAdminCardDetail = async function(cardId) {
+// 查看卡片详情（管理员走 /admin/cards/:id/detail，普通用户走 /api/cards/:id）
+window.showCardDetail = async function(cardId) {
   // 先从缓存取基础数据，立即展示弹窗（避免白屏等待）
   const cards = window.currentCardList || [];
   const baseData = cards.find(c => c.card_id === cardId) || { card_id: cardId };
-  
+
   // 展示弹窗，敏感字段先显示加载态
   showCardDetailModal({
     ...baseData,
@@ -4294,10 +4294,12 @@ window.showAdminCardDetail = async function(cardId) {
     _loading: true
   });
 
-  // 同时调实时接口获取完整数据（含 vmcardio 实时数据）
-  try {
+  // 管理员走 /admin/cards/:id/detail（含审计信息），普通用户走 /api/cards/:id
+  const isAdmin = _me?.role === 'admin';
+  const detailUrl = isAdmin ? `/admin/cards/${cardId}/detail` : `/cards/${cardId}`;
 
-    const res = await apiFetch(`/admin/cards/${cardId}/detail`);
+  try {
+    const res = await apiFetch(detailUrl);
     console.log('[cardDetail] 接口返回:', JSON.stringify({
       code: res.code,
       msg: res.msg,
@@ -4311,17 +4313,16 @@ window.showAdminCardDetail = async function(cardId) {
       // 用真实数据更新弹窗
       showCardDetailModal(res.data);
     } else {
-
       if (baseData.card_id) showCardDetailModal(baseData);
       else showToast('无法获取卡片详情', 'error');
     }
   } catch (e) {
-
-    // 网络错误，用缓存数据
     if (baseData.card_id) showCardDetailModal(baseData);
     else showToast('获取卡片详情失败', 'error');
   }
 }
+// 兼容旧名（admin 路由仍用）
+window.showAdminCardDetail = window.showCardDetail;
 
 function renderCmList(cards) {
 
@@ -4333,7 +4334,14 @@ function renderCmList(cards) {
     const isActive = (c.status||'').toUpperCase() === 'ACTIVE';
     const isFrozen = (c.status||'').toUpperCase() === 'CANCELLED' || c.status === 'frozen';
     const isDeleted = (c.status||'').toLowerCase() === 'deleted';
-    const masked = (c.card_number||'').replace(/^(\d{4})\d+(\d{4})$/,'$1 **** **** $2') || '**** **** **** ****';
+    // 卡号脱敏：优先用 card_number 后四位；没有时用 card_id 后四位兜底
+    //   v1.0.51+ 修复：之前 fallback 是 `**** **** **** ****`（4 段全掩码），用户完全看不到任何后四位
+    const numLast4 = (c.card_number || '').replace(/\D/g, '').slice(-4);
+    const idLast4  = (c.card_id || '').slice(-4);
+    const last4    = numLast4 || idLast4;
+    const masked   = (c.card_number && c.card_number.length >= 8)
+      ? c.card_number.replace(/(\d{4})(?=\d)/g, '$1 ').replace(/\d{4}(?= \d{4} \d{4} \d{4}$)/, '****')
+      : (last4 ? `**** **** **** ${last4}` : '**** **** **** ****');
     const isVisa = /visa/i.test(c.network||c.card_type||'');
     const statusBadge = isDeleted
       ? `<span class="tag tag-gray">已删除</span>`
@@ -4416,15 +4424,15 @@ function renderCmList(cards) {
           </div>
         </div>
         <div class="cm-card-right">
-          ${_me?.role === 'admin' ? `<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal('${c.card_id}')" title="查看消费明细">🧾 流水</button>` : ''}
+          ${`<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal('${c.card_id}')" title="查看消费明细">🧾 流水</button>`}
           <div class="cm-bal">
             <div class="cm-bal-label">${balLabel}</div>
             <div class="${balValueClass}">$${balDisplay}</div>
           </div>
           <div class="cm-actions-row">
             ${isInvalid ? '<span class="cm-status-badge cm-status-invalid">失效</span>' : `<div class="cm-status">${statusBadge}</div>`}
-            ${_me?.role === 'admin' ? `<button class="cm-btn cm-btn-detail" onclick="window.showAdminCardDetail('${c.card_id}')">🔍 详情</button>` : ''}
-            ${_me?.role !== 'admin' && !isInvalid ? '<button class="cm-btn cm-btn-topup" onclick="window.cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>' : ''}
+            ${`<button class="cm-btn cm-btn-detail" onclick="window.showCardDetail('${c.card_id}')">🔍 详情</button>`}
+            ${!isInvalid ? '<button class="cm-btn cm-btn-topup" onclick="window.cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>' : ''}
             ${freezeBtn}
           </div>
         </div>

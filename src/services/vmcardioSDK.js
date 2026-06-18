@@ -149,7 +149,16 @@ class VmcardioSDK {
   }
 
   async cardDetail(card_id) {
-    return this.request('/cardDetail', { card_id });
+    const r = await this.request('/cardDetail', { card_id });
+    // 上游 expire="05/29" → 解析为 expiry_month=5, expiry_year=2029
+    if (r.expire && r.expiry_month == null) {
+      const m = String(r.expire).match(/^(\d{2})\/(\d{2})$/);
+      if (m) {
+        r.expiry_month = parseInt(m[1], 10);
+        r.expiry_year = 2000 + parseInt(m[2], 10);
+      }
+    }
+    return r;
   }
 
   /** 查询上游全量卡片列表 */

@@ -1747,9 +1747,21 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         if (!realCardId) {
           throw new Error('上游未返回 card_id');
         }
-        // 插入真实 card_id，后续通过 cardDetail 拉取卡号/CVV/有效期
-        db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', nowiso(), nowiso())`).run(
-          realCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Virtual Card'
+        // 插入真实 card_id，立即从上游拉取完整信息（卡号/CVV/有效期）
+        //   v1.0.15+ 修复：之前没调 cardDetail，导致卡号/CVV/有效期全空，
+        //   用户在卡片管理看到 `**** **** **** ****` + `有效期 —`
+        let detail = null;
+        try {
+          detail = await sdk.cardDetail(realCardId);
+        } catch (e) {
+          logger.warn(`[approve] cardDetail ${realCardId} 失败: ${e.message}（占位记录已写入，可后续同步）`);
+        }
+        db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status,
+          card_number, expiry_month, expiry_year, cvv, card_type, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, nowiso(), nowiso())`).run(
+          realCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Virtual Card',
+          detail?.card_number || '', detail?.expiry_month || 0, detail?.expiry_year || 0,
+          detail?.cvv || '', detail?.card_type || 'save'
         );
         createdCards.push(realCardId);
       } catch (err) {
