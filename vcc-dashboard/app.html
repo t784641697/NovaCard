@@ -2956,14 +2956,11 @@ function renderBins(list, filter) {
     filtered = filtered.filter(p => p.issuing_area_code === code);
   }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
-  // 拆分 BIN 显示：12 位通常是 2 个 6 位 BIN 随机分配（无法指定）
+  // BIN 段统一只显示前 6 位 (12 位上游表示 2 个 6 位 BIN 随机分配, 此处简化为前缀展示)
   function formatBin(bin) {
     if (!bin) return '—';
     const s = String(bin);
-    if (s.length === 12) {
-      return `<span class="bin-code" title="BIN 段：${s.slice(0,6)}（6位）">${s.slice(0,6)}</span><span class="bin-split" title="2 个 BIN 随机分配（无法指定）">/</span><span class="bin-code" title="BIN 段：${s.slice(6)}（6位）">${s.slice(6)}</span>`;
-    }
-    return `<span class="bin-code">${s}</span>`;
+    return `<span class="bin-code">${s.slice(0, 6)}</span>`;
   }
   // 回归基础：BIN段 + 国家 + 产品代码 + 网络
   // v1.0.22 国家/地区展示：直接用后端 /meta/products 返回的标准化字段
@@ -3004,7 +3001,7 @@ function selectBin(p) {
   if (grid) {
     const rows = [
       { label: '国家 / 地区', value: p.issuing_area || '—' },
-      { label: 'BIN 段',      value: (p.bin && p.bin.length === 12) ? `${p.bin.slice(0,6)} / ${p.bin.slice(6)}` : (p.bin || '—') },
+      { label: 'BIN 段',      value: (p.bin ? String(p.bin).slice(0, 6) : '—') },
       { label: '卡片类型',    value: p.type || '—' },
       { label: '网络',        value: p.network || '—' },
       { label: '介质',        value: p.media || '—' },
@@ -9035,7 +9032,7 @@ function renderCardProductsRows() {
     return `
       <tr style="border-top:1px solid rgba(255,255,255,.05)" data-pc="${p.product_code}">
         <td style="padding:12px 16px;font-family:ui-monospace,monospace;color:var(--text-primary)">${p.product_code}</td>
-        <td style="padding:12px 16px;font-family:ui-monospace,monospace;color:var(--text-muted);font-size:.8rem">${p.bin}</td>
+        <td style="padding:12px 16px;font-family:ui-monospace,monospace;color:var(--text-muted);font-size:.8rem">${String(p.bin || '').slice(0, 6)}</td>
         <td style="padding:12px 16px">${p.issuing_area_flag || '🏳️'} ${p.issuing_area_name || p.issuing_area}</td>
         <td style="padding:12px 16px;text-align:center">
           <label class="cp-switch" style="display:inline-block;width:38px;height:20px;background:${p.available ? 'rgba(34,197,94,.4)' : 'rgba(255,255,255,.1)'};border-radius:10px;position:relative;cursor:pointer;transition:.2s" data-pc="${p.product_code}" data-on="${p.available}">
