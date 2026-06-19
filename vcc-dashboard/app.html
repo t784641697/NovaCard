@@ -9002,14 +9002,14 @@ async function renderCardProductsPage() {
 
         <!-- 表格 -->
         <div class="card" style="padding:0;overflow:hidden">
-          <table style="width:100%;border-collapse:collapse;font-size:.875rem">
+          <table style="width:100%;border-collapse:collapse;font-size:.875rem;table-layout:fixed">
             <thead>
               <tr style="background:rgba(255,255,255,.04);text-align:left">
                 <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">产品</th>
                 <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">卡段</th>
                 <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">地区</th>
                 <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase;text-align:center">开关</th>
-                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">适用平台</th>
+                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase;width:240px;min-width:240px;max-width:240px">适用平台</th>
                 <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase;text-align:right">操作</th>
               </tr>
             </thead>
@@ -9105,9 +9105,30 @@ function renderCardProductsRows() {
   }
 
   tbody.innerHTML = pageItems.map(p => {
-    const platformsHtml = p.applicable_platforms && p.applicable_platforms.length > 0
-      ? p.applicable_platforms.map(pl => `<span class="platform-tag" style="display:inline-block;padding:2px 8px;margin:2px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:10px;font-size:.7rem;color:#a5b4fc">${pl}</span>`).join('')
-      : (p.docx_platforms ? `<span style="color:var(--text-muted);font-size:.75rem">沿用 docx · ${p.docx_platforms.length} 个平台</span>` : '<span style="color:var(--text-muted);font-size:.75rem">— 未设置 —</span>');
+    // v1.0.58 B 方案: 列宽固定 240px, 前 3 个 tag + 「+N more」, 完整列表放 title tooltip
+    let platformsHtml = '';
+    let tooltipParts = [];
+    const maxShow = 3;
+    if (p.applicable_platforms && p.applicable_platforms.length > 0) {
+      const arr = p.applicable_platforms;
+      arr.slice(0, maxShow).forEach(pl => {
+        platformsHtml += `<span class="platform-tag" style="display:inline-block;padding:2px 8px;margin:2px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:10px;font-size:.7rem;color:#a5b4fc;flex-shrink:0;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis">${pl}</span>`;
+      });
+      if (arr.length > maxShow) {
+        const more = arr.length - maxShow;
+        platformsHtml += `<span style="display:inline-block;padding:2px 8px;margin:2px 0 2px 2px;color:var(--text-muted);font-size:.7rem;flex-shrink:0;white-space:nowrap">+${more} more</span>`;
+        tooltipParts = arr;
+      } else {
+        tooltipParts = arr;
+      }
+    } else if (p.docx_platforms) {
+      platformsHtml = `<span style="color:var(--text-muted);font-size:.75rem">沿用 docx · ${p.docx_platforms.length} 个平台</span>`;
+      tooltipParts = [...p.docx_platforms, '(docx 默认平台)'];
+    } else {
+      platformsHtml = '<span style="color:var(--text-muted);font-size:.75rem">— 未设置 —</span>';
+      tooltipParts = ['管理员未设置, 也无 docx 默认平台'];
+    }
+    const cellTitle = tooltipParts.join(', ');
     return `
       <tr style="border-top:1px solid rgba(255,255,255,.05)" data-pc="${p.product_code}">
         <td style="padding:12px 16px;font-family:ui-monospace,monospace;color:var(--text-primary)">${p.product_code}</td>
@@ -9118,7 +9139,7 @@ function renderCardProductsRows() {
             <span class="cp-knob" style="display:block;width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:2px;left:${p.available ? '20px' : '2px'};transition:.2s"></span>
           </label>
         </td>
-        <td style="padding:12px 16px;max-width:380px"><div style="display:flex;flex-wrap:wrap;gap:2px">${platformsHtml}</div></td>
+        <td style="padding:12px 16px;width:240px;max-width:240px;overflow:hidden" title="${cellTitle.replace(/"/g, "&quot;")}"><div style="display:flex;flex-wrap:nowrap;overflow:hidden;align-items:center;gap:0">${platformsHtml}</div></td>
         <td style="padding:12px 16px;text-align:right;white-space:nowrap">
           <button class="btn btn-sm" onclick="openCardProductEdit('${p.product_code}')" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;padding:4px 10px;font-size:.75rem;border-radius:6px;cursor:pointer">编辑</button>
 
