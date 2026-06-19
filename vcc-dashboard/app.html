@@ -8962,7 +8962,11 @@ async function saveAdminSettings() {
 // ══════════════════════════════════════════════
 let _txMonitorFilter = {};
 
-async // v1.0.24 卡段管理页面
+// ══════════════════════════════════════════════
+//  PAGE: 卡段管理（管理员）— v1.0.24
+// ══════════════════════════════════════════════
+let _cardProductsList = [];
+
 async function renderCardProductsPage() {
   _mainContent.innerHTML = `
     <div class="space-y-6">
@@ -9003,7 +9007,6 @@ async function renderCardProductsPage() {
   await loadCardProducts();
 }
 
-let _cardProductsList = [];
 async function loadCardProducts() {
   const status = document.getElementById('card-products-status');
   const table  = document.getElementById('card-products-table');
