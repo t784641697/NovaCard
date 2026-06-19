@@ -687,7 +687,7 @@ select.form-control option{background:var(--bg3);}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
-.bin-card-disabled{opacity:.4;cursor:not-allowed!important;position:relative;border-color:var(--border)!important}
+.bin-card-disabled{opacity:.4;cursor:not-allowed!important;position:relative;border-color:var(--border)!important;pointer-events:none}
 .bin-card-disabled:hover{border-color:var(--border)!important;background:var(--bg3)!important;transform:none!important;box-shadow:none!important}
 .bin-card-mask{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.65);color:#fbbf24;padding:6px 16px;border-radius:20px;font-size:.8rem;font-weight:500;backdrop-filter:blur(8px);border:1px solid rgba(251,191,36,.3);pointer-events:none;z-index:2}
 .bin-platforms{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
@@ -2981,17 +2981,14 @@ function renderBins(list, filter) {
       <span class="bin-prefix">卡段:</span><span class="bin-bins">${formatBin(p.bin)}</span><span class="bin-country"><span class="bin-flag">${flag}</span><span>${country}</span></span>
       <span class="bin-prefix">产品:</span><span class="bin-name">${p.product_code}</span><span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
       ${platHtml}
-      ${isAvail ? '' : '<div class="bin-card-mask">⏸ 暂不可用</div>'}
+      ${isAvail ? '' : '<div class="bin-card-mask">暂不可用</div>'}
     </div>`;
   }).join('');
 }
 
 function selectBin(p) {
-  // v1.0.24 校验管理员开关
-  if (p.available === false) {
-    alert('该卡段已暂停开卡');
-    return;
-  }
+  // v1.0.24 管理员开关: 关闭的卡段 CSS pointer-events:none 直接阻断点击
+  if (p.available === false) return;
   // 原始数据模式下，只检查上游 remaining_open_card_num
   if ((p.remaining_open_card_num || 0) <= 0) return;
   _selectedBin = p;
@@ -9042,7 +9039,7 @@ function renderCardProductsRows() {
         <td style="padding:12px 16px;max-width:380px"><div style="display:flex;flex-wrap:wrap;gap:2px">${platformsHtml}</div></td>
         <td style="padding:12px 16px;text-align:right;white-space:nowrap">
           <button class="btn btn-sm" onclick="openCardProductEdit('${p.product_code}')" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;padding:4px 10px;font-size:.75rem;border-radius:6px;cursor:pointer">编辑</button>
-          ${(p.updated_at) ? `<button class="btn btn-sm" onclick="resetCardProduct('${p.product_code}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--text-muted);padding:4px 10px;font-size:.75rem;border-radius:6px;cursor:pointer;margin-left:6px" title="清除管理员设置,恢复 docx/HARCODED 默认">重置</button>` : ''}
+
         </td>
       </tr>
     `;
@@ -9132,15 +9129,6 @@ function openCardProductEdit(pc) {
       await loadCardProducts();
     } catch (e) { alert('网络错误: ' + e.message); }
   };
-}
-
-async function resetCardProduct(pc) {
-  if (!confirm(`确定清除 ${pc} 的管理员设置,恢复 docx/HARDCODED 默认?`)) return;
-  try {
-    const res = await apiFetch('/admin/card-products/' + pc + '/override', { method: 'DELETE' });
-    if (res.code !== 0) return alert('重置失败: ' + res.msg);
-    await loadCardProducts();
-  } catch (e) { alert('网络错误: ' + e.message); }
 }
 
 function renderAdminTxMonitor() {
