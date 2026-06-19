@@ -1,25 +1,15 @@
 // v1.0.24 管理员卡段业务配置 service
 // 持久化管理员在"卡段管理"页面的设置（available / applicable_platforms / custom_message）
 // 优先级：DB override > HARDCODED > docx metadata > upstream
+// 注意：PM2 cluster mode 多 worker 进程，进程内 cache 会导致状态不一致。
+//       17 行数据 + 每次 /meta/products 都查 = 可忽略性能影响，去掉 cache。
 
 const db = require('../db/database');
 
-/**
- * 获取所有 override（按 product_code → override 记录）
- * @returns {Map<string, OverrideRecord>}
- */
-const _cache = new Map();
-let _loadedAt = 0;
-const CACHE_TTL = 30 * 1000; // 30 秒缓存（写入后立即清掉）
-
 function loadAll() {
-  const now = Date.now();
-  if (_loadedAt && (now - _loadedAt) < CACHE_TTL && _cache.size > 0) {
-    return _cache;
-  }
   try {
     const rows = db.prepare('SELECT product_code, available, applicable_platforms, custom_message, updated_at, updated_by FROM card_product_overrides').all();
-    _cache.clear();
+    const map = new Map();
     for (const r of rows) {
       let platforms = null;
       if (r.applicable_platforms) {
@@ -28,7 +18,7 @@ function loadAll() {
           if (!Array.isArray(platforms)) platforms = null;
         } catch { platforms = null; }
       }
-      _cache.set(r.product_code, {
+      map.set(r.product_code, {
         product_code:         r.product_code,
         available:            r.available === 1,
         applicable_platforms: platforms,
@@ -37,19 +27,14 @@ function loadAll() {
         updated_by:           r.updated_by,
       });
     }
-    _loadedAt = now;
+    return map;
   } catch (e) {
-    // 表还不存在时返回空 cache
-    _cache.clear();
-    _loadedAt = now;
+    return new Map();
   }
-  return _cache;
 }
 
-function invalidate() {
-  _loadedAt = 0;
-  _cache.clear();
-}
+// 保留 invalidate / _cache 字段避免外部调用崩溃，但已无实际作用
+function invalidate() { /* no-op: 每次都直查 DB 保证多 worker 一致 */ }
 
 /**
  * 获取单个卡段的 override（无则返回 null）
