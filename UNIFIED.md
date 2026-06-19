@@ -1429,3 +1429,179 @@ if (filter && filter.startsWith('country:')) {
 
 ---
 
+
+## 24. 卡段管理后台（v1.0.58 — 2026-06-19）
+
+### 24.1 设计原则
+- **业务配置持久化**：管理员在线调整卡段状态/平台/文案 → 写 DB → 用户端实时生效
+- **优先级链清晰**：`DB override > HARDCODED business > docx metadata > upstream API`
+- **多 worker 一致**：PM2 cluster 模式多 worker **禁止**使用进程内 cache（会导致状态不一致），直查 DB
+- **影响隔离**：override 只影响 `/meta/products` 返回的列表（开卡申请的新数据），**已开卡的 cards 表记录不受影响**
+
+### 24.2 数据库表 `card_product_overrides`
+
+```sql
+CREATE TABLE card_product_overrides (
+  product_code          TEXT PRIMARY KEY,
+  available             INTEGER NOT NULL DEFAULT 1,    -- 0/1
+  applicable_platforms  TEXT DEFAULT NULL,             -- JSON 数组字符串
+  custom_message        TEXT DEFAULT NULL,             -- 用户端展示文案
+  updated_at            INTEGER NOT NULL,              -- ms 时间戳
+  updated_by            TEXT DEFAULT NULL              -- 管理员邮箱
+);
+```
+
+- **建表时机**：service 首次 `loadAll()` 时 lazy check（不写在 `database.js` 启动迁移里，避免模块加载顺序耦合）
+- **无 override 时**：服务返回 `null`，由上游链路使用 HARDCODED/docx 默认值
+
+### 24.3 Service 接口
+
+```js
+const svc = require('../services/cardProductOverrideService');
+
+// 查单个
+const ov = svc.get('G5449LJ');  // OverrideRecord | null
+//  { product_code, available, applicable_platforms, custom_message, updated_at, updated_by }
+
+// 查全部（数组）
+const list = svc.listAll();  // OverrideRecord[]
+
+// upsert（admin 端 PUT 调用）
+svc.upsert('G5449LJ', {
+  available: 0,
+  applicable_platforms: ['Facebook','OpenAI'],
+  custom_message: 'AI/Agent 专用',
+}, 'admin@vcc.hub');
+
+// 重置（admin 端 DELETE 调用）
+svc.remove('G5449LJ');
+```
+
+### 24.4 API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/card-products` | GET | 列出 17 个卡段 + docx 元数据 + override |
+| `/api/admin/card-products/:pc` | PUT | 更新单卡段 override（partial update） |
+| `/api/admin/card-products/:pc/override` | DELETE | 重置单卡段 override（回 HARDCODED/docx） |
+
+#### GET 响应字段
+
+```json
+{
+  "code": 0, "msg": "ok",
+  "data": {
+    "count": 17,
+    "list": [{
+      "product_code": "G5449LJ",
+      "bin": "54492360",
+      "network": "MasterCard",
+      "issuing_area": "Hong Kong SAR",
+      "issuing_area_code": "HK", "issuing_area_name": "香港", "issuing_area_flag": "🇭🇰",
+      "docx_platforms": ["Facebook", "Google", ...],     // docx 默认
+      "card_level": "Business Credit",
+      "single_limit": 50000, "daily_limit": 100000,
+      "available": true,                                 // admin 端默认 true（无 override 时）
+      "applicable_platforms": null,                      // null=沿用 docx
+      "custom_message": null,
+      "updated_at": null, "updated_by": null
+    }]
+  }
+}
+```
+
+#### PUT 校验规则
+
+| 字段 | 校验 |
+|------|------|
+| `available` | 必须是 `0` / `1` / `true` / `false` |
+| `applicable_platforms` | 必须是数组，元素必须是非空字符串，最多 50 个 |
+| `custom_message` | 必须是字符串（可 null），最长 500 字符 |
+
+### 24.5 cards.js 合并逻辑（用户端 `/api/cards/meta/products`）
+
+```js
+const merged = apiList
+  .map(p => {
+    // 第 1 层: upstream API 原始数据
+    // 第 2 层: docx metadata (CARD_METADATA / META_BY_BIN_PREFIX6)
+    // 第 3 层: HARDCODED 业务控制 (available/featured/priority/custom_message)
+    return { ...p, ...docxMeta, ...hardcodedBiz };
+  })
+  // 第 4 层 (最高): DB override
+  .map(item => {
+    const ov = svc.get(item.product_code);
+    if (!ov) return item;
+    return {
+      ...item,
+      available:              ov.available,
+      applicable_platforms:   ov.applicable_platforms !== undefined ? ov.applicable_platforms : item.applicable_platforms,
+      custom_message:         ov.custom_message !== undefined ? ov.custom_message : item.custom_message,
+    };
+  })
+  .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+```
+
+### 24.6 前端 UI 规范
+
+#### 侧边栏入口
+- admin 角色才能看到，位置在 "开卡审核" 之后
+- 菜单 id: `nav-admin-card-products` / page key: `admin-card-products`
+- emoji: 🎴
+
+#### 管理页表格列
+
+| 列 | 内容 |
+|----|------|
+| 卡段 | product_code（等宽字体）+ 可选 display_name 别名 |
+| BIN | formatBin(p.bin) 处理 6/8/12 位显示 |
+| 国家 | flag + name（后端标准化字段） |
+| 状态 | `<input type="checkbox" class="bin-toggle" onchange="toggleCardProduct(...)">` |
+| 平台预览 | 最多 3 个 tag + "+N" 省略（与用户端一致） |
+| 操作 | 编辑按钮 + 重置按钮（仅 has_override=true 时显示） |
+
+#### 关键函数
+
+| 函数 | 行号 | 职责 |
+|------|------|------|
+| `renderCardProductsPage()` | app.html ~8966 | 渲染管理页骨架 + 调用 loadCardProducts |
+| `loadCardProducts()` | ~9007 | 调 GET /api/admin/card-products，写入 `_cardProductsList` 全局 |
+| `renderCardProductsRows()` | ~9028 | 渲染表格行 |
+| `toggleCardProduct(pc, available)` | — | 开关 toggle，PUT 接口 + 失败回滚 |
+| `openCardProductEdit(pc)` | ~9085 | 弹窗编辑适用平台 + 自定义消息 |
+| `resetCardProduct(pc)` | ~9140 | confirm 后 DELETE |
+
+#### 用户端卡段卡片（`renderBins` 改造）
+
+```html
+<div class="bin-card {isAvail?'':' bin-card-disabled'}"
+     onclick="selectBin({...})"
+     title="{isAvail?'':'该卡段已暂停开卡'}">
+  ...
+  <div class="bin-platforms">
+    {platforms.slice(0,3).map(p => `<span class="bin-platform-tag">${p}</span>`).join('')}
+    {platforms.length>3 ? `<span class="bin-platform-tag">+${platforms.length-3}</span>` : ''}
+  </div>
+  {isAvail ? '' : '<div class="bin-card-mask">⏸ 暂不可用</div>'}
+</div>
+```
+
+#### selectBin 前置校验
+```js
+function selectBin(p) {
+  if (p.available === false) {
+    alert('该卡段已暂停开卡');
+    return;
+  }
+  // ...继续走原开卡流程
+}
+```
+
+### 24.7 ❌ 反例
+
+- ❌ **进程内 cache 缓存 override**: PM2 cluster 多 worker 进程间 cache 不共享，DELETE 后其他 worker 仍命中旧 cache → 必须每次直查 DB
+- ❌ **admin 端默认 `available: false`**: 应该默认 `true`（无 override 时），方便管理员看原始可写状态，不要从 HARDCODED 继承
+- ❌ **override 用前端 localStorage 存储**: 管理员换设备/换浏览器失效，**必须** DB 持久化
+- ❌ **修改 HARDCODED 业务层"临时"关卡段**: HARDCODED 改完要发版，不能在线调整 → 用 override
+- ❌ **POST /api/cards 端不重新检查 override**: 前端可绕过 selectBin 校验 → 后端 cards.js 合并链路已含 DB override，开卡审批时自动用最新值
+- ❌ **`applicable_platforms` 用逗号字符串**: 必须存 JSON 数组，docx 也是数组；自定义消息 textarea 用逗号分隔再 split 是前端 UX 优化

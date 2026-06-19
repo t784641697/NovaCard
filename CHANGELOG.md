@@ -1,4 +1,72 @@
 
+## v1.0.58 | 2026-06-19 | 卡段管理后台（管理员控制可用状态 + 适用平台编辑）
+
+### 背景
+- 之前卡段元数据（适用平台/限额/卡级别）只能通过 `assets/11111123.docx` 离线录入，管理员无法在线调整
+- 管理员无法在不停服务的情况下临时关闭某个卡段（比如上游问题/风控）
+
+### 新增能力
+1. **可用开关** — 管理员可在线关掉某个卡段，普通用户开卡页对应卡片置灰 + "⏸ 暂不可用"遮罩 + selectBin 前置 alert
+2. **适用平台编辑** — 管理员可覆盖 docx 默认平台列表（最多 50 个），普通用户开卡页 tag 实时展示
+3. **自定义消息** — 管理员可对单个卡段加文案（如 "AI/Agent 专用"），普通用户开卡页看到
+
+### 数据架构
+- **新表 `card_product_overrides`**（自动建表，service 启动时）
+  - `product_code PRIMARY KEY` / `available` (0/1) / `applicable_platforms` (JSON text) / `custom_message` / `updated_at` / `updated_by`
+- **新 service `src/services/cardProductOverrideService.js`**
+  - `get(pc)` / `listAll()` / `listAllWithMeta(apiList)` / `upsert(pc, patch, updatedBy)` / `remove(pc)` / `invalidate()`
+  - **关键设计**: 每次都直查 DB（去掉内存 cache），因为 PM2 cluster 2 worker 进程间 cache 不共享会导致状态不一致
+- **优先级链**（`src/routes/cards.js` 合并逻辑）
+  ```
+  DB override > HARDCODED business > docx metadata (from data/card_metadata.json) > upstream API
+  ```
+  - `?raw=1` 分支: 跳过 HARDCODED，但仍附加 docx metadata + DB override
+  - 正常分支: 走完整 4 层链式合并，priority 降序排序
+
+### API 端点
+- `GET  /api/admin/card-products` — 列 17 个卡段 + docx 元数据 + DB override
+  - 返回字段: `product_code/bin/network/media/issuing_area(标准化 code/name/flag)/remaining_open_card_num/docx_platforms/card_level/single_limit/daily_limit/available/applicable_platforms/custom_message/updated_at/updated_by`
+  - **admin 端默认 `available=true`**（无 override 时）— 方便管理员看原始可写状态
+- `PUT  /api/admin/card-products/:productCode` — 更新单个卡段 override
+  - body: `{ available?: 0|1|true|false, applicable_platforms?: string[]|null, custom_message?: string|null }`
+  - 校验: available 必须是 0/1/true/false / platforms 必须是数组元素非空且 ≤ 50 个 / custom_message 必须是字符串且 ≤ 500 字符
+  - 返回更新后的 override 记录
+- `DELETE /api/admin/card-products/:productCode/override` — 重置单卡段 override（恢复 HARDCODED/docx 默认）
+
+### 前端 UI（`vcc-dashboard/app.html`）
+- **侧边栏新增 "卡段管理"** 入口（emoji 🎴）— admin 角色才能看到
+  - 位置: 在 "开卡审核" 之后
+  - id: `nav-admin-card-products` / page: `admin-card-products`
+- **管理页面** `renderCardProductsPage()`
+  - 顶部说明卡片（绿色高亮：能力/优先级/影响范围）
+  - 表格: 卡段 | BIN | 国家 | 状态（开关 toggle）| 平台预览 | 操作
+  - 开关 toggle: 实时 PUT 调接口，失败回滚
+  - 编辑弹窗 `openCardProductEdit(pc)`: 适用平台 textarea（逗号分隔）+ 自定义消息 textarea
+  - 重置按钮 `resetCardProduct(pc)`: 仅在有 override 时显示，confirm 后 DELETE
+- **用户端卡段卡片** `renderBins` 改造
+  - 显示适用平台 tag (`.bin-platform-tag`)，最多 3 个 + "+N" 省略
+  - 不可用时加 `.bin-card-disabled` class + `.bin-card-mask` "⏸ 暂不可用" 居中遮罩
+- **用户端 selectBin 前置校验**
+  - `if (p.available === false) { alert('该卡段已暂停开卡'); return; }`
+  - 即使前端被绕过，**后端 POST /api/cards 也会重新检查 override**（cards.js 走完整合并链）
+
+### 关键 Bug 修复（部署后才发现）
+- **Bug 1**: admin.js 调 `cardProductOverrideService.getAll()`，但 service 导出的是 `listAll()` → 500
+  - 修复: 改用 `listAll()` + `new Map(...map(...))` 构建索引
+- **Bug 2**: PM2 cluster 2 workers 进程内 cache 不共享 → DELETE 后另一个 worker 仍命中 30s TTL 旧 cache，返回已删除的 override
+  - 修复: **去掉 cache，每次直查 DB**（17 行配置性能可忽略）
+
+### 影响范围
+- ✅ **新申请**: 管理员设置即时生效（关掉后用户开卡页置灰不可点击）
+- ✅ **已开卡**: 已开卡的 cards 表数据不受影响（override 只影响 /meta/products 返回的卡段列表）
+- ✅ **历史数据**: docx 录入的 17 个卡段元数据继续作为 fallback（DB override 优先）
+
+### 端到端验证
+- ✅ GET 17/17 覆盖率（含 docx 元数据 16/17，G5554LC 缺数据）
+- ✅ PUT 关掉 G5449LJ + 改平台 → user 端 3 次查询全部生效
+- ✅ DELETE 重置 → user 端 5 次查询全部回到 HARDCODED/docx 默认
+- ✅ 4 种校验 (available 非法/platforms 非数组/platforms 含空/msg 超 500 字符) 全部返回 HTTP 400
+
 ## v1.0.57 | 2026-06-19 | 地区筛选项动态化（自动适配上游国家列表）
 
 ### 问题
