@@ -122,6 +122,23 @@ SQLite 生产库偶发索引损坏（`database disk image is malformed`），修
   - `confirmModal(id="confirmModalOverlay")` — 确认弹窗（通过操作）
   - `promptModal(id="promptModalOverlay")` — 输入弹窗（驳回原因）
 
+### 4.6 表格列宽规范 (v1.0.59)
+- **数据列宽必须固定**，禁止完全由内容撑开（v1.0.59 之前"卡段管理→适用平台"列宽随 platform 数量变化，导致整列宽度跳动）
+- **必须用 `<table style="table-layout: fixed">`** 强制列宽生效
+- **表头 `<th>` 与表体 `<td>` 必须显式声明相同的 `width/min-width/max-width`**（列宽对不齐会导致内容错位）
+- **内容超出列宽时**：单行文本用 `text-overflow: ellipsis` 截断；tag/badge 序列用 `flex-wrap: nowrap; overflow: hidden` + 给关键元素加 `flex-shrink: 0`
+- **截断后必须配悬浮 tooltip**（用 `title="..."` 浏览器原生即可），保证信息可达
+- **统一列宽档位**：窄列 ≤120px / 中列 200-280px / 宽列 ≥320px
+
+### 4.7 CSS 变量强约束 (v1.0.59)
+- **禁止使用项目未定义的 CSS 变量**（如 `--bg-card`、`--text-title` 等）
+- 错误案例：v1.0.58 编辑弹窗用 `var(--bg-card)` → 找不到 → fallback 继承父元素 → 透明 → 内容重叠
+- **项目已定义变量**（截至 v1.0.59）：
+  - 背景：`--bg` / `--bg2` / `--bg3` / `--bg4`
+  - 文字：`--text1` / `--text2` / `--text3` / `--text-primary` / `--text-secondary` / `--text-muted`
+  - 边框：`--border` / `--purple` / `--cyan` / `--yellow` / `--red`
+- 引用前**必须确认变量已在 `app.html` 的 `:root` 定义**，否则改用具体值或新定义一个变量
+
 ---
 
 ## 5. 卡片产品 (Card Products)
