@@ -9813,6 +9813,15 @@ setTimeout(() => {
   const s = document.getElementById('splash');
   if (s && s.parentNode) s.remove();
 }, 3000);
+
+// ══════════════════════════════════════════════
+//  PAGE: 卡段管理 — 翻页函数 (v1.0.58)
+// ══════════════════════════════════════════════
+function gotoCardProductsPage(page) {
+  _cardProductsPage = page;
+  renderCardProductsRows();
+}
+
 </script>
 
 
@@ -9846,11 +9855,3 @@ setTimeout(() => {
 </div>
 </body>
 </html>
-
-// ══════════════════════════════════════════════
-//  PAGE: 卡段管理 — 翻页函数 (v1.0.58)
-// ══════════════════════════════════════════════
-function gotoCardProductsPage(page) {
-  _cardProductsPage = page;
-  renderCardProductsRows();
-}
