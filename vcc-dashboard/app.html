@@ -8972,6 +8972,9 @@ let _txMonitorFilter = {};
 //  PAGE: 卡段管理（管理员）— v1.0.24
 // ══════════════════════════════════════════════
 let _cardProductsList = [];
+let _cardProductsKeyword = '';   // v1.0.58: 搜索关键词
+let _cardProductsPage = 1;        // v1.0.58: 当前页 (1-based)
+const _CARD_PRODUCTS_PAGE_SIZE = 10;
 
 async function renderCardProductsPage() {
   contentArea.innerHTML = `
@@ -8986,8 +8989,18 @@ async function renderCardProductsPage() {
       <!-- 加载/错误状态 -->
       <div id="card-products-status" class="text-center py-8" style="color:var(--text-muted)">加载中…</div>
 
-      <!-- 表格 -->
+      <!-- 搜索 + 表格 + 翻页 -->
       <div id="card-products-table" style="display:none">
+        <!-- 搜索框 -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <input id="card-products-search" type="text" placeholder="🔍 搜索产品代码 / 卡段 / 地区..."
+                 oninput="onCardProductsSearch(this.value)"
+                 style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text-primary);font-size:.85rem;outline:none">
+          <button onclick="document.getElementById('card-products-search').value='';onCardProductsSearch('');"
+                  style="background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:.8rem">清除</button>
+        </div>
+
+        <!-- 表格 -->
         <div class="card" style="padding:0;overflow:hidden">
           <table style="width:100%;border-collapse:collapse;font-size:.875rem">
             <thead>
@@ -9003,7 +9016,12 @@ async function renderCardProductsPage() {
             <tbody id="card-products-tbody"></tbody>
           </table>
         </div>
-        <div class="text-xs text-center mt-3" style="color:var(--text-muted)">共 <span id="card-products-count">0</span> 个卡段 · 上次更新:<span id="card-products-updated"></span></div>
+
+        <!-- 翻页器 -->
+        <div id="card-products-pager" style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:.8rem;color:var(--text-muted)">
+          <div>共 <span id="card-products-count">0</span> 个卡段 · 上次更新:<span id="card-products-updated"></span></div>
+          <div id="card-products-pager-buttons" style="display:flex;gap:4px;align-items:center"></div>
+        </div>
       </div>
     </div>
   `;
@@ -9020,9 +9038,7 @@ async function loadCardProducts() {
     if (_cardProductsList.length === 0) { status.textContent = '暂无卡段数据（可能上游 API 暂不可用）'; status.style.color = 'var(--text-muted)'; return; }
     status.style.display = 'none';
     table.style.display = 'block';
-    document.getElementById('card-products-count').textContent = _cardProductsList.length;
-    const u = document.getElementById('card-products-updated');
-    u.textContent = new Date().toLocaleString('zh-CN');
+    _cardProductsPage = 1;  // 新数据加载后重置到第 1 页
     renderCardProductsRows();
   } catch (e) {
     if (e.message === 'Unauthorized') return;
@@ -9031,10 +9047,64 @@ async function loadCardProducts() {
   }
 }
 
+function getFilteredCardProducts() {
+  const kw = _cardProductsKeyword.trim().toLowerCase();
+  if (!kw) return _cardProductsList;
+  return _cardProductsList.filter(p => {
+    const code = (p.product_code || '').toLowerCase();
+    const bin  = (String(p.bin || '')).toLowerCase();
+    const area = (p.issuing_area_name || p.issuing_area || '').toLowerCase();
+    return code.includes(kw) || bin.includes(kw) || area.includes(kw);
+  });
+}
+
+function onCardProductsSearch(kw) {
+  _cardProductsKeyword = kw || '';
+  _cardProductsPage = 1;  // 搜索后回到第 1 页
+  renderCardProductsRows();
+}
+
 function renderCardProductsRows() {
   const tbody = document.getElementById('card-products-tbody');
   if (!tbody) return;
-  tbody.innerHTML = _cardProductsList.map(p => {
+  const filtered = getFilteredCardProducts();
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / _CARD_PRODUCTS_PAGE_SIZE));
+  if (_cardProductsPage > totalPages) _cardProductsPage = totalPages;
+  const start = (_cardProductsPage - 1) * _CARD_PRODUCTS_PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + _CARD_PRODUCTS_PAGE_SIZE);
+
+  // 翻页器
+  const pager = document.getElementById('card-products-pager-buttons');
+  const cntEl = document.getElementById('card-products-count');
+  if (cntEl) cntEl.textContent = total;
+  const upEl = document.getElementById('card-products-updated');
+  if (upEl) upEl.textContent = new Date().toLocaleString('zh-CN');
+  if (pager) {
+    if (total <= _CARD_PRODUCTS_PAGE_SIZE) {
+      pager.innerHTML = `<span style="margin:0 8px">第 1 页 / 共 1 页</span>`;
+    } else {
+      const p = _cardProductsPage;
+      const tp = totalPages;
+      const btn = (label, page, dis, active) =>
+        `<button onclick="gotoCardProductsPage(${page})"
+                 style="background:${active ? 'rgba(99,102,241,.25)' : 'rgba(255,255,255,.05)'};border:1px solid ${active ? 'rgba(99,102,241,.5)' : 'var(--border)'};color:${active ? '#a5b4fc' : 'var(--text-primary)'};border-radius:6px;padding:4px 10px;cursor:${dis ? 'not-allowed' : 'pointer'};opacity:${dis ? .4 : 1}"
+                 ${dis ? 'disabled' : ''}>${label}</button>`;
+      pager.innerHTML =
+        btn('« 首页', 1, p === 1, false) +
+        btn('‹ 上一页', p - 1, p === 1, false) +
+        `<span style="margin:0 8px;padding:4px 8px">第 ${p} / ${tp} 页</span>` +
+        btn('下一页 ›', p + 1, p === tp, false) +
+        btn('末页 »', tp, p === tp, false);
+    }
+  }
+
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:30px 16px;text-align:center;color:var(--text-muted)">没有匹配的卡段 · <a onclick="document.getElementById('card-products-search').value='';onCardProductsSearch('');" style="color:#a5b4fc;cursor:pointer">清除搜索</a></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = pageItems.map(p => {
     const platformsHtml = p.applicable_platforms && p.applicable_platforms.length > 0
       ? p.applicable_platforms.map(pl => `<span class="platform-tag" style="display:inline-block;padding:2px 8px;margin:2px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:10px;font-size:.7rem;color:#a5b4fc">${pl}</span>`).join('')
       : (p.docx_platforms ? `<span style="color:var(--text-muted);font-size:.75rem">沿用 docx · ${p.docx_platforms.length} 个平台</span>` : '<span style="color:var(--text-muted);font-size:.75rem">— 未设置 —</span>');
@@ -9776,3 +9846,11 @@ setTimeout(() => {
 </div>
 </body>
 </html>
+
+// ══════════════════════════════════════════════
+//  PAGE: 卡段管理 — 翻页函数 (v1.0.58)
+// ══════════════════════════════════════════════
+function gotoCardProductsPage(page) {
+  _cardProductsPage = page;
+  renderCardProductsRows();
+}
