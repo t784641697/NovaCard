@@ -2152,7 +2152,7 @@ router.get('/card-products', async (req, res) => {
                    : [];
 
     // 合并元数据 + overrides
-    const allOverrides = cardProductOverrideService.getAll();
+    const allOverrides = new Map(cardProductOverrideService.listAll().map(o => [o.product_code, o]));
     const list = apiList.map(p => {
       const country = normalizeCountry(p.issuing_area);
       const meta = CARD_METADATA.get(p.product_code) || META_BY_BIN_PREFIX6.get(String(p.bin || '').slice(0, 6));
