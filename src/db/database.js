@@ -273,6 +273,16 @@ db.exec(`
     updated_at  TEXT    NOT NULL DEFAULT (nowiso()),
     UNIQUE(user_id, fee_type)
   );
+
+  -- v1.0.24 管理员卡段业务配置（覆盖 HARDCODED 和 docx metadata）
+  CREATE TABLE IF NOT EXISTS card_product_overrides (
+    product_code           TEXT PRIMARY KEY,
+    available              INTEGER NOT NULL DEFAULT 1,         -- 0=关闭（用户端置灰），1=开启
+    applicable_platforms   TEXT    DEFAULT NULL,               -- JSON 数组,例如 '["Facebook","Google"]'
+    custom_message         TEXT    DEFAULT NULL,               -- 自定义消息(用户端展示)
+    updated_at             INTEGER NOT NULL,
+    updated_by             TEXT    DEFAULT NULL                 -- 管理员邮箱
+  );
   CREATE INDEX IF NOT EXISTS idx_user_fee_configs ON user_fee_configs(user_id, fee_type, is_active);
 `);
 

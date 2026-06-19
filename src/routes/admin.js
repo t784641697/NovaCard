@@ -8,11 +8,34 @@
  * GET  /api/admin/account-balance   — 获取账户余额配置
  * POST /api/admin/account-balance   — 更新账户余额配置
  * GET  /api/admin/merchant-balance  — 获取商户实时余额（从vmcardio拉取）
+ * GET  /api/admin/card-products      — 卡段管理：列出所有卡段含 overrides (v1.0.24)
+ * PUT  /api/admin/card-products/:pc  — 卡段管理：更新单卡段 overrides (v1.0.24)
+ * DEL  /api/admin/card-products/:pc/override — 重置 overrides 回 docx (v1.0.24)
  */
 
 const express = require('express');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
+const cardProductOverrideService = require('../services/cardProductOverrideService');
+const { normalizeCountry } = require('../utils/country');
+const path = require('path');
+const fs = require('fs');
+
+// v1.0.24 加载 docx metadata
+function loadCardMetadata() {
+  try {
+    const fp = path.join(__dirname, '..', '..', 'data', 'card_metadata.json');
+    if (!fs.existsSync(fp)) return new Map();
+    const data = JSON.parse(fs.readFileSync(fp, 'utf-8'));
+    return new Map((data.products || []).map(p => [p.product_code, p]));
+  } catch (e) { return new Map(); }
+}
+const CARD_METADATA = loadCardMetadata();
+const META_BY_BIN_PREFIX6 = (() => {
+  const m = new Map();
+  for (const p of CARD_METADATA.values()) if (p.bin_prefix6) m.set(p.bin_prefix6, p);
+  return m;
+})();
 const logger  = require('../utils/logger');
 const BalanceService = require('../services/balanceService');
 const { authenticate, requireAdmin } = require('../middleware/auth');
@@ -2117,6 +2140,108 @@ router.post('/kyc/:id/reject', (req, res) => {
   db.prepare("UPDATE kyc_applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?").run(reason || '', req.params.id);
   db.prepare("UPDATE users SET kyc_status = 'rejected', updated_at = datetime('now') WHERE id = ?").run(app.user_id);
   res.json({ code: 0, msg: '企业认证已拒绝', data: { reject_reason: reason || '' } });
+});
+
+// v1.0.24 卡段管理 — 列出所有卡段含当前 overrides
+router.get('/card-products', async (req, res) => {
+  try {
+    // 调上游拉卡段列表
+    const sdkRes = await sdk.getProductCode();
+    const apiList = (sdkRes && Array.isArray(sdkRes.list)) ? sdkRes.list
+                   : (sdkRes && sdkRes.data && Array.isArray(sdkRes.data.list)) ? sdkRes.data.list
+                   : [];
+
+    // 合并元数据 + overrides
+    const allOverrides = cardProductOverrideService.getAll();
+    const list = apiList.map(p => {
+      const country = normalizeCountry(p.issuing_area);
+      const meta = CARD_METADATA.get(p.product_code) || META_BY_BIN_PREFIX6.get(String(p.bin || '').slice(0, 6));
+      const ov = allOverrides.get(p.product_code);
+      return {
+        product_code: p.product_code,
+        bin: p.bin,
+        network: p.network,
+        media: p.media,
+        type: p.type,
+        issuing_area: p.issuing_area,
+        issuing_area_code: country.code,
+        issuing_area_name: country.name,
+        issuing_area_flag: country.flag,
+        remaining_open_card_num: p.remaining_open_card_num,
+        // docx 静态值
+        docx_platforms: meta?.applicable_platforms || null,
+        card_level:    meta?.meta?.card_level || null,
+        single_limit:  meta?.meta?.single_limit || null,
+        daily_limit:   meta?.meta?.daily_limit || null,
+        // DB override（管理员设置）
+        available:             ov ? !!ov.available : true,
+        applicable_platforms:  ov ? ov.applicable_platforms : null,  // null=沿用 docx
+        custom_message:        ov ? ov.custom_message : null,
+        updated_at:            ov ? ov.updated_at : null,
+        updated_by:            ov ? ov.updated_by : null,
+      };
+    });
+
+    res.json({ code: 0, msg: 'ok', data: { list, count: list.length } });
+  } catch (e) {
+    console.error('[admin/card-products] error:', e);
+    res.status(500).json({ code: 500, msg: '获取卡段列表失败: ' + e.message });
+  }
+});
+
+// v1.0.24 卡段管理 — 更新单个卡段的 overrides
+router.put('/card-products/:productCode', (req, res) => {
+  const { productCode } = req.params;
+  const { available, applicable_platforms, custom_message } = req.body || {};
+
+  // 校验 product_code 存在
+  const upper = String(productCode).toUpperCase();
+
+  // 校验
+  if (available !== undefined && ![0, 1, true, false].includes(available)) {
+    return res.status(400).json({ code: 400, msg: 'available 必须是 0/1/true/false' });
+  }
+  if (applicable_platforms !== undefined && applicable_platforms !== null) {
+    if (!Array.isArray(applicable_platforms)) {
+      return res.status(400).json({ code: 400, msg: 'applicable_platforms 必须是数组' });
+    }
+    if (applicable_platforms.some(p => typeof p !== 'string' || !p.trim())) {
+      return res.status(400).json({ code: 400, msg: 'applicable_platforms 元素必须是非空字符串' });
+    }
+    if (applicable_platforms.length > 50) {
+      return res.status(400).json({ code: 400, msg: '适用平台最多 50 个' });
+    }
+  }
+  if (custom_message !== undefined && custom_message !== null && typeof custom_message !== 'string') {
+    return res.status(400).json({ code: 400, msg: 'custom_message 必须是字符串' });
+  }
+  if (custom_message && custom_message.length > 500) {
+    return res.status(400).json({ code: 400, msg: 'custom_message 最长 500 字符' });
+  }
+
+  try {
+    cardProductOverrideService.upsert(
+      upper,
+      {
+        available: available === undefined ? 1 : (available ? 1 : 0),
+        applicable_platforms: applicable_platforms === undefined ? null : applicable_platforms,
+        custom_message: custom_message === undefined ? null : custom_message,
+      },
+      req.user?.email || null
+    );
+    const ov = cardProductOverrideService.get(upper);
+    res.json({ code: 0, msg: 'ok', data: ov });
+  } catch (e) {
+    console.error('[admin/card-products PUT] error:', e);
+    res.status(500).json({ code: 500, msg: '更新失败: ' + e.message });
+  }
+});
+
+// v1.0.24 卡段管理 — 重置单个卡段的 overrides（回到 HARDCODED/docx 默认）
+router.delete('/card-products/:productCode/override', (req, res) => {
+  const upper = String(req.params.productCode).toUpperCase();
+  cardProductOverrideService.remove(upper);
+  res.json({ code: 0, msg: 'ok' });
 });
 
 module.exports = router;

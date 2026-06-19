@@ -687,6 +687,11 @@ select.form-control option{background:var(--bg3);}
 .bin-info{font-size:.75rem;color:var(--text2);}
 .bin-card.disabled{opacity:.4;cursor:not-allowed;position:relative;border-color:var(--border);}
 .bin-card.disabled:hover{border-color:var(--border);background:var(--bg3);}
+.bin-card-disabled{opacity:.4;cursor:not-allowed!important;position:relative;border-color:var(--border)!important}
+.bin-card-disabled:hover{border-color:var(--border)!important;background:var(--bg3)!important;transform:none!important;box-shadow:none!important}
+.bin-card-mask{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.65);color:#fbbf24;padding:6px 16px;border-radius:20px;font-size:.8rem;font-weight:500;backdrop-filter:blur(8px);border:1px solid rgba(251,191,36,.3);pointer-events:none;z-index:2}
+.bin-platforms{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.bin-platform-tag{display:inline-block;padding:2px 8px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);border-radius:10px;font-size:.65rem;color:var(--purple);font-weight:500}
 .badge-mini{display:inline-block;font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(167,139,250,.15);color:var(--purple);font-weight:600;letter-spacing:0;}
 .platform-icons-row{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;align-items:center;}
 .platform-icons-row .pi{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:3px;border-radius:4px;opacity:.7;background:rgba(167,139,250,.12);transition:opacity .15s,background .15s;}
@@ -1389,6 +1394,9 @@ select.form-control option{background:var(--bg3);}
           </div>
           <div class="nav-item" id="nav-admin-card-review" onclick="gotoPage('admin-card-review')">
             <span class="nav-icon">🔍</span><span>开卡审核</span>
+          </div>
+          <div class="nav-item" id="nav-admin-card-products" onclick="gotoPage('admin-card-products')">
+            <span class="nav-icon">🎴</span><span>卡段管理</span>
           </div>
           <div class="nav-item" id="nav-admin-topup-review" onclick="gotoPage('admin-topup-review')">
             <span class="nav-icon">💵</span><span>充值审核</span>
@@ -2240,6 +2248,7 @@ const PAGE_META = {
   'admin-fee-config': { title:'费用设置', sub:'配置全局费率，可为指定用户设置自定义费率' },
   'card-mgmt': { title:'卡片管理', sub:'查看和操作所有用户卡片' },
   'admin-card-review': { title:'开卡审核', sub:'审核用户提交的开卡申请，通过后自动调用 vmcardio 开卡' },
+  'admin-card-products': { title:'卡段管理', sub:'管理 17 个上游卡段的可用状态和适用平台,用户端开卡页生效' },
   'admin-topup-review': { title:'充值审核', sub:'审核用户提交的充值申请，通过后自动入账用户余额' },
   'admin-settings': { title:'系统设置', sub:'配置钱包收款地址、USDT汇率等系统参数' },
   'admin-finance': { title:'财务中心', sub:'平台资金概览、用户余额分布、充值与费用统计' },
@@ -2253,6 +2262,7 @@ const PAGE_NAV_MAP = {
   'admin-users': ['nav-admin-users'],
   'admin-fee-config': ['nav-admin-fee-config'],
   'admin-card-review': ['nav-admin-card-review'],
+  'admin-card-products': ['nav-admin-card-products'],
   'admin-topup-review': ['nav-admin-topup-review'],
   'admin-finance': ['nav-admin-finance'],
   'admin-tx-monitor': ['nav-admin-tx-monitor'],
@@ -2289,6 +2299,7 @@ function gotoPage(page) {
   else if (page==='admin-users') renderAdminUsers();
   else if (page==='admin-fee-config') renderFeeConfigPage();
   else if (page==='admin-card-review') renderCardReviewPage();
+  else if (page==='admin-card-products') renderCardProductsPage();
   else if (page==='admin-topup-review') renderTopupReviewPage();
   else if (page==='admin-kyc-review') renderKycReviewPage();
   else if (page==='admin-finance') renderAdminFinance();
@@ -2963,14 +2974,27 @@ function renderBins(list, filter) {
     const isVisa = /visa/i.test(p.network);
     const country = p.issuing_area_name || p.issuing_area || '';
     const flag = p.issuing_area_flag || '🏳️';
-    return `<div class="bin-card" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+    const isAvail = p.available !== false;
+    // 适用平台 tag (最多 3 个 + 省略号)
+    const platforms = p.applicable_platforms || [];
+    const platHtml = platforms.length > 0
+      ? `<div class="bin-platforms">${platforms.slice(0,3).map(pl=>`<span class="bin-platform-tag">${pl}</span>`).join('')}${platforms.length>3?`<span class="bin-platform-tag">+${platforms.length-3}</span>`:''}</div>`
+      : '';
+    return `<div class="bin-card${isAvail?'':' bin-card-disabled'}" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})" title="${isAvail?'':'该卡段已暂停开卡'}">
       <span class="bin-prefix">卡段:</span><span class="bin-bins">${formatBin(p.bin)}</span><span class="bin-country"><span class="bin-flag">${flag}</span><span>${country}</span></span>
       <span class="bin-prefix">产品:</span><span class="bin-name">${p.product_code}</span><span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
+      ${platHtml}
+      ${isAvail ? '' : '<div class="bin-card-mask">⏸ 暂不可用</div>'}
     </div>`;
   }).join('');
 }
 
 function selectBin(p) {
+  // v1.0.24 校验管理员开关
+  if (p.available === false) {
+    alert('该卡段已暂停开卡');
+    return;
+  }
   // 原始数据模式下，只检查上游 remaining_open_card_num
   if ((p.remaining_open_card_num || 0) <= 0) return;
   _selectedBin = p;
@@ -8938,7 +8962,191 @@ async function saveAdminSettings() {
 // ══════════════════════════════════════════════
 let _txMonitorFilter = {};
 
-async function renderAdminTxMonitor() {
+async // v1.0.24 卡段管理页面
+async function renderCardProductsPage() {
+  _mainContent.innerHTML = `
+    <div class="space-y-6">
+      <!-- 顶部说明 -->
+      <div class="card" style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);padding:14px 18px">
+        <div class="text-sm" style="color:var(--text-secondary)">
+          🎴 <b style="color:var(--text-primary)">卡段管理</b> · 设置 17 个上游卡段的<b>开关</b>和<b>适用平台</b>。
+          <br>• <b>开关关闭</b>：普通用户的开卡页对应卡段立即<b>置灰</b>，不可点击申请；已开卡不受影响
+          <br>• <b>适用平台</b>：保存后普通用户卡段展示页立即展示
+          <br>• 优先级：<code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:4px">DB override > HARDCODED > docx metadata</code>
+        </div>
+      </div>
+
+      <!-- 加载/错误状态 -->
+      <div id="card-products-status" class="text-center py-8" style="color:var(--text-muted)">加载中…</div>
+
+      <!-- 表格 -->
+      <div id="card-products-table" style="display:none">
+        <div class="card" style="padding:0;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:.875rem">
+            <thead>
+              <tr style="background:rgba(255,255,255,.04);text-align:left">
+                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">Product Code</th>
+                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">BIN</th>
+                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">地区</th>
+                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase;text-align:center">开关</th>
+                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase">适用平台</th>
+                <th style="padding:14px 16px;font-weight:600;color:var(--text-muted);font-size:.75rem;text-transform:uppercase;text-align:right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="card-products-tbody"></tbody>
+          </table>
+        </div>
+        <div class="text-xs text-center mt-3" style="color:var(--text-muted)">共 <span id="card-products-count">0</span> 个卡段 · 上次更新:<span id="card-products-updated"></span></div>
+      </div>
+    </div>
+  `;
+  await loadCardProducts();
+}
+
+let _cardProductsList = [];
+async function loadCardProducts() {
+  const status = document.getElementById('card-products-status');
+  const table  = document.getElementById('card-products-table');
+  try {
+    const res = await apiFetch('/admin/card-products');
+    if (res.code !== 0) { status.textContent = '加载失败: ' + res.msg; status.style.color = 'var(--red)'; return; }
+    _cardProductsList = res.data.list || [];
+    if (_cardProductsList.length === 0) { status.textContent = '暂无卡段数据（可能上游 API 暂不可用）'; status.style.color = 'var(--text-muted)'; return; }
+    status.style.display = 'none';
+    table.style.display = 'block';
+    document.getElementById('card-products-count').textContent = _cardProductsList.length;
+    const u = document.getElementById('card-products-updated');
+    u.textContent = new Date().toLocaleString('zh-CN');
+    renderCardProductsRows();
+  } catch (e) {
+    if (e.message === 'Unauthorized') return;
+    status.textContent = '加载失败: ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+}
+
+function renderCardProductsRows() {
+  const tbody = document.getElementById('card-products-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = _cardProductsList.map(p => {
+    const platformsHtml = p.applicable_platforms && p.applicable_platforms.length > 0
+      ? p.applicable_platforms.map(pl => `<span class="platform-tag" style="display:inline-block;padding:2px 8px;margin:2px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:10px;font-size:.7rem;color:#a5b4fc">${pl}</span>`).join('')
+      : (p.docx_platforms ? `<span style="color:var(--text-muted);font-size:.75rem">沿用 docx · ${p.docx_platforms.length} 个平台</span>` : '<span style="color:var(--text-muted);font-size:.75rem">— 未设置 —</span>');
+    return `
+      <tr style="border-top:1px solid rgba(255,255,255,.05)" data-pc="${p.product_code}">
+        <td style="padding:12px 16px;font-family:ui-monospace,monospace;color:var(--text-primary)">${p.product_code}</td>
+        <td style="padding:12px 16px;font-family:ui-monospace,monospace;color:var(--text-muted);font-size:.8rem">${p.bin}</td>
+        <td style="padding:12px 16px">${p.issuing_area_flag || '🏳️'} ${p.issuing_area_name || p.issuing_area}</td>
+        <td style="padding:12px 16px;text-align:center">
+          <label class="cp-switch" style="display:inline-block;width:38px;height:20px;background:${p.available ? 'rgba(34,197,94,.4)' : 'rgba(255,255,255,.1)'};border-radius:10px;position:relative;cursor:pointer;transition:.2s" data-pc="${p.product_code}" data-on="${p.available}">
+            <span class="cp-knob" style="display:block;width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:2px;left:${p.available ? '20px' : '2px'};transition:.2s"></span>
+          </label>
+        </td>
+        <td style="padding:12px 16px;max-width:380px"><div style="display:flex;flex-wrap:wrap;gap:2px">${platformsHtml}</div></td>
+        <td style="padding:12px 16px;text-align:right;white-space:nowrap">
+          <button class="btn btn-sm" onclick="openCardProductEdit('${p.product_code}')" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;padding:4px 10px;font-size:.75rem;border-radius:6px;cursor:pointer">编辑</button>
+          ${(p.updated_at) ? `<button class="btn btn-sm" onclick="resetCardProduct('${p.product_code}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--text-muted);padding:4px 10px;font-size:.75rem;border-radius:6px;cursor:pointer;margin-left:6px" title="清除管理员设置,恢复 docx/HARCODED 默认">重置</button>` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // 绑定开关
+  tbody.querySelectorAll('.cp-switch').forEach(sw => {
+    sw.addEventListener('click', async () => {
+      const pc = sw.dataset.pc;
+      const cur = sw.dataset.on === 'true';
+      const next = !cur;
+      sw.style.background = next ? 'rgba(34,197,94,.4)' : 'rgba(255,255,255,.1)';
+      sw.querySelector('.cp-knob').style.left = next ? '20px' : '2px';
+      sw.dataset.on = String(next);
+      try {
+        const res = await apiFetch('/admin/card-products/' + pc, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ available: next }),
+        });
+        if (res.code !== 0) {
+          // 回滚
+          sw.style.background = cur ? 'rgba(34,197,94,.4)' : 'rgba(255,255,255,.1)';
+          sw.querySelector('.cp-knob').style.left = cur ? '20px' : '2px';
+          sw.dataset.on = String(cur);
+          alert('保存失败: ' + res.msg);
+        } else {
+          // 刷新这一行
+          await loadCardProducts();
+        }
+      } catch (e) { alert('网络错误: ' + e.message); }
+    });
+  });
+}
+
+// 编辑弹窗
+function openCardProductEdit(pc) {
+  const p = _cardProductsList.find(x => x.product_code === pc);
+  if (!p) return alert('未找到该卡段');
+  const currentPlats = (p.applicable_platforms && p.applicable_platforms.length > 0) ? p.applicable_platforms : (p.docx_platforms || []);
+  const platsStr = currentPlats.join(', ');
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:1.1rem;color:var(--text-primary)">编辑卡段 · <span style="font-family:ui-monospace,monospace;color:#a5b4fc">${pc}</span></h3>
+        <button onclick="this.closest('[data-cp-modal]').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0;line-height:1">×</button>
+      </div>
+      <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:14px">
+        BIN: <code>${p.bin}</code> · ${p.issuing_area_flag} ${p.issuing_area_name}
+        ${p.docx_platforms ? `<br>📋 <b>docx 默认平台</b>: ${p.docx_platforms.join(', ')}` : ''}
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">适用平台（用英文逗号分隔,留空=沿用 docx）</label>
+        <textarea id="cp-edit-plats" rows="3" style="width:100%;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:inherit;font-size:.875rem;resize:vertical" placeholder="Facebook, Google, Amazon, OpenAI, ...">${platsStr}</textarea>
+        <div class="text-xs mt-1" style="color:var(--text-muted)">建议:Facebook, Google, Amazon, OpenAI, Shopify, Walmart, Alibaba, AliExpress, Twitter, TikTok, Telegram</div>
+      </div>
+
+      <div style="margin-bottom:18px">
+        <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">自定义消息（可选,展示给用户）</label>
+        <textarea id="cp-edit-msg" rows="2" maxlength="500" style="width:100%;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:inherit;font-size:.875rem;resize:vertical" placeholder="例如:本卡段仅供AI/Agent付费使用">${p.custom_message || ''}</textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="this.closest('[data-cp-modal]').remove()" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--text-muted);padding:8px 16px;border-radius:6px;cursor:pointer">取消</button>
+        <button id="cp-edit-save" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:500">保存</button>
+      </div>
+    </div>
+  `;
+  modal.dataset.cpModal = '1';
+  document.body.appendChild(modal);
+
+  document.getElementById('cp-edit-save').onclick = async () => {
+    const platsRaw = document.getElementById('cp-edit-plats').value.trim();
+    const platforms = platsRaw ? platsRaw.split(/[,，]/).map(s => s.trim()).filter(Boolean) : null;
+    const msg = document.getElementById('cp-edit-msg').value.trim() || null;
+    try {
+      const res = await apiFetch('/admin/card-products/' + pc, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicable_platforms: platforms, custom_message: msg }),
+      });
+      if (res.code !== 0) return alert('保存失败: ' + res.msg);
+      modal.remove();
+      await loadCardProducts();
+    } catch (e) { alert('网络错误: ' + e.message); }
+  };
+}
+
+async function resetCardProduct(pc) {
+  if (!confirm(`确定清除 ${pc} 的管理员设置,恢复 docx/HARDCODED 默认?`)) return;
+  try {
+    const res = await apiFetch('/admin/card-products/' + pc + '/override', { method: 'DELETE' });
+    if (res.code !== 0) return alert('重置失败: ' + res.msg);
+    await loadCardProducts();
+  } catch (e) { alert('网络错误: ' + e.message); }
+}
+
+function renderAdminTxMonitor() {
   if (_me?.role !== 'admin') return gotoPage('cards');
   const area = document.getElementById('contentArea');
   area.innerHTML = `

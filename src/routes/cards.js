@@ -13,6 +13,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
+const cardProductOverrideService = require('../services/cardProductOverrideService');
 const { authenticate } = require('../middleware/auth');
 const { normalizeCountry } = require('../utils/country');
 const path = require('path');
@@ -587,7 +588,18 @@ router.get('/meta/products', async (req, res, next) => {
           verification:         meta?.meta?.verification || null,
         };
       });
-      return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: listWithNorm } });
+      // v1.0.24 合并管理员 DB 覆盖(优先级最高:DB override > docx metadata)
+      const listWithOverride = listWithNorm.map(item => {
+        const ov = cardProductOverrideService.get(item.product_code);
+        if (!ov) return item;
+        return {
+          ...item,
+          available:              ov.available,
+          applicable_platforms:   ov.applicable_platforms,  // null 表示用 docx
+          custom_message:         ov.custom_message,
+        };
+      });
+      return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: listWithOverride } });
     }
 
     // v1.0.21 合并策略：上游 API 为基础数据层 + HARDCODED 业务控制层
@@ -596,6 +608,7 @@ router.get('/meta/products', async (req, res, next) => {
     //   - 按 priority 降序排序
     // v1.0.21 HARDCODED 条目支持两层: business 字段（业务覆盖）+ display_name（前端友好别名）
     const hardcodedMap = new Map(HARDCODED_PRODUCTS.map(hp => [hp.product_code, hp]));
+    // v1.0.24 合并优先级：DB override > HARDCODED > docx metadata > upstream
     const merged = apiList
       .map(p => {
         const hp = hardcodedMap.get(p.product_code);
@@ -606,7 +619,7 @@ router.get('/meta/products', async (req, res, next) => {
         const meta = CARD_METADATA.get(p.product_code) || META_BY_BIN_PREFIX6.get(String(p.bin || '').slice(0, 6));
         return {
           ...p,
-          // 业务覆盖
+          // 业务覆盖（HARDCODED 层）
           available:       biz.available !== undefined ? biz.available : p.available,
           featured:        biz.featured || false,
           priority:        biz.priority || 0,
@@ -623,6 +636,17 @@ router.get('/meta/products', async (req, res, next) => {
           single_limit:         meta?.meta?.single_limit || null,
           daily_limit:          meta?.meta?.daily_limit || null,
           verification:         meta?.meta?.verification || null,
+        };
+      })
+      // v1.0.24 合并管理员 DB 覆盖(优先级最高:DB override > HARDCODED > docx > upstream)
+      .map(item => {
+        const ov = cardProductOverrideService.get(item.product_code);
+        if (!ov) return item;
+        return {
+          ...item,
+          available:              ov.available,
+          applicable_platforms:   ov.applicable_platforms !== undefined ? ov.applicable_platforms : item.applicable_platforms,
+          custom_message:         ov.custom_message !== undefined ? ov.custom_message : item.custom_message,
         };
       })
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
