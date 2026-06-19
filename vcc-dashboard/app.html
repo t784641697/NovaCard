@@ -2980,7 +2980,20 @@ function renderBins(list, filter) {
     const platHtml = platforms.length > 0
       ? `<div class="bin-platforms">${platforms.slice(0,3).map(pl=>`<span class="bin-platform-tag">${pl}</span>`).join('')}${platforms.length>3?`<span class="bin-platform-tag">+${platforms.length-3}</span>`:''}</div>`
       : '';
-    return `<div class="bin-card${isAvail?'':' bin-card-disabled'}" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})" title="${isAvail?'':'该卡段已暂停开卡'}">
+    // v1.0.58: 卡片 hover 显示完整适用平台列表 (B 方案同款 tooltip 体验)
+    let cardTitle;
+    if (!isAvail) {
+      cardTitle = '该卡段已暂停开卡';
+    } else if (platforms.length > 0) {
+      cardTitle = '适用平台: ' + platforms.join(', ');
+    } else if (p.docx_platforms && p.docx_platforms.length) {
+      cardTitle = '适用平台 (docx 默认): ' + p.docx_platforms.join(', ');
+    } else {
+      cardTitle = '管理员未设置适用平台';
+    }
+    // 转义防 XSS / 破坏 title 属性
+    cardTitle = cardTitle.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="bin-card${isAvail?'':' bin-card-disabled'}" onclick="selectBin(${JSON.stringify(p).replace(/"/g,'&quot;')})" title="${cardTitle}">
       <span class="bin-prefix">卡段:</span><span class="bin-bins">${formatBin(p.bin)}</span><span class="bin-country"><span class="bin-flag">${flag}</span><span>${country}</span></span>
       <span class="bin-prefix">产品:</span><span class="bin-name">${p.product_code}</span><span class="bin-network" style="color:${isVisa?'var(--cyan)':'var(--yellow)'}">${p.network}</span>
       ${platHtml}
