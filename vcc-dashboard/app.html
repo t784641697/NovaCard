@@ -703,6 +703,9 @@ select.form-control option{background:var(--bg3);}
 .reminder-item{display:flex;flex-direction:column;gap:2px;}
 .reminder-label{font-size:.72rem;color:var(--text3);font-weight:500;}
 .reminder-value{font-size:.85rem;color:var(--text);font-weight:600;}
+  .reminder-item-highlight{background:rgba(99,102,241,.06);border-left:2px solid rgba(99,102,241,.4);padding-left:8px}
+  .reminder-msg{color:#fbbf24;font-style:italic}
+  .reminder-msg-empty{color:var(--text-muted);opacity:.5}
 .reminder-prohib{grid-column:1 / -1;display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-top:8px;border-top:1px solid rgba(167,139,250,.15);}
 .reminder-prohib-list{display:flex;flex-wrap:wrap;gap:6px;}
 .prohib-tag{font-size:.75rem;padding:2px 10px;border-radius:20px;background:rgba(255,95,95,.12);color:#ff6b6b;border:1px solid rgba(255,95,95,.2);}
@@ -2996,6 +2999,10 @@ function selectBin(p) {
   // 填充提醒信息（仅显示上游 API 真实返回的字段）
   const grid = document.getElementById('reminderGrid');
   if (grid) {
+    // v1.0.58: 适用平台与管理员备注也展示在提醒面板
+    const platforms = p.applicable_platforms || p.docx_platforms || null;
+    const platformStr = (platforms && platforms.length) ? platforms.join(', ') : '—';
+    const msg = p.custom_message || null;
     const rows = [
       { label: '国家 / 地区', value: p.issuing_area || '—' },
       { label: 'BIN 段',      value: (p.bin ? String(p.bin).slice(0, 6) : '—') },
@@ -3003,13 +3010,18 @@ function selectBin(p) {
       { label: '网络',        value: p.network || '—' },
       { label: '介质',        value: p.media || '—' },
       { label: '可开张数',    value: (p.remaining_open_card_num ?? '—') + ' 张' },
+      { label: '适用平台',    value: platformStr, highlight: !!platforms && platforms.length > 0 },
+      { label: '管理员备注',  value: msg, highlight: !!msg, message: true },
     ];
-    grid.innerHTML = rows.map(r =>
-      `<div class="reminder-item">
+    grid.innerHTML = rows.map(r => {
+      const valHtml = r.message
+        ? (r.value ? `<span class="reminder-value reminder-msg">"${r.value}"</span>` : `<span class="reminder-value reminder-msg-empty">—</span>`)
+        : `<span class="reminder-value">${r.value}</span>`;
+      return `<div class="reminder-item${r.highlight ? ' reminder-item-highlight' : ''}">
         <span class="reminder-label">${r.label}</span>
-        <span class="reminder-value">${r.value}</span>
-      </div>`
-    ).join('');
+        ${valHtml}
+      </div>`;
+    }).join('');
   }
   document.getElementById('applyReminderPanel').style.display = '';
 
