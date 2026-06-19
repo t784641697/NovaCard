@@ -2220,15 +2220,23 @@ router.put('/card-products/:productCode', (req, res) => {
   }
 
   try {
-    cardProductOverrideService.upsert(
-      upper,
-      {
-        available: available === undefined ? 1 : (available ? 1 : 0),
-        applicable_platforms: applicable_platforms === undefined ? null : applicable_platforms,
-        custom_message: custom_message === undefined ? null : custom_message,
-      },
-      req.user?.email || null
-    );
+    // v1.0.58 fix: 未传的字段不进 patch, 让 upsert 走"保留原值"分支
+    // 之前填成 null 会让 upsert 把 DB 里的 platforms/custom_message 误清空
+    const patch = {};
+    if (available !== undefined) {
+      patch.available = available ? 1 : 0;
+    } else {
+      patch.available = 1;  // INSERT 时无 existing, 需要默认值
+    }
+    if (applicable_platforms !== undefined) {
+      patch.applicable_platforms = Array.isArray(applicable_platforms) ? applicable_platforms : null;
+    }
+    // 不传 applicable_platforms 时不写该字段 → upsert 保留旧值
+    if (custom_message !== undefined) {
+      patch.custom_message = custom_message || null;
+    }
+    // 不传 custom_message 时不写该字段 → upsert 保留旧值
+    cardProductOverrideService.upsert(upper, patch, req.user?.email || null);
     const ov = cardProductOverrideService.get(upper);
     res.json({ code: 0, msg: 'ok', data: ov });
   } catch (e) {
