@@ -126,15 +126,65 @@ SQLite 生产库偶发索引损坏（`database disk image is malformed`），修
 
 ## 5. 卡片产品 (Card Products)
 
-### 4.1 数据来源
+### 5.1 数据来源
 产品列表由两部分合并：
 - **上游 API**（vmcardio `getProductCode()`）：动态产品
 - **本地 HARDCODED_PRODUCTS**（`src/routes/cards.js`）：硬编码产品（10可用 + 7暂不可用）
 
-### 4.2 合并规则
+### 5.2 合并规则
 - **必须按 `BIN` 字段合并**（不能用 `product_code`，因为 API 和硬编码的 code 不同）
 - API 返回但不在 HARDCODED 中的产品 → 标记 `available: false`
 - 新增卡段时同时更新 `HARDCODED_PRODUCTS` 和 `metadata`
+
+### 5.3 卡段管理后台规范 (v1.0.58+)
+- **三段式布局**：顶部说明卡片 + 搜索栏 + 表格 + 翻页器
+- **顶部说明卡片**：只描述"开关关闭的影响"等业务规则，不展示"DB override > HARDCODED > docx"等技术细节
+- **搜索栏**：实时模糊匹配 `product_code` / `bin` (前6位) / `issuing_area_name`，不区分大小写
+- **翻页器**：默认 10 条/页，控件 = `«首页 / ‹上一页 / 第N/M页 / 下一页› / 末页»`
+  - 边界自动 disabled
+  - 总数 ≤ 页大小时只显示「第 1 / 1 页」
+  - 搜索后自动回第 1 页
+  - 重新加载数据后自动回第 1 页
+- **"适用平台"列**：固定 240px (见 §4.6)，最多前 3 个 tag + `+N more`，hover 显示完整列表
+- **BIN 显示**：统一只显示前 6 位（v1.0.19 的 12 位拆双 BIN 显示已废弃）
+- **前端全局状态变量**：
+  - `_cardProductsList` — 全量 17 条
+  - `_cardProductsKeyword` — 当前搜索词
+  - `_cardProductsPage` — 当前页 (1-based)
+  - `_CARD_PRODUCTS_PAGE_SIZE` — 10
+
+### 5.4 卡段管理 PUT 接口行为约束 (v1.0.59 fix)
+- **缺省字段必须不进 patch**，不能填成 `null` 后传给 `upsert`
+- **根因 (v1.0.58 bug)**：admin.js 把 `applicable_platforms: applicable_platforms === undefined ? null : applicable_platforms` 传给 upsert
+  - `null !== undefined` → upsert 走"写入"分支 → 把 DB 旧值清成 `NULL`
+  - 表现：管理员每点一次开关，之前保存的"适用平台/管理员备注"就被清空
+- **正确做法**：
+  ```js
+  const patch = {};
+  if (applicable_platforms !== undefined) patch.applicable_platforms = Array.isArray(applicable_platforms) ? applicable_platforms : null;
+  // 不传时完全不放进 patch → upsert 自动保留旧值
+  if (custom_message !== undefined) patch.custom_message = custom_message || null;
+  // available 是特殊 case, 新建时无 existing 必须给默认值
+  if (available !== undefined) patch.available = available ? 1 : 0;
+  else patch.available = 1; // 首次插入时
+  cardProductOverrideService.upsert(pc, patch, userEmail);
+  ```
+- **upsert 行为定义**（service 层）：
+  - `patch.xxx === undefined` → 保留 `existing.xxx`
+  - `patch.xxx === null` → 写入 `null`（显式清空）
+  - `patch.xxx === []` → 写入 `[]`（空数组）
+  - `patch.xxx === "value"` → 写入新值
+
+### 5.5 用户端卡段卡片规范 (v1.0.58+)
+- **不可用卡段**：CSS `pointer-events: none` 阻断点击，遮罩显示"暂不可用"
+  - ❌ 禁止用 JS `alert()` 提示（v1.0.58 之前用 alert，已废弃）
+  - ❌ 禁止"⏸"图标前缀（v1.0.58 后移除）
+- **平台 tag 显示**：最多 3 个 + `+N`，hover 显示完整列表
+- **hover title 三种状态**：
+  1. 有 `applicable_platforms` → `适用平台: Facebook, Google, ...`
+  2. 沿用 docx → `适用平台 (docx 默认): Facebook, ...`
+  3. 未设置 → `管理员未设置适用平台`
+- **title 转义**：必须 escape `& " < >` 4 个字符（防 XSS / 破坏属性）
 
 ---
 
@@ -148,7 +198,7 @@ SQLite 生产库偶发索引损坏（`database disk image is malformed`），修
 | 卡片查询 | ✅ `cardDetail`/`cardTransaction` | ❌ `/getCardList` 404 |
 | 当前用途 | 查询（余额/卡片详情/交易） | 创建卡片 |
 
-### 5.1 RSA 密钥管理
+### 5.6 RSA 密钥管理
 - **请求加密**：用 `vmcardio_platform_public.pem`（VM公钥，2048-bit）
 - **响应解密**：用 `merchant_private.pem`（商户私钥，2048-bit）
 - VM公钥从 sandbox.vmcardio.com → 设置页面获取

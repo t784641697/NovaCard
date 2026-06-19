@@ -67,6 +67,82 @@
 - ✅ DELETE 重置 → user 端 5 次查询全部回到 HARDCODED/docx 默认
 - ✅ 4 种校验 (available 非法/platforms 非数组/platforms 含空/msg 超 500 字符) 全部返回 HTTP 400
 
+---
+
+## v1.0.59 | 2026-06-20 | 卡段管理页打磨 + 关键 bug 修复（v1.0.58 后迭代）
+
+### 背景
+v1.0.58 上线后用户测试发现 3 个高优先级 bug + 8 处 UI 体验问题，本版本全部修复并上线。
+
+### 🔴 关键 bug 修复
+1. **登录转圈圈** (commit `2f680e6` / `87a9ab5`)
+   - 孤立 `async` 关键字抛 `ReferenceError: async is not defined`
+   - JS 引擎中断整个 `<script>` 块执行 → 登录响应处理函数未注册 → UI 永远不更新
+   - **根因**：v1.0.58 早期改 `app.html` 时多写了一行 `async` 后面只跟注释
+2. **"卡段管理"页点击空白** (commit `0df3d2c` / `40e2236`)
+   - `renderCardProductsPage` 误用 `_mainContent.innerHTML` 但全局变量是 `contentArea`
+   - 抛出 `ReferenceError` → 页面 DOM 未写入 → 用户看到空白
+3. **PUT `/admin/card-products/:pc` 误清空 platforms/custom_message** (commit `655b89c`)
+   - **根因**：admin.js 把没传的字段填成 `null` 传给 upsert，upsert 看到 `patch.applicable_platforms !== undefined` (是 `null` 不是 `undefined`) 就走"写入"分支，把 DB 旧值清空
+   - **影响**：每次管理员点一下开关，用户之前在"适用平台/管理员备注"输入的内容就被清空
+   - **修复**：admin.js 改为只把前端实际传的字段放进 patch，缺省字段不进 patch → upsert 走"保留原值"分支
+4. **`</html>` 之后 JS 源码裸露** (commit `7078d24` / `2cb4091`)
+   - 上一轮加 `gotoCardProductsPage` 时直接 `content.rstrip() + "..."` 拼到文件末尾
+   - 浏览器把 `</html>` 之后的文本当 HTML 渲染 → 页面底部直接看到 `function gotoCardProductsPage(...)` 源码
+   - **修复**：移到最后一个 `<script>` 块的 `</script>` 之前
+
+### 🎨 UI/UX 收敛
+1. **BIN 统一前 6 位** (commit `516ba40`)
+   - 管理员"卡段管理"BIN 列 + 用户端"申请开卡"卡片 BIN 段都只显示前 6 位
+   - 删掉 v1.0.19 的 12 位 `555671 / 544015` 拆双 BIN 显示
+2. **列名中英化** (commit `82295b3`) — "Product Code"→"产品", "BIN"→"卡段"
+3. **顶部说明精简** (commit `6cab2b0` / `c6bf803`) — 只保留"开关关闭"那一条
+4. **移除"重置"按钮** (commit `1a82451`) — 开关本身就能重置
+5. **用户端置灰 + 无 alert** (commit `1a82451`)
+   - `.bin-card-disabled` 加 `pointer-events:none` 阻断点击
+   - `selectBin` 删掉 `alert('该卡段已暂停开卡')`
+   - 移除"⏸"图标
+6. **编辑弹窗底色修复** (commit `c2dbc79`) — `var(--bg-card)` → `var(--bg3)` (项目内未定义 `--bg-card`，会 fallback 继承父元素 → 透明)
+7. **Step 2 提醒面板加 2 行** (commit `a44e530`)
+   - "适用平台"行（数据源 `p.applicable_platforms || p.docx_platforms`）
+   - "管理员备注"行（数据源 `p.custom_message`）
+
+### ✨ 新增能力
+1. **卡段管理页搜索 + 分页 (10 条/页)** (commit `f28d013` / `e498dbf`)
+   - 顶部加搜索框 + 清除按钮
+   - 实时模糊匹配 产品代码 / 卡段(前6位) / 地区
+   - 翻页器: «首页 / ‹上一页 / 第N/M页 / 下一页› / 末页»
+   - 边界自动 disabled，搜索后自动回第 1 页
+   - 总数 ≤ 10 时只显示「第 1 / 1 页」
+   - 搜索无匹配时表格内显示"没有匹配的卡段 · 清除搜索"
+2. **"适用平台"列固定 240px + 截断 + tooltip** (commit `5140ded`)
+   - 表格加 `table-layout: fixed` 强制列宽生效
+   - 每个 cell 最多显示前 3 个 tag + `+N more` 提示
+   - 单个 tag `max-width: 120px; text-overflow: ellipsis` 防长名撑破
+   - 容器 `display: flex; flex-wrap: nowrap; overflow: hidden`
+   - `+N more` 用 `flex-shrink: 0` 保证不被裁
+   - 鼠标悬浮 → 浏览器原生 `title` 显示完整列表
+   - 三种 title 状态：①有 platforms ②沿用 docx ③未设置
+3. **用户端开卡卡段卡片 hover tooltip** (commit `9095186`)
+   - 同样的原生 `title` 体验
+   - title 做了 `& " < >` 4 字符 HTML 转义防 XSS
+   - 不可用卡段仍显示"该卡段已暂停开卡"（不冲突）
+
+### 🧪 端到端验证
+- ✅ 登录转圈圈 → 修复后 admin/user 都能正常登录
+- ✅ 卡段管理页 → 17 个卡段正常显示 + 搜索 + 翻页
+- ✅ 开关切换保留 platforms + message（线上 e2e：G55832SI 测 3 步全过）
+- ✅ 标签悬浮 → 浏览器原生 tooltip 立即显示
+- ✅ 不可用卡段 → 鼠标点击无反应，CSS `pointer-events:none` 生效
+- ✅ `</html>` 之后无任何多余内容（`sed -n '/</html>/,$p'` 验证）
+
+### 📁 涉及文件
+- `vcc-dashboard/app.html` — 卡段管理页 + 用户开卡卡片 (主要改动)
+- `src/routes/admin.js` — PUT 缺省字段不传 fix
+- `CHANGELOG.md` / `UNIFIED.md` — 本次同步
+
+---
+
 ## v1.0.57 | 2026-06-19 | 地区筛选项动态化（自动适配上游国家列表）
 
 ### 问题
