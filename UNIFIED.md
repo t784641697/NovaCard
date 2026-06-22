@@ -1993,3 +1993,57 @@ return { isNewMap: diffMap, wasFirstRun: false };
 - 搜索框旁: `🔄 重置 NEW 基准` 按钮 → confirm → POST reset 接口
 - reset 后所有 NEW 立即消失 (后端不返回, 前端重新拉取)
 
+---
+
+## 29. promptModal 组件参数化 (v1.0.76 — 2026-06-22)
+
+### 29.1 背景
+promptModal 是全局共享的 prompt 弹窗, 最初只支持"拒绝企业认证"的场景(输入拒绝原因).
+后续 cmRechargeCard(卡片充值) 等场景复用时, 发现:
+- 头部 ❌ emoji 容易被误认为 X 关闭按钮
+- textarea 不能限制数字输入
+- 按钮固定"取消 + 拒绝并通知用户", 不够灵活
+- 文案被硬编码
+
+### 29.2 参数化方案
+不动结构, 通过 opts 控制:
+
+| opts.key | 类型 | 默认 | 用途 |
+|----------|------|------|------|
+| `hideIcon` | bool | false | 隐藏头部 ❌ emoji |
+| `inputType` | 'text'\|'number' | 'text' | textarea ↔ input number |
+| `hideCancel` | bool | false | 单按钮模式 |
+| `okText` | string | '拒绝并通知用户' | 确认按钮文字 |
+| `okColor` | string | 蓝绿渐变 | 确认按钮颜色 |
+| `cancelText` | string | '取消' | 取消按钮文字 |
+| `icon` | string | '❌' | 头部图标 |
+
+### 29.3 HTML 结构改造
+- 加 ID 到 4 个元素: promptModalIcon / promptModalNumInput / promptModalCancelBtn / promptModalOkBtn
+- promptModalNumInput 默认 display:none, inputType='number' 时切换显示
+- 按钮颜色/文字通过 style 动态设置
+
+### 29.4 充值弹窗定制
+```js
+promptModal({
+  title: '💰 卡片充值',
+  desc:  '请输入充值金额，将从您的账户可用余额划转。',
+  placeholder: '例：100',
+  hideIcon: true,        // 移除"X"误认
+  inputType: 'number',   // 数字输入框
+  hideCancel: true,      // 单按钮
+  okText: '立即提交',
+  okColor: 'linear-gradient(135deg,#ec4899,#db2777)'  // 品红
+})
+```
+
+### 29.5 兼容性
+- 旧调用方式 promptModal('title') 完全兼容
+- 拒绝企业认证等场景不受影响
+- 颜色/文字仅本次调用生效, 下次调用前重置为默认值
+
+### 29.6 设计原则
+- **向后兼容**: opts 都是可选, 默认值保留旧行为
+- **不破坏共享组件**: 用参数控制而非克隆新 modal
+- **样式内联**: promptModal 整体走 inline style, 改造最小化
+
