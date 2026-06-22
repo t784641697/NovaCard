@@ -2287,12 +2287,11 @@ router.post('/card-products/reset-seen-log', async (req, res, next) => {
     const cardProductSeenLog = require('../services/cardProductSeenLog');
     const result = await sdk.getProductCode();
     const apiList = (result && result.list) || [];
-    const codes = apiList.map(p => p.product_code).filter(Boolean);
-    cardProductSeenLog.set(codes);
-    logger.info(`[admin/reset-seen-log] 重置完成, 共标记 ${codes.length} 个 product_code 为已见过`);
-    res.json({ code: 0, msg: 'ok', data: { count: codes.length, codes } });
+    const count = cardProductSeenLog.markAllAsSeen(apiList);
+    logger.info(`[admin/reset-seen-log] 重置完成, 共标记 ${count} 个 product_code 为已见过`);
+    res.json({ code: 0, msg: 'ok', data: { count } });
   } catch (e) {
-    console.error('[admin/reset-seen-log] error:', e);
+    logger.error('[admin/reset-seen-log] error:', e);
     res.status(500).json({ code: 500, msg: '重置失败: ' + e.message });
   }
 });
