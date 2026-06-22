@@ -17,6 +17,7 @@ const express = require('express');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
 const cardProductOverrideService = require('../services/cardProductOverrideService');
+const cardProductSeenLog = require('../services/cardProductSeenLog');
 const { normalizeCountry } = require('../utils/country');
 const path = require('path');
 const fs = require('fs');
@@ -2182,7 +2183,10 @@ router.get('/card-products', async (req, res) => {
       };
     });
 
-    res.json({ code: 0, msg: 'ok', data: { list, count: list.length } });
+    // v1.0.75 首次出现标记 (调 last_seen 计算 is_new, 不写)
+    const isNewMap = cardProductSeenLog.computeIsNewMap(list);
+
+    res.json({ code: 0, msg: 'ok', data: { list, count: list.length, is_new_map: isNewMap } });
   } catch (e) {
     console.error('[admin/card-products] error:', e);
     res.status(500).json({ code: 500, msg: '获取卡段列表失败: ' + e.message });
