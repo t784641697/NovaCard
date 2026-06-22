@@ -196,10 +196,37 @@ class VmcardioSDK {
     return this.request('/freezeCard', { card_id, status: s });
   }
 
+  /**
+   * 卡片充值（仅适用储值卡）
+   * v1.0.84 异步确认: vmcardio 上游对 rechargeCard 有个 bug —
+   *   1 秒内返回 700011 服务器异常，但内部实际已成功扣款并更新卡余额（5 秒后完成）。
+   *   用户刷新页面后能看到余额已变。修复: 收到 700011 时等 5 秒调 cardDetail 验证,
+   *   验证成功(返回 200 + 包含新卡信息)则把 cardDetail 当作成功结果返回。
+   *   业务路由 /:card_id/recharge 拿到新详情后由前端渲染新余额, 避免报错后用户手动刷新。
+   * @param {string} card_id
+   * @param {number} amount
+   * @returns {Promise<object>} 成功返回 cardDetail (含 available_amount 等)
+   */
   async rechargeCard(card_id, amount) {
     if (!amount || amount <= 0) throw new Error('充值金额必须 > 0');
     logger.info('[rechargeCard] 调用参数:', { card_id, amount, card_id_type: typeof card_id, amount_type: typeof amount, amount_value: amount });
-    return this.request('/rechargeCard', { card_id, amount });
+    try {
+      return await this.request('/rechargeCard', { card_id, amount });
+    } catch (e) {
+      // 仅对 700011 (vmcardio 上游已知异步 bug) 触发自动确认
+      if (e.vmCode === 700011) {
+        logger.warn(`[rechargeCard] ${card_id} 收到 700011, 触发异步确认(等 5 秒查 cardDetail)`);
+        await new Promise(r => setTimeout(r, 5000));
+        const detail = await this.cardDetail(card_id);
+        if (detail && detail.card_id) {
+          logger.info(`[rechargeCard] ${card_id} 异步确认成功, 新余额=${detail.available_amount}`);
+          return { ...detail, _async_success: true, _note: 'vmcardio 700011 异步确认' };
+        }
+        // 兜底: cardDetail 没返回有效数据, 原始错误继续抛
+        logger.error(`[rechargeCard] ${card_id} 异步确认失败, cardDetail 返回异常`);
+      }
+      throw e;
+    }
   }
 
   async refundCard(card_id, amount) {
