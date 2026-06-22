@@ -3028,7 +3028,7 @@ function selectBin(p) {
     const localeArea = (p.issuing_area_name || p.issuing_area || '—');
     const flag = p.issuing_area_flag || '';
     const areaDisplay = flag ? `${flag} ${localeArea}` : localeArea;
-    const typeMap = { save: '储蓄卡', credit: '信用卡', debit: '借记卡', prepaid: '预付费卡' };
+    const typeMap = { save: '储值卡', credit: '信用卡', debit: '借记卡', prepaid: '预付费卡' };
     const mediaMap = { virtual_card: '虚拟卡', physical_card: '实体卡' };
     const rows = [
       { label: '卡归属地',    value: areaDisplay },
@@ -3040,10 +3040,21 @@ function selectBin(p) {
       { label: '适用平台',    value: platformStr, highlight: !!platforms && platforms.length > 0, inline: true },
     ];
     grid.innerHTML = rows.map(r => {
-      const valHtml = r.message
-        ? (r.value ? `<span class="reminder-value reminder-msg">"${r.value}"</span>` : `<span class="reminder-value reminder-msg-empty">—</span>`)
-        : `<span class="reminder-value">${r.value}</span>`;
-      return `<div class="reminder-item${r.highlight ? ' reminder-item-highlight' : ''}">
+      let valHtml;
+      if (r.message) {
+        valHtml = r.value
+          ? `<span class="reminder-value reminder-msg">"${r.value}"</span>`
+          : `<span class="reminder-value reminder-msg-empty">—</span>`;
+      } else if (r.inline) {
+        // v1.0.60 fix: 真正平铺, 加 reminder-item-inline + reminder-value-inline 两个 class
+        valHtml = `<span class="reminder-value reminder-value-inline">${r.value}</span>`;
+      } else {
+        valHtml = `<span class="reminder-value">${r.value}</span>`;
+      }
+      const cls = ['reminder-item'];
+      if (r.highlight) cls.push('reminder-item-highlight');
+      if (r.inline)    cls.push('reminder-item-inline');
+      return `<div class="${cls.join(' ')}">
         <span class="reminder-label">${r.label}</span>
         ${valHtml}
       </div>`;
