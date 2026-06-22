@@ -156,17 +156,9 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // ── 商户余额同步服务（每分钟同步一次）──
-// 临时注释：测试性能问题
 const syncService = require('./services/merchantBalanceSync');
 syncService.start();
 logger.info('💰 商户余额同步服务已启动（每分钟同步）');
-// logger.info('💰 商户余额同步服务已临时禁用（测试性能问题）');
-
-// ── 用户余额检查服务（每10分钟检查一次）──
-// 用户余额检查服务（暂时注释，因为这是测试文件）
-// const userBalanceCheck = require('./services/userBalanceCheck');
-// userBalanceCheck.startPeriodicCheck();
-logger.info('🔒 用户余额检查服务已启动（每10分钟检查）');
 
 // ── 全局异常捕获（防止进程崩溃导致连接重置）─────────────────────────────────
 process.on('uncaughtException', (err) => {

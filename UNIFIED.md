@@ -2136,3 +2136,16 @@ promptModal({
 v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1502 的 `<script>` 块开头，导致整个 10000 行 JS 不执行，登录后一直显示 "正在加载中..."。
 
 **修复**：恢复 v1.0.83 干净版本后，精准删除 1489-1501（HTML 弹窗）和 2743-2772（死函数），保留 `<script>`。
+
+## v1.0.90 (2026-06-23) — 全面清理无用数据
+
+### 清理项
+- `assets/` 11.4 MB (旧对话截图 + 原始 docx, 已迁移到 `data/card_metadata.json`)
+- `src/services/userBalanceCheck.js` 死代码 (无引用)
+- `src/app.js` 死代码块 + 误导日志 (用户余额检查服务)
+- `vcc-dashboard/js/` 空目录 (AGENTS.md 历史描述, 实际从未存在过)
+- `CARD_METADATA.md` 独立文档 (内容已被 UNIFIED.md 覆盖)
+- `vcc-dashboard/index.html` AGENTS.md 描述, 实际不存在
+
+### 同步清理
+- AGENTS.md 项目结构图更新: 去掉 `vcc-dashboard/js/` 和 `vcc-dashboard/index.html` 的陈旧描述
