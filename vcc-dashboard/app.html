@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard · v1.0.64-modal-title-region</title>
+<title>NovaCard · v1.0.65-modal-title-uniform</title>
 <style>
 /* ══════════════════════════════════════════════
    TOKENS
@@ -9226,7 +9226,7 @@ function openCardProductEdit(pc) {
   modal.innerHTML = `
     <div style="background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h3 style="margin:0;font-size:1.1rem;color:var(--text-primary)">编辑卡段 · <span style="font-family:ui-monospace,monospace;color:#a5b4fc">${pc}</span> · <span style="color:var(--text-muted);font-weight:400;font-size:.95rem">${p.issuing_area_flag} ${p.issuing_area_name}</span></h3>
+        <h3 style="margin:0;font-size:1.1rem;color:var(--text-primary)">编辑卡段 · <span style="color:#a5b4fc">${pc}</span> · <span style="color:var(--text-primary)">${p.issuing_area_flag} ${p.issuing_area_name}</span></h3>
         <button onclick="this.closest('[data-cp-modal]').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0;line-height:1">×</button>
       </div>
       <div style="margin-bottom:16px">
