@@ -2125,3 +2125,8 @@ promptModal({
 - **背景**: v1.0.84 假设 700011 = 延迟成功. 实测: 5 秒后 cardDetail 拿到的还是原余额, vmcardio 实际未扣款
 - **修改**: SDK.rechargeCard 移除 try/catch + 700011 分支, 改为直接调上游, 错误码原样抛出
 - **结论**: 700011 是 vmcardio 上游真失败, 等上游修复. 用户看到 5 秒后 30 是个人账号后台操作, 跟 SDK 无关
+
+### 30.10 验证 User-Agent 不是 700011 根因 (v1.0.87)
+- **实验**: SDK 显式设 `'User-Agent': ''` 模仿 cURL, 充值 10/50 美元 → 仍 700011
+- **结论**: vmcardio 上游 /rechargeCard 接口真实 bug, 跟客户端 header 无关
+- **下一步**: 联系 vmcardio 客服报 bug

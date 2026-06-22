@@ -40,6 +40,7 @@ class VmcardioSDK {
     return this._token;
   }
 
+  // v1.0.87 实验: 删除 axios 默认 User-Agent (vmcardio cURL 示例无 UA)
   async request(apiPath, payload = {}) {
     const token   = await this._getToken();
     const content = rsa.encrypt(payload);
