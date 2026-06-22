@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard · v1.0.67-reminder-msg-inline</title>
+<title>NovaCard · v1.0.68-reminder-msg-no-quote-orange</title>
 <style>
 /* ══════════════════════════════════════════════
    TOKENS
@@ -704,7 +704,7 @@ select.form-control option{background:var(--bg3);}
 .reminder-label{font-size:.72rem;color:var(--text3);font-weight:500;}
 .reminder-value{font-size:.85rem;color:var(--text);font-weight:600;}
   .reminder-item-highlight{background:rgba(99,102,241,.06);border-left:2px solid rgba(99,102,241,.4);padding-left:8px}
-  .reminder-msg{color:#fbbf24;font-style:italic}
+  .reminder-msg{color:#fbbf24}
   .reminder-msg-empty{color:var(--text-muted);opacity:.5}
 /* v1.0.60: 平铺场景(适用平台) - label 在上, value 横向滚动不换行 */
 /* v1.0.60 改进: 跨满 grid 整行 (grid-column: 1/-1) + 真正平铺 */
@@ -3044,7 +3044,7 @@ function selectBin(p) {
       const inlineCls = r.inline ? 'reminder-value-inline' : '';
       if (r.message) {
         valHtml = r.value
-          ? `<span class="reminder-value ${inlineCls} reminder-msg">"${r.value}"</span>`
+          ? `<span class="reminder-value ${inlineCls} reminder-msg">${r.value}</span>`
           : `<span class="reminder-value ${inlineCls} reminder-msg-empty">—</span>`;
       } else if (r.inline) {
         // v1.0.60 fix: 真正平铺, 加 reminder-item-inline + reminder-value-inline 两个 class
