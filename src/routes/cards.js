@@ -253,6 +253,43 @@ router.get('/:card_id', async (req, res, next) => {
     // 排除 detail.user_name（持卡人姓名）— 避免覆盖 localCard.user_name（用户真名）
     const { user_name: _ignored, ...detailSafe } = detail;
 
+    // v1.0.85 同步上游到本地 DB — 之前只读上游不写回, 刷新页面 DB 不一致
+    //   写回字段: available_amount, status, expiry_month/year, cvv, card_number, card_type,
+    //             limit 相关 7 个字段, last_verified, verified_status
+    try {
+      db.prepare(`UPDATE cards SET
+          available_amount = COALESCE(?, available_amount),
+          status           = COALESCE(?, status),
+          expiry_month     = COALESCE(?, expiry_month),
+          expiry_year      = COALESCE(?, expiry_year),
+          cvv              = COALESCE(NULLIF(?, ''), cvv),
+          card_number      = COALESCE(NULLIF(?, ''), card_number),
+          card_type        = COALESCE(NULLIF(?, ''), card_type),
+          single_limit     = COALESCE(?, single_limit),
+          day_limit        = COALESCE(?, day_limit),
+          month_limit      = COALESCE(?, month_limit),
+          last_verified    = nowiso(),
+          verified_status  = 'verified',
+          updated_at       = nowiso()
+        WHERE card_id = ?
+      `).run(
+        detail.available_amount ?? null,
+        detail.status || null,
+        detail.expiry_month ?? null,
+        detail.expiry_year ?? null,
+        detail.cvv || '',
+        detail.card_number || '',
+        detail.card_type || '',
+        detail.single_limit ?? null,
+        detail.day_limit ?? null,
+        detail.month_limit ?? null,
+        card_id
+      );
+    } catch (syncErr) {
+      // 同步失败不阻塞读 — 至少前端能拿到上游实时值
+      logger.warn(`[GET /:card_id] 同步卡 ${card_id} 到 DB 失败: ${syncErr.message}`);
+    }
+
     // 合并：上游字段优先（实时），本地字段兜底（上游没返回的如 product_code）
     res.json({
       code: 0, msg: 'ok',
@@ -372,6 +409,26 @@ router.post('/:card_id/recharge', async (req, res, next) => {
     }
 
     const result = await sdk.rechargeCard(card_id, amount);
+    // v1.0.85 充值成功后同步上游到本地 DB
+    //   之前只调 SDK 不写回 DB, v1.0.84 让前端拿到新余额 (renderCardManage 即时刷新),
+    //   但 DB 永远停留在旧值, 用户关掉弹窗再打开就掉回 20. 现在把 result 写回
+    //   兼容两种返回: (1) 同步成功 result 是 recharge 直接返回; (2) v1.0.84 异步确认
+    //   result 是 cardDetail (含 available_amount), 任一情况都按 cardDetail 字段处理
+    try {
+      const newAmt = result?.available_amount ?? null;
+      if (newAmt !== null) {
+        db.prepare(`UPDATE cards SET
+            available_amount = ?,
+            status           = COALESCE(NULLIF(?, ''), status),
+            last_verified    = nowiso(),
+            verified_status  = 'verified',
+            updated_at       = nowiso()
+          WHERE card_id = ?
+        `).run(newAmt, result?.status || '', card_id);
+      }
+    } catch (syncErr) {
+      logger.warn(`[POST /:card_id/recharge] 同步卡 ${card_id} 余额到 DB 失败: ${syncErr.message}`);
+    }
     res.json({ code: 0, msg: 'ok', data: result });
   } catch (err) {
     next(err);
