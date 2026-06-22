@@ -198,6 +198,7 @@ class VmcardioSDK {
 
   async rechargeCard(card_id, amount) {
     if (!amount || amount <= 0) throw new Error('充值金额必须 > 0');
+    logger.info('[rechargeCard] 调用参数:', { card_id, amount, card_id_type: typeof card_id, amount_type: typeof amount, amount_value: amount });
     return this.request('/rechargeCard', { card_id, amount });
   }
 
