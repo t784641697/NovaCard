@@ -2047,3 +2047,63 @@ promptModal({
 - **不破坏共享组件**: 用参数控制而非克隆新 modal
 - **样式内联**: promptModal 整体走 inline style, 改造最小化
 
+---
+
+## 30. promptModal 充值弹窗 v2 优化 (v1.0.77 — 2026-06-22)
+
+### 30.1 用户反馈
+v1.0.76 充值弹窗已实现: 无图标 + 数字输入框 + 单按钮"立即提交"(品红色) + 新文案
+但用户希望:
+1. 数字步长 100 (上下键 ±100, 实际业务金额都是 100/200/500 这种整数)
+2. 按钮居中
+3. 按钮颜色用 var(--grad) 项目主色 (与其他 btn-primary 一致)
+4. 弹窗右上角加 X 关闭按钮
+
+### 30.2 promptModal 组件 3 个新参数
+
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `hideX` | bool | false | 隐藏右上角 X (默认显示) |
+| `step` | number | 100 | number input 步长, 上下键 ±step |
+| `okCenter` | bool | false | 按钮容器居中 (justify-content: center) |
+
+### 30.3 HTML 改造
+```html
+<div class="modal-overlay" id="promptModalOverlay">
+  <div style="position:relative;...">  <!-- 加 position:relative -->
+    <button id="promptModalXBtn" onclick="promptModalCancel()" 
+      style="position:absolute;top:12px;right:12px;...">✕</button>
+    ...
+    <div id="promptModalBtnWrap" style="display:flex;gap:12px;justify-content:flex-end;...">
+      <button id="promptModalCancelBtn">取消</button>
+      <button id="promptModalOkBtn">...</button>
+    </div>
+  </div>
+</div>
+```
+
+### 30.4 充值弹窗 v2
+```js
+promptModal({
+  title: '💰 卡片充值',
+  desc:  '请输入充值金额，将从您的账户可用余额划转。',
+  placeholder: '例：100',
+  hideIcon: true,
+  inputType: 'number',
+  step: 100,
+  hideCancel: true,
+  okText: '立即提交',
+  okColor: 'var(--grad)',     // 项目主色 (与其他 btn-primary 一致)
+  okCenter: true
+})
+```
+
+### 30.5 设计原则
+- **颜色统一**: btn-primary 用 var(--grad), 充值按钮也用 var(--grad), 保持视觉一致
+- **关闭入口多样化**: overlay 点击外部 + 右上角 X 按钮 + 取消按钮(单按钮场景没有)
+- **步长适配业务**: 充值金额 100/200/500, 步长 100 比 0.01 实用得多
+
+### 30.6 兼容性
+- 所有新参数都有默认值, 旧调用方式完全兼容
+- 拒绝企业认证等场景会多出 X 关闭按钮, 这是合理升级 (不破坏使用)
+
