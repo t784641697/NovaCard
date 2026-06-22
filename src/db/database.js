@@ -297,6 +297,17 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_user_fee_configs ON user_fee_configs(user_id, fee_type, is_active);
   CREATE INDEX IF NOT EXISTS idx_scenario_sort    ON scenario_mappings(sort_order);
+
+  -- v1.0.75 卡段"首次出现"滑动窗口追踪
+  --   单行表: 记录上一次上游拉取的 product_code 列表 (JSON 数组)
+  --   每次 /api/cards/meta/products 拉取上游后, 对比 last_seen 算出 is_new,
+  --   然后用当前列表覆盖 last_seen. 首次部署后第一次拉取时做"自动种子化"
+  --   (直接用当前列表填充 last_seen, 不返回 NEW), 避免 admin 看到 17 个假 NEW
+  CREATE TABLE IF NOT EXISTS card_product_last_seen (
+    id          INTEGER PRIMARY KEY CHECK (id = 1),            -- 永远只有 1 行
+    codes       TEXT    NOT NULL DEFAULT '[]',                 -- JSON 字符串数组
+    updated_at  TEXT    NOT NULL DEFAULT (nowiso())
+  );
 `);
 
 // ── Schema 迁移：补全旧版本缺少的字段 ───────────────────────────────────

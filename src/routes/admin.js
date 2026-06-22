@@ -2279,6 +2279,24 @@ router.get('/scenarios', (req, res) => {
   }
 });
 
+// v1.0.75 手动重置 last_seen: 重新拉取上游, 把所有当前 product_code 全部标记为已见过
+//   用途: admin 哪天想重新追踪所有"当前"卡段, 点这个重置基准
+router.post('/card-products/reset-seen-log', async (req, res, next) => {
+  try {
+    const sdk = require('../services/vmcardioSDK');
+    const cardProductSeenLog = require('../services/cardProductSeenLog');
+    const result = await sdk.getProductCode();
+    const apiList = (result && result.list) || [];
+    const codes = apiList.map(p => p.product_code).filter(Boolean);
+    cardProductSeenLog.set(codes);
+    logger.info(`[admin/reset-seen-log] 重置完成, 共标记 ${codes.length} 个 product_code 为已见过`);
+    res.json({ code: 0, msg: 'ok', data: { count: codes.length, codes } });
+  } catch (e) {
+    console.error('[admin/reset-seen-log] error:', e);
+    res.status(500).json({ code: 500, msg: '重置失败: ' + e.message });
+  }
+});
+
 router.post('/scenarios', (req, res) => {
   try {
     const { scenario_name, scenario_icon, sort_order, platforms, enabled } = req.body || {};

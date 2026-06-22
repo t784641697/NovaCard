@@ -14,6 +14,7 @@ const rateLimit = require('express-rate-limit');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
 const cardProductOverrideService = require('../services/cardProductOverrideService');
+const cardProductSeenLog = require('../services/cardProductSeenLog'); // v1.0.75 首次出现追踪
 const { authenticate } = require('../middleware/auth');
 const { normalizeCountry } = require('../utils/country');
 const { deriveScenariosForProduct } = require('../utils/scenarioMatcher');
@@ -643,6 +644,11 @@ router.get('/meta/products', async (req, res, next) => {
         merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios);
         return merged;
       });
+      // v1.0.75 首次出现标记 (raw 分支也要同步, 否则 is_new 不会更新)
+      const { isNewMap: rawIsNewMap } = cardProductSeenLog.syncAndCompute(listWithOverride);
+      for (const item of listWithOverride) {
+        if (item.product_code) item.is_new = rawIsNewMap[item.product_code] === true;
+      }
       return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: listWithOverride } });
     }
 
@@ -700,6 +706,14 @@ router.get('/meta/products', async (req, res, next) => {
         return item;
       })
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+
+    // v1.0.75 首次出现标记 (滑动窗口)
+    //   派生数据, 不持久化. 每次拉取上游后, 对比 last_seen 算出 is_new, 再覆盖 last_seen
+    //   首次部署后第一次拉取时自动种子化, 全部 is_new=false
+    const { isNewMap } = cardProductSeenLog.syncAndCompute(merged);
+    for (const item of merged) {
+      if (item.product_code) item.is_new = isNewMap[item.product_code] === true;
+    }
 
     res.json({ code: 0, msg: 'ok', data: { ...result, list: merged } });
   } catch (err) {
