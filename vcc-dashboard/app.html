@@ -3023,14 +3023,13 @@ function selectBin(p) {
     const platformStr = (platforms && platforms.length) ? platforms.join(', ') : '—';
     const msg = p.custom_message || null;
     const rows = [
-      { label: '国家 / 地区', value: p.issuing_area || '—' },
-      { label: 'BIN 段',      value: (p.bin ? String(p.bin).slice(0, 6) : '—') },
+      { label: '卡归属地',    value: p.issuing_area || '—' },
+      { label: '卡段',        value: (p.bin ? String(p.bin).slice(0, 6) : '—') },
       { label: '卡片类型',    value: p.type || '—' },
-      { label: '网络',        value: p.network || '—' },
-      { label: '介质',        value: p.media || '—' },
-      { label: '可开张数',    value: (p.remaining_open_card_num ?? '—') + ' 张' },
-      { label: '适用平台',    value: platformStr, highlight: !!platforms && platforms.length > 0 },
+      { label: '发卡行',      value: p.network || '—' },
+      { label: '卡形态',      value: p.media || '—' },
       { label: '管理员备注',  value: msg, highlight: !!msg, message: true },
+      { label: '适用平台',    value: platformStr, highlight: !!platforms && platforms.length > 0, inline: true },
     ];
     grid.innerHTML = rows.map(r => {
       const valHtml = r.message
