@@ -18,6 +18,7 @@ function errorHandler(err, req, res, next) {
     else if (vmMsg.includes('limit') || vmMsg.includes('Limit')) userMsg = '已达到限额限制';
     else if (vmMsg.includes('Unauthorized') || vmMsg.includes('Authentication')) userMsg = '接口认证失败';
     else if (vmMsg.includes('Timeout') || vmMsg.includes('timeout')) userMsg = '卡商接口响应超时，请稍后重试';
+    else if (vmMsg.includes('服务器异常') || vmMsg.includes('700011')) userMsg = '卡商服务器暂时异常，请稍后重试';
     return res.status(422).json({
       code: err.vmCode,
       msg: userMsg,
