@@ -626,16 +626,22 @@ router.get('/meta/products', async (req, res, next) => {
           derived_scenarios:    deriveScenariosForProduct({ applicable_platforms: platforms }, scenarios),
         };
       });
-      // v1.0.24 合并管理员 DB 覆盖(优先级最高:DB override > docx metadata)
+      // v1.0.24 合并管理员 DB 覆盖(优先级最高:DB override > HARDCODED > docx metadata)
+      // v1.0.72 修复: 覆盖 applicable_platforms 后必须重算 derived_scenarios,
+      //   否则 ?raw=1 分支下前端拿到的 derived_scenarios 是基于 meta 的(错的),
+      //   用户在申请开卡页按场景过滤时, DB override 过的卡段全部筛不到
       const listWithOverride = listWithNorm.map(item => {
         const ov = cardProductOverrideService.get(item.product_code);
         if (!ov) return item;
-        return {
+        const merged = {
           ...item,
           available:              ov.available,
           applicable_platforms:   ov.applicable_platforms,  // null 表示用 docx
           custom_message:         ov.custom_message,
         };
+        // 关键: override 后立即重算派生, 保证 derived_scenarios 与最终 applicable_platforms 一致
+        merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios);
+        return merged;
       });
       return res.json({ code: 0, msg: 'ok (raw upstream)', data: { ...result, list: listWithOverride } });
     }
