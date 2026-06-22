@@ -190,6 +190,7 @@ sudo systemctl restart nginx
 | v1.0.72 | 2026-06-22 | `loadScenarios` 解析响应结构修复：后端返回 `{data: {list: [...]}}` 嵌套结构，前端改用 `(resp.data && resp.data.list) \|\| []` |
 | v1.0.73 | 2026-06-22 | `/api/cards/meta/products?raw=1` 分支在合并 DB override 后必须重算 `derived_scenarios` |
 | v1.0.74 | 2026-06-22 | 申请开卡页 "可用卡段" 标题移除，简化外层 flex 嵌套 |
+| v1.0.80 | 2026-06-22 | **充值按钮 loading + 700011 翻译**: errorHandler.js 加 700011"卡商服务器暂时异常"翻译规则; cmRechargeCard 提交时 setLoading(true) 锁定按钮 + 文字改"处理中…" + disable X/取消, 成功立即关弹窗 + toast + renderCardManage, 失败恢复按钮 + toast 错误 |
 | v1.0.79 | 2026-06-22 | **充值接口 URL 缺 card_id bug**: 前端 cmRechargeCard 调 POST /api/cards/recharge (URL 没 card_id), 后端路由是 /:card_id/recharge, 报"接口不存在"; 修复把 card_id 拼到 URL 路径上 (/cards/{cardId}/recharge), body 只剩 { amount } |
 | v1.0.78 | 2026-06-22 | **充值弹窗禁止负值**: promptModal number 模式加 3 层防护 (HTML5 min=0 默认值 / oninput 实时拦截负号 / promptModalOk 兜底过滤), 充值场景显式传 min: 0 表明意图 |
 | v1.0.77 | 2026-06-22 | **充值弹窗 UX v2**: promptModal 加 3 参数 (hideX 右上角 X / step 步长 100 / okCenter 按钮居中), 按钮颜色改 var(--grad) 项目主色 (冰蓝→薰衣草紫→品粉), 步长 100 适配整数金额业务, X 关闭按钮默认显示; 拒绝企业认证等场景会多出 X 关闭按钮 (合理升级) |
