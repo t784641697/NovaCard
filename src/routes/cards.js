@@ -20,6 +20,7 @@ const { normalizeCountry } = require('../utils/country');
 const { deriveScenariosForProduct } = require('../utils/scenarioMatcher');
 const path = require('path');
 const fs = require('fs');
+const logger = require('../utils/logger');
 
 // v1.0.70 场景配置 DB 读取 (每次 /meta/products 调用时实时拉取, 配置变更即时生效)
 function loadScenarios() {
