@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard · v1.0.66-modal-label-dash-format</title>
+<title>NovaCard · v1.0.67-reminder-msg-inline</title>
 <style>
 /* ══════════════════════════════════════════════
    TOKENS
@@ -3036,18 +3036,19 @@ function selectBin(p) {
       { label: '卡片类型',    value: typeMap[p.type] || p.type || '—' },
       { label: '发卡行',      value: p.network || '—' },
       { label: '卡形态',      value: mediaMap[p.media] || p.media || '—' },
-      { label: '管理员备注',  value: msg, highlight: !!msg, message: true },
+      { label: '管理员备注',  value: msg, highlight: !!msg, message: true, inline: true },
       { label: '适用平台',    value: platformStr, highlight: !!platforms && platforms.length > 0, inline: true },
     ];
     grid.innerHTML = rows.map(r => {
       let valHtml;
+      const inlineCls = r.inline ? 'reminder-value-inline' : '';
       if (r.message) {
         valHtml = r.value
-          ? `<span class="reminder-value reminder-msg">"${r.value}"</span>`
-          : `<span class="reminder-value reminder-msg-empty">—</span>`;
+          ? `<span class="reminder-value ${inlineCls} reminder-msg">"${r.value}"</span>`
+          : `<span class="reminder-value ${inlineCls} reminder-msg-empty">—</span>`;
       } else if (r.inline) {
         // v1.0.60 fix: 真正平铺, 加 reminder-item-inline + reminder-value-inline 两个 class
-        valHtml = `<span class="reminder-value reminder-value-inline">${r.value}</span>`;
+        valHtml = `<span class="reminder-value ${inlineCls}">${r.value}</span>`;
       } else {
         valHtml = `<span class="reminder-value">${r.value}</span>`;
       }
