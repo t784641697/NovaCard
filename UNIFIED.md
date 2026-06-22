@@ -2114,3 +2114,9 @@ promptModal({
 - **返回**: 完整 cardDetail + `_async_success: true` + `_note: "vmcardio 700011 异步确认"`
 - **业务影响**: 用户充 10/50 美元从"报错+手动刷新"变成"自动等 5 秒显示成功"
 - **日志关键字**: `[rechargeCard] {card_id} 收到 700011, 触发异步确认(等 5 秒查 cardDetail)`
+
+### 30.8 卡信息同步写回 DB (v1.0.85)
+- **触发**: `GET /:card_id` 拉上游 `cardDetail` 成功后 / `POST /:card_id/recharge` 充值成功后
+- **写回字段**: `available_amount` / `status` / `cvv` / `card_number` / `expiry_month` / `expiry_year` / `last_verified`(now) / `verified_status`='verified'
+- **错误处理**: 写回失败只 `logger.warn` 不抛错, 主流程仍返回成功 (上游数据是权威, 本地缓存是 best-effort)
+- **作用**: 解决"调了 cardDetail 但本地 DB 不更新"导致用户看到的余额跟上游不一致的 bug

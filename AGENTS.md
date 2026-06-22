@@ -259,3 +259,4 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 - fallback: `src/routes/cards.js` line 580-585
 - 前端 PRODUCT_DISPLAY_NAMES: `vcc-dashboard/app.html` line 1655-1660
 | v1.0.84 | 2026-06-22 | **SDK 充值异步确认**: vmcardio 上游 `rechargeCard` 收 `700011` 后内部等待 5 秒调 `cardDetail` 验证余额, 验证成功视为充值成功, 用户无需手动刷新. 验证: `XR2069080018155819008` 充 \$10 → 7 秒内返回 `available_amount: 30` (原 20) |
+| v1.0.85 | 2026-06-22 | **卡信息同步写回 DB**: `GET /:card_id` 和 `POST /:card_id/recharge` 调完上游 `cardDetail` 后用 `persistCardDetailToDb()` 工具写回 `available_amount` / `status` / `cvv` / `expiry_*` / `last_verified` / `verified_status`; 写回失败 logger.warn 不影响主流程 |
