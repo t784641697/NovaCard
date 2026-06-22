@@ -9151,7 +9151,7 @@ async function loadScenarios() {
   try {
     const resp = await apiFetch('/admin/scenarios');
     if (resp.code !== 0) throw new Error(resp.msg || '加载失败');
-    const list = resp.data || [];
+    const list = (resp.data && resp.data.list) || [];
     if (list.length === 0) {
       el.innerHTML = `<div class="text-center py-12" style="color:var(--text-muted)">
         暂无场景, 点击右上角"新增场景"开始配置
