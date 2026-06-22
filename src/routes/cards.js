@@ -645,8 +645,8 @@ router.get('/meta/products', async (req, res, next) => {
         merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios);
         return merged;
       });
-      // v1.0.75 首次出现标记 (raw 分支也要同步, 否则 is_new 不会更新)
-      const { isNewMap: rawIsNewMap } = cardProductSeenLog.syncAndCompute(listWithOverride);
+      // v1.0.75 首次出现标记 (raw 分支只读 last_seen 算 is_new, 不写, 避免与主分支重复)
+      const rawIsNewMap = cardProductSeenLog.computeIsNewMap(listWithOverride);
       for (const item of listWithOverride) {
         if (item.product_code) item.is_new = rawIsNewMap[item.product_code] === true;
       }

@@ -70,10 +70,12 @@ function setLastSeenCodes(codes) {
 function computeIsNewMap(currentList) {
   const last = getLastSeenCodes();
   const lastSet = new Set(last);
-  return currentList.map(p => {
-    if (!p || !p.product_code) return false;
-    return !lastSet.has(p.product_code);
-  });
+  const map = {};
+  for (const p of (currentList || [])) {
+    if (!p || !p.product_code) continue;
+    map[p.product_code] = !lastSet.has(p.product_code);
+  }
+  return map;
 }
 
 /**
@@ -100,13 +102,20 @@ function syncAndCompute(currentList) {
   if (wasFirstRun) {
     // 首次部署, admin 不会看到 17 个假 NEW
     logger.info(`[cardProductSeenLog] 首次种子化: 记录 ${codes.length} 个产品`);
-    return { isNewMap: codes.map(() => false), wasFirstRun: true };
+    const map = {};
+    for (const c of codes) map[c] = false;
+    return { isNewMap: map, wasFirstRun: true };
   }
 
   // 正常 diff: 上次见过 = 旧的, 这次新出现 = NEW
   const lastSet = new Set(lastBefore);
-  const isNewMap = codes.map(c => !lastSet.has(c));
-  const newCount = isNewMap.filter(Boolean).length;
+  const isNewMap = {};
+  let newCount = 0;
+  for (const c of codes) {
+    const isNew = !lastSet.has(c);
+    isNewMap[c] = isNew;
+    if (isNew) newCount++;
+  }
   if (newCount > 0) {
     logger.info(`[cardProductSeenLog] 同步 last_seen: 共 ${codes.length} 个, NEW ${newCount} 个`);
   }
