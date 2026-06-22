@@ -2120,3 +2120,8 @@ promptModal({
 - **写回字段**: `available_amount` / `status` / `cvv` / `card_number` / `expiry_month` / `expiry_year` / `last_verified`(now) / `verified_status`='verified'
 - **错误处理**: 写回失败只 `logger.warn` 不抛错, 主流程仍返回成功 (上游数据是权威, 本地缓存是 best-effort)
 - **作用**: 解决"调了 cardDetail 但本地 DB 不更新"导致用户看到的余额跟上游不一致的 bug
+
+### 30.9 移除 v1.0.84 700011 异步确认 (v1.0.86)
+- **背景**: v1.0.84 假设 700011 = 延迟成功. 实测: 5 秒后 cardDetail 拿到的还是原余额, vmcardio 实际未扣款
+- **修改**: SDK.rechargeCard 移除 try/catch + 700011 分支, 改为直接调上游, 错误码原样抛出
+- **结论**: 700011 是 vmcardio 上游真失败, 等上游修复. 用户看到 5 秒后 30 是个人账号后台操作, 跟 SDK 无关

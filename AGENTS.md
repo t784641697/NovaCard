@@ -260,3 +260,4 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 - 前端 PRODUCT_DISPLAY_NAMES: `vcc-dashboard/app.html` line 1655-1660
 | v1.0.84 | 2026-06-22 | **SDK 充值异步确认**: vmcardio 上游 `rechargeCard` 收 `700011` 后内部等待 5 秒调 `cardDetail` 验证余额, 验证成功视为充值成功, 用户无需手动刷新. 验证: `XR2069080018155819008` 充 \$10 → 7 秒内返回 `available_amount: 30` (原 20) |
 | v1.0.85 | 2026-06-22 | **卡信息同步写回 DB**: `GET /:card_id` 和 `POST /:card_id/recharge` 调完上游 `cardDetail` 后用 `persistCardDetailToDb()` 工具写回 `available_amount` / `status` / `cvv` / `expiry_*` / `last_verified` / `verified_status`; 写回失败 logger.warn 不影响主流程 |
+| v1.0.86 | 2026-06-22 | **移除 v1.0.84 700011 异步确认**: 实测 700011 是 vmcardio 上游真失败 (5 秒后 cardDetail 拿到的还是原余额, 没真扣款). 移除 SDK 的 700011 自动确认, 错误码原样抛给前端让用户看到真实错误 |
