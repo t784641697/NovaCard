@@ -65,7 +65,7 @@ function deriveScenariosForProduct(product, scenarios) {
     if (keywords.length === 0) continue;
     // 任一 platform 命中该 scenario 的任一关键词, 就算匹配
     if (platforms.some(p => matchesScenario(p, keywords))) {
-      matched.push(sc.scenario_name);
+      matched.push({ id: sc.id, scenario_name: sc.scenario_name, scenario_icon: sc.scenario_icon });
     }
   }
   return matched;

@@ -9149,7 +9149,7 @@ async function loadScenarios() {
   if (!el) return;
   el.innerHTML = `<div class="text-center py-8" style="color:var(--text-muted)">加载中…</div>`;
   try {
-    const resp = await api('/admin/scenarios');
+    const resp = await apiFetch('/admin/scenarios');
     if (resp.code !== 0) throw new Error(resp.msg || '加载失败');
     const list = resp.data || [];
     if (list.length === 0) {
@@ -9252,8 +9252,8 @@ async function saveScenario(id) {
   const body = { scenario_name: name, scenario_icon: icon, platforms, enabled };
   try {
     const resp = id
-      ? await api(`/admin/scenarios/${id}`, 'PUT', body)
-      : await api('/admin/scenarios', 'POST', body);
+      ? await apiFetch(`/admin/scenarios/${id}`, { method: 'PUT', body })
+      : await apiFetch('/admin/scenarios', { method: 'POST', body });
     if (resp.code !== 0) throw new Error(resp.msg || '保存失败');
     document.getElementById('scenario-editor-modal').remove();
     showToast(id ? '已更新' : '已创建', 'success');
@@ -9266,7 +9266,7 @@ async function saveScenario(id) {
 async function deleteScenario(id, name) {
   if (!confirm(`确定删除场景 "${name}"?\n\n注意: 该操作不可撤销, 已分配到此场景的卡段将变为"待分配场景"`)) return;
   try {
-    const resp = await api(`/admin/scenarios/${id}`, 'DELETE');
+    const resp = await apiFetch(`/admin/scenarios/${id}`, { method: 'DELETE' });
     if (resp.code !== 0) throw new Error(resp.msg || '删除失败');
     showToast('已删除', 'success');
     await loadScenarios();
@@ -9277,7 +9277,7 @@ async function deleteScenario(id, name) {
 
 async function toggleScenarioEnabled(id, enabled) {
   try {
-    const resp = await api(`/admin/scenarios/${id}`, 'PUT', { enabled: enabled ? 1 : 0 });
+    const resp = await apiFetch(`/admin/scenarios/${id}`, { method: 'PUT', body: { enabled: enabled ? 1 : 0 } });
     if (resp.code !== 0) throw new Error(resp.msg || '操作失败');
     await loadScenarios();
   } catch (e) {
