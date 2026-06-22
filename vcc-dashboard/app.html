@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard · v1.0.81-recharge-debug-log</title>
+<title>NovaCard · v1.0.82-fix-step-multiple</title>
 <style>
 /* ══════════════════════════════════════════════
    TOKENS
@@ -4594,7 +4594,9 @@ window.cmRechargeCard = async function(cardId) {
   });
   // 取消：promptModalCancel 返回 null，直接退出，不报错
   if (raw === null) return;
+  console.log('[cmRechargeCard] 原始输入 raw=', JSON.stringify(raw), 'typeof=', typeof raw);
   const amt = Number(raw);
+  console.log('[cmRechargeCard] 转换后 amt=', amt, 'isNaN=', isNaN(amt), '输入框 ni.value=', document.getElementById('promptModalNumInput').value);
   if (!raw.trim() || isNaN(amt) || amt <= 0) { toast('❌ 请输入有效金额'); return; }
   // 锁定按钮 + 切换 loading 文字 (避免重复点击 + 给用户视觉反馈)
   const okBtn = document.getElementById('promptModalOkBtn');
