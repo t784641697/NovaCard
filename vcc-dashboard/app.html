@@ -707,11 +707,13 @@ select.form-control option{background:var(--bg3);}
   .reminder-msg{color:#fbbf24;font-style:italic}
   .reminder-msg-empty{color:var(--text-muted);opacity:.5}
 /* v1.0.60: 平铺场景(适用平台) - label 在上, value 横向滚动不换行 */
-.reminder-item-inline{display:block!important}
-.reminder-item-inline .reminder-label{display:block;margin-bottom:4px}
-.reminder-value-inline{display:block;white-space:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:4px;color:var(--text-primary);font-size:.85rem}
-.reminder-value-inline::-webkit-scrollbar{height:4px}
-.reminder-value-inline::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+/* v1.0.60 改进: 跨满 grid 整行 (grid-column: 1/-1) + 真正平铺 */
+.reminder-item-inline{grid-column:1/-1;display:block}
+.reminder-item-inline .reminder-label{display:block;margin-bottom:6px;font-size:.72rem}
+.reminder-value-inline{display:block;white-space:nowrap;overflow-x:auto;overflow-y:hidden;padding:6px 10px;background:rgba(99,102,241,.06);border-radius:6px;color:var(--text-primary);font-size:.8rem;line-height:1.5}
+.reminder-value-inline::-webkit-scrollbar{height:6px}
+.reminder-value-inline::-webkit-scrollbar-thumb{background:rgba(99,102,241,.3);border-radius:3px}
+.reminder-value-inline::-webkit-scrollbar-track{background:rgba(255,255,255,.03)}
 .reminder-prohib{grid-column:1 / -1;display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-top:8px;border-top:1px solid rgba(167,139,250,.15);}
 .reminder-prohib-list{display:flex;flex-wrap:wrap;gap:6px;}
 .prohib-tag{font-size:.75rem;padding:2px 10px;border-radius:20px;background:rgba(255,95,95,.12);color:#ff6b6b;border:1px solid rgba(255,95,95,.2);}
@@ -3022,12 +3024,18 @@ function selectBin(p) {
     const platforms = p.applicable_platforms || p.docx_platforms || null;
     const platformStr = (platforms && platforms.length) ? platforms.join(', ') : '—';
     const msg = p.custom_message || null;
+    // v1.0.60: 卡归属地中文化 + flag emoji; type/media 中文化 (未知值回退原文)
+    const localeArea = (p.issuing_area_name || p.issuing_area || '—');
+    const flag = p.issuing_area_flag || '';
+    const areaDisplay = flag ? `${flag} ${localeArea}` : localeArea;
+    const typeMap = { save: '储蓄卡', credit: '信用卡', debit: '借记卡', prepaid: '预付费卡' };
+    const mediaMap = { virtual_card: '虚拟卡', physical_card: '实体卡' };
     const rows = [
-      { label: '卡归属地',    value: p.issuing_area || '—' },
+      { label: '卡归属地',    value: areaDisplay },
       { label: '卡段',        value: (p.bin ? String(p.bin).slice(0, 6) : '—') },
-      { label: '卡片类型',    value: p.type || '—' },
+      { label: '卡片类型',    value: typeMap[p.type] || p.type || '—' },
       { label: '发卡行',      value: p.network || '—' },
-      { label: '卡形态',      value: p.media || '—' },
+      { label: '卡形态',      value: mediaMap[p.media] || p.media || '—' },
       { label: '管理员备注',  value: msg, highlight: !!msg, message: true },
       { label: '适用平台',    value: platformStr, highlight: !!platforms && platforms.length > 0, inline: true },
     ];
