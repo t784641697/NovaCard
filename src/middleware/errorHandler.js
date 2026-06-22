@@ -19,6 +19,8 @@ function errorHandler(err, req, res, next) {
     else if (vmMsg.includes('Unauthorized') || vmMsg.includes('Authentication')) userMsg = '接口认证失败';
     else if (vmMsg.includes('Timeout') || vmMsg.includes('timeout')) userMsg = '卡商接口响应超时，请稍后重试';
     else if (vmMsg.includes('服务器异常') || vmMsg.includes('700011')) userMsg = '卡商服务器暂时异常，请稍后重试';
+    else if (vmMsg.includes('Amount Is Less Than 10') || vmMsg.includes('400003')) userMsg = '充值金额最低 10 美元';
+    else if (vmMsg.includes('Amount Too Large') || vmMsg.includes('400004')) userMsg = '充值金额超过单笔上限';
     return res.status(422).json({
       code: err.vmCode,
       msg: userMsg,
