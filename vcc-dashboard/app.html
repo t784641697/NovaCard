@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard · v1.0.61-modal-placeholder-clarify</title>
+<title>NovaCard · v1.0.62-modal-label-deemphasize</title>
 <style>
 /* ══════════════════════════════════════════════
    TOKENS
@@ -9235,13 +9235,13 @@ function openCardProductEdit(pc) {
       </div>
 
       <div style="margin-bottom:16px">
-        <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">适用平台（展示在用户申请开卡的适用平台）</label>
+        <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">适用平台<span style="color:var(--text-muted);font-weight:400;font-size:.8rem;margin-left:4px">（展示在用户申请开卡的适用平台）</span></label>
         <textarea id="cp-edit-plats" rows="3" style="width:100%;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:inherit;font-size:.875rem;resize:vertical" placeholder="Facebook, Google, Amazon, OpenAI, ...">${platsStr}</textarea>
         <div class="text-xs mt-1" style="color:var(--text-muted)">建议:Facebook, Google, Amazon, OpenAI, Shopify, Walmart, Alibaba, AliExpress, Twitter, TikTok, Telegram</div>
       </div>
 
       <div style="margin-bottom:18px">
-        <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">管理员备注（展示在用户申请开卡的管理员备注）</label>
+        <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">管理员备注<span style="color:var(--text-muted);font-weight:400;font-size:.8rem;margin-left:4px">（展示在用户申请开卡的管理员备注）</span></label>
         <textarea id="cp-edit-msg" rows="2" maxlength="500" style="width:100%;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:inherit;font-size:.875rem;resize:vertical" placeholder="例如:本卡段仅供AI/Agent付费使用">${p.custom_message || ''}</textarea>
       </div>
 
