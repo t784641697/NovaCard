@@ -2814,9 +2814,7 @@ async function renderApply() {
             <button class="btn btn-outline btn-sm" id="binVisa"  onclick="filterBin('visa')">VISA</button>
             <button class="btn btn-outline btn-sm" id="binMC"    onclick="filterBin('mc')">Mastercard</button>
             <span style="width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 4px"></span>
-            <button class="btn btn-outline btn-sm" id="sceneSocial" onclick="filterBin('scene:social')" style="font-size:.75rem">🌐 社交媒体</button>
-            <button class="btn btn-outline btn-sm" id="sceneEcom"   onclick="filterBin('scene:ecom')"   style="font-size:.75rem">🛒 电商</button>
-            <button class="btn btn-outline btn-sm" id="sceneAi"     onclick="filterBin('scene:ai')"     style="font-size:.75rem">🤖 AI订阅</button>
+            <span id="binSceneFilters" class="flex gap-2 flex-wrap" data-dynamic-region="scene"></span>
             <span style="width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 4px"></span>
             <span id="binCountryFilters" class="flex gap-2 flex-wrap" data-dynamic-region="country"></span>
           </div>
@@ -2877,11 +2875,27 @@ async function renderApply() {
   loadMyApplications();
 }
 
-const SCENARIO_KEYS = {
-  social: { label: '社交媒体', keywords: ['Facebook','Twitter','Telegram','TikTok'] },
-  ecom:   { label: '电商',     keywords: ['Amazon','Shopify','Walmart','Alibaba','AliExpress'] },
-  ai:     { label: 'AI订阅',   keywords: ['OpenAI','AI/Agent'] },
-};
+// v1.0.70 场景列表 (从后端 /api/cards/meta/scenarios 拉取)
+// 改为动态加载: 管理员在"卡段管理"页配置场景, 派生规则 (B 规则) 由后端执行
+let _scenariosList = [];  // [{id, scenario_name, scenario_icon, sort_order, enabled}]
+
+function _renderSceneFilters() {
+  const box = document.getElementById('binSceneFilters');
+  if (!box) return;
+  const enabled = _scenariosList.filter(s => s.enabled !== 0);
+  const sceneBtns = enabled.map(s =>
+    `<button class="btn btn-outline btn-sm bin-scene-btn" data-scene="${s.id}" onclick="filterBin('scene:${s.id}')" style="font-size:.75rem">${s.scenario_icon || ''} ${escapeHtml(s.scenario_name)}</button>`
+  ).join('');
+  // v1.0.70: 追加"待分配场景"灰标签 (不参与过滤逻辑, 仅展示, 静态样式区别于可点击场景按钮)
+  const unassignedBtn = `<button class="btn btn-outline btn-sm bin-scene-btn bin-scene-unassigned" data-scene="unassigned" onclick="filterBin('scene:unassigned')" style="font-size:.75rem;opacity:.55;border-style:dashed">⏳ 待分配场景</button>`;
+  box.innerHTML = sceneBtns + unassignedBtn;
+}
+
+// v1.0.70: HTML 转义工具 (场景名等用户/管理员可能输入特殊字符)
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // 从 apiList 动态提取所有出现过的国家（基于后端 normalizer 返回的 issuing_area_code/name/flag）
 // 未来上游新增任何国家,JS 自动从 list 里提取并渲染,无需改代码
@@ -2916,9 +2930,9 @@ function filterBin(f) {
   // 网络按钮重置
   ['All','Visa','MC'].forEach(n=>document.getElementById('bin'+n)?.classList.remove('btn-primary'));
   ['All','Visa','MC'].forEach(n=>document.getElementById('bin'+n)?.classList.add('btn-outline'));
-  // 场景按钮重置
-  Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.remove('btn-primary'));
-  Object.keys(SCENARIO_KEYS).forEach(k=>document.getElementById('scene'+k.charAt(0).toUpperCase()+k.slice(1))?.classList.add('btn-outline'));
+  // 场景按钮重置 (动态类选择器)
+  document.querySelectorAll('.bin-scene-btn').forEach(b=>b.classList.remove('btn-primary'));
+  document.querySelectorAll('.bin-scene-btn').forEach(b=>b.classList.add('btn-outline'));
   // 国家按钮重置
   // 动态国家按钮(用类选择器,无需硬编码国家列表)
   document.querySelectorAll('.bin-country-btn').forEach(b=>b.classList.remove('btn-primary'));
@@ -2928,9 +2942,9 @@ function filterBin(f) {
   else if (f==='visa') document.getElementById('binVisa')?.classList.replace('btn-outline','btn-primary');
   else if (f==='mc') document.getElementById('binMC')?.classList.replace('btn-outline','btn-primary');
   else if (f.startsWith('scene:')) {
-    const s = f.split(':')[1];
-    const id = 'scene'+s.charAt(0).toUpperCase()+s.slice(1);
-    document.getElementById(id)?.classList.replace('btn-outline','btn-primary');
+    // 场景高亮（通过 data-scene 属性匹配, 兼容任意数量场景）
+    const sid = f.split(':')[1];
+    document.querySelector(`.bin-scene-btn[data-scene="${sid}"]`)?.classList.replace('btn-outline','btn-primary');
   } else if (f.startsWith('country:')) {
     // 国家高亮（通过 data-country 属性匹配,无需硬编码）
     const code = f.split(':')[1].toUpperCase();
@@ -2941,12 +2955,19 @@ function filterBin(f) {
 
 async function loadBins() {
   try {
-    const res = await apiFetch('/cards/meta/products?raw=1');
-    if (res.code!==0) { document.getElementById('binGrid').innerHTML='<div style="color:var(--red)">'+res.msg+'</div>'; return; }
-    _productList = res.data?.list||[];
+    // v1.0.70: 并行加载卡段列表 + 场景列表
+    const [prodRes, scenRes] = await Promise.all([
+      apiFetch('/cards/meta/products?raw=1'),
+      apiFetch('/cards/meta/scenarios'),
+    ]);
+    if (prodRes.code!==0) { document.getElementById('binGrid').innerHTML='<div style="color:var(--red)">'+prodRes.msg+'</div>'; return; }
+    _productList = prodRes.data?.list||[];
+    _scenariosList = scenRes.code===0 ? (scenRes.data?.list || []) : [];
     // 1.21: 动态提取国家列表并渲染筛选项
     _availableCountries = _extractCountries(_productList);
     _renderCountryFilters();
+    // v1.0.70: 动态渲染场景按钮
+    _renderSceneFilters();
     renderBins(_productList, _binFilter);
   } catch(e) {
     if (e.message!=='Unauthorized') document.getElementById('binGrid').innerHTML='<div style="color:var(--red)">加载失败</div>';
@@ -2965,6 +2986,18 @@ function renderBins(list, filter) {
   if (filter && filter.startsWith('country:')) {
     const code = filter.split(':')[1].toUpperCase();
     filtered = filtered.filter(p => p.issuing_area_code === code);
+  }
+  // v1.0.70 场景筛选: 用后端 /meta/products 下发的 derived_scenarios 字段
+  //   derived_scenarios = [{id, scenario_name, scenario_icon}, ...] 命中的场景列表
+  //   空数组表示没匹配到任何场景, 用户在选择"待分配场景"特殊值时显示
+  if (filter && filter.startsWith('scene:')) {
+    const sid = filter.split(':')[1];
+    if (sid === 'unassigned') {
+      // 特殊值: 没匹配到任何场景的卡段
+      filtered = filtered.filter(p => !p.derived_scenarios || p.derived_scenarios.length === 0);
+    } else {
+      filtered = filtered.filter(p => p.derived_scenarios && p.derived_scenarios.some(s => String(s.id) === String(sid)));
+    }
   }
   if (!filtered.length) { grid.innerHTML='<div style="color:var(--text2)">暂无匹配卡段</div>'; return; }
   // BIN 段统一只显示前 6 位 (12 位上游表示 2 个 6 位 BIN 随机分配, 此处简化为前缀展示)
@@ -9024,10 +9057,22 @@ async function renderCardProductsPage() {
         </div>
       </div>
 
+      <!-- v1.0.70: tab 切换 (卡段列表 / 场景配置) -->
+      <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);padding:0 4px">
+        <button id="cpTab-list" onclick="switchCardProductsTab('list')"
+                style="background:transparent;border:none;color:var(--text-primary);padding:10px 18px;font-size:.9rem;cursor:pointer;border-bottom:2px solid var(--primary);font-weight:600">
+          🎴 卡段列表
+        </button>
+        <button id="cpTab-scenarios" onclick="switchCardProductsTab('scenarios')"
+                style="background:transparent;border:none;color:var(--text-muted);padding:10px 18px;font-size:.9rem;cursor:pointer;border-bottom:2px solid transparent;font-weight:600">
+          🎯 场景配置
+        </button>
+      </div>
+
       <!-- 加载/错误状态 -->
       <div id="card-products-status" class="text-center py-8" style="color:var(--text-muted)">加载中…</div>
 
-      <!-- 搜索 + 表格 + 翻页 -->
+      <!-- 卡段列表 (默认显示) -->
       <div id="card-products-table" style="display:none">
         <!-- 搜索框 -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -9061,9 +9106,184 @@ async function renderCardProductsPage() {
           <div id="card-products-pager-buttons" style="display:flex;gap:4px;align-items:center"></div>
         </div>
       </div>
+
+      <!-- 场景配置 tab (默认隐藏) -->
+      <div id="card-products-scenarios" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <div style="flex:1;color:var(--text-muted);font-size:.8rem">配置"社交媒体/电商/AI订阅"等场景，每个场景绑定若干平台关键词。卡段的 <code>applicable_platforms</code> 命中关键词时，自动归入对应场景。</div>
+          <button onclick="openScenarioEditor(null)"
+                  style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:.85rem">+ 新增场景</button>
+        </div>
+        <div id="scenarios-list" class="space-y-3">
+          <div class="text-center py-8" style="color:var(--text-muted)">加载中…</div>
+        </div>
+      </div>
     </div>
   `;
   await loadCardProducts();
+}
+
+// v1.0.70: tab 切换
+function switchCardProductsTab(tab) {
+  const listBtn = document.getElementById('cpTab-list');
+  const sceBtn = document.getElementById('cpTab-scenarios');
+  const listEl  = document.getElementById('card-products-table');
+  const sceEl   = document.getElementById('card-products-scenarios');
+  if (tab === 'list') {
+    listBtn.style.color = 'var(--text-primary)'; listBtn.style.borderBottomColor = 'var(--primary)';
+    sceBtn.style.color  = 'var(--text-muted)';     sceBtn.style.borderBottomColor = 'transparent';
+    listEl.style.display = '';
+    sceEl.style.display  = 'none';
+  } else {
+    listBtn.style.color = 'var(--text-muted)';    listBtn.style.borderBottomColor = 'transparent';
+    sceBtn.style.color  = 'var(--text-primary)'; sceBtn.style.borderBottomColor = 'var(--primary)';
+    listEl.style.display = 'none';
+    sceEl.style.display  = '';
+    loadScenarios();
+  }
+}
+
+// ===== v1.0.70: 场景配置 (管理员) =====
+async function loadScenarios() {
+  const el = document.getElementById('scenarios-list');
+  if (!el) return;
+  el.innerHTML = `<div class="text-center py-8" style="color:var(--text-muted)">加载中…</div>`;
+  try {
+    const resp = await api('/admin/scenarios');
+    if (resp.code !== 0) throw new Error(resp.msg || '加载失败');
+    const list = resp.data || [];
+    if (list.length === 0) {
+      el.innerHTML = `<div class="text-center py-12" style="color:var(--text-muted)">
+        暂无场景, 点击右上角"新增场景"开始配置
+      </div>`;
+      return;
+    }
+    el.innerHTML = list.map(s => {
+      const platformList = (s.platforms || []).map(p => `<span style="display:inline-block;background:rgba(99,102,241,.12);color:#a5b4fc;padding:3px 10px;border-radius:4px;font-size:.75rem;margin:2px">${escapeHtml(p)}</span>`).join('');
+      return `
+        <div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:14px">
+          <div style="font-size:1.5rem;width:36px;text-align:center">${escapeHtml(s.scenario_icon || '🎯')}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-weight:600;color:var(--text-primary)">${escapeHtml(s.scenario_name)}</span>
+              <span style="font-size:.7rem;color:var(--text-muted)">sort #${s.sort_order}</span>
+              <span style="font-size:.7rem;color:var(--text-muted)">· ${(s.platforms||[]).length} 个平台关键词</span>
+            </div>
+            <div style="line-height:1.6">${platformList || '<span style="color:var(--text-muted);font-size:.75rem">(无关键词)</span>'}</div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--text-muted)">
+            <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleScenarioEnabled(${s.id}, this.checked)" style="cursor:pointer">
+            <span>${s.enabled ? '启用' : '禁用'}</span>
+          </label>
+          <button onclick='openScenarioEditor(${JSON.stringify(s).replace(/'/g, "\\'")})'
+                  style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem">编辑</button>
+          <button onclick="deleteScenario(${s.id}, '${escapeHtml(s.scenario_name)}')"
+                  style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem">删除</button>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="text-center py-8" style="color:#fca5a5">加载失败: ${escapeHtml(String(e.message || e))}</div>`;
+  }
+}
+
+function openScenarioEditor(scenario) {
+  const isEdit = !!scenario;
+  const initialName = scenario ? scenario.scenario_name : '';
+  const initialIcon = scenario ? (scenario.scenario_icon || '') : '🎯';
+  const initialPlatforms = scenario ? (scenario.platforms || []).join(', ') : '';
+  const initialEnabled = scenario ? scenario.enabled : 1;
+
+  const modal = document.createElement('div');
+  modal.id = 'scenario-editor-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px)';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div onclick="event.stopPropagation()" style="background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:24px 28px;width:min(560px,92vw);max-height:90vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <h3 style="margin:0;font-size:1.05rem;color:var(--text-primary)">${isEdit ? '编辑场景 · ' + escapeHtml(initialName) : '新增场景'}</h3>
+        <button onclick="document.getElementById('scenario-editor-modal').remove()" style="background:transparent;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1">×</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">场景名称 <span style="color:#fca5a5">*</span></label>
+          <input id="sc-name" type="text" value="${escapeHtml(initialName)}" placeholder="例如: 社交媒体"
+                 style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:.85rem;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">图标 emoji</label>
+          <input id="sc-icon" type="text" value="${escapeHtml(initialIcon)}" placeholder="🌐 / 🛒 / 🤖 ..."
+                 style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:.85rem;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">平台关键词 <span style="color:var(--text-muted);font-weight:400">(用英文逗号分隔, 精确匹配 + 大小写不敏感)</span></label>
+          <textarea id="sc-platforms" rows="3" placeholder="Facebook, Instagram, Twitter, TikTok ..."
+                    style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:.85rem;outline:none;font-family:inherit;resize:vertical">${escapeHtml(initialPlatforms)}</textarea>
+          <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">提示: 关键词为完整词匹配。卡段的 applicable_platforms 项 === 关键词 (忽略大小写) 时, 自动归入该场景</div>
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;color:var(--text-secondary)">
+            <input id="sc-enabled" type="checkbox" ${initialEnabled ? 'checked' : ''} style="cursor:pointer">
+            <span>启用此场景</span>
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
+        <button onclick="document.getElementById('scenario-editor-modal').remove()"
+                style="background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text-secondary);border-radius:8px;padding:8px 18px;cursor:pointer;font-size:.85rem">取消</button>
+        <button onclick="saveScenario(${scenario ? scenario.id : 'null'})"
+                style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:.85rem;font-weight:600">保存</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function saveScenario(id) {
+  const nameEl = document.getElementById('sc-name');
+  const iconEl = document.getElementById('sc-icon');
+  const platformsEl = document.getElementById('sc-platforms');
+  const enabledEl = document.getElementById('sc-enabled');
+  const name = (nameEl.value || '').trim();
+  if (!name) { alert('场景名称不能为空'); nameEl.focus(); return; }
+  const icon = (iconEl.value || '🎯').trim();
+  const platforms = (platformsEl.value || '').split(',').map(s => s.trim()).filter(Boolean);
+  const enabled = enabledEl.checked ? 1 : 0;
+  const body = { scenario_name: name, scenario_icon: icon, platforms, enabled };
+  try {
+    const resp = id
+      ? await api(`/admin/scenarios/${id}`, 'PUT', body)
+      : await api('/admin/scenarios', 'POST', body);
+    if (resp.code !== 0) throw new Error(resp.msg || '保存失败');
+    document.getElementById('scenario-editor-modal').remove();
+    showToast(id ? '已更新' : '已创建', 'success');
+    await loadScenarios();
+  } catch (e) {
+    alert('保存失败: ' + (e.message || e));
+  }
+}
+
+async function deleteScenario(id, name) {
+  if (!confirm(`确定删除场景 "${name}"?\n\n注意: 该操作不可撤销, 已分配到此场景的卡段将变为"待分配场景"`)) return;
+  try {
+    const resp = await api(`/admin/scenarios/${id}`, 'DELETE');
+    if (resp.code !== 0) throw new Error(resp.msg || '删除失败');
+    showToast('已删除', 'success');
+    await loadScenarios();
+  } catch (e) {
+    alert('删除失败: ' + (e.message || e));
+  }
+}
+
+async function toggleScenarioEnabled(id, enabled) {
+  try {
+    const resp = await api(`/admin/scenarios/${id}`, 'PUT', { enabled: enabled ? 1 : 0 });
+    if (resp.code !== 0) throw new Error(resp.msg || '操作失败');
+    await loadScenarios();
+  } catch (e) {
+    alert('操作失败: ' + (e.message || e));
+    await loadScenarios();
+  }
 }
 
 async function loadCardProducts() {

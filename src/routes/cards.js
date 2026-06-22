@@ -16,8 +16,23 @@ const sdk     = require('../services/vmcardioSDK');
 const cardProductOverrideService = require('../services/cardProductOverrideService');
 const { authenticate } = require('../middleware/auth');
 const { normalizeCountry } = require('../utils/country');
+const { deriveScenariosForProduct } = require('../utils/scenarioMatcher');
 const path = require('path');
 const fs = require('fs');
+
+// v1.0.70 场景配置 DB 读取 (每次 /meta/products 调用时实时拉取, 配置变更即时生效)
+function loadScenarios() {
+  try {
+    // platforms 字段是 JSON 字符串, 需要 parse 成数组
+    return db.prepare(`SELECT id, scenario_name, scenario_icon, sort_order, platforms, enabled
+                       FROM scenario_mappings
+                       WHERE enabled = 1
+                       ORDER BY sort_order ASC`).all()
+      .map(s => ({ ...s, platforms: JSON.parse(s.platforms || '[]') }));
+  } catch (e) {
+    return [];
+  }
+}
 
 // v1.0.23 卡段静态元数据（适用平台 / 限额 / 卡级别），从 data/card_metadata.json 加载
 // 注：上游 vmcardio API 不返回这些字段，data/card_metadata.json 来源是 assets/11111123.docx 16 张截图
@@ -43,6 +58,22 @@ const META_BY_BIN_PREFIX6 = (() => {
 })();
 
 const router = express.Router();
+
+// v1.0.70 公开接口 (放最前, 不走 authenticate) — 用户端开卡页场景按钮用
+router.get('/meta/scenarios', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT id, scenario_name, scenario_icon, sort_order
+      FROM scenario_mappings
+      WHERE enabled = 1
+      ORDER BY sort_order ASC
+    `).all();
+    res.json({ code: 0, msg: 'ok', data: { list: rows } });
+  } catch (err) {
+    res.status(500).json({ code: 500, msg: 'failed: ' + err.message });
+  }
+});
+
 router.use(authenticate);
 
 // ── 开卡申请频率限制：10次/分钟（只限制POST /api/cards）─────────────────────
@@ -572,10 +603,15 @@ router.get('/meta/products', async (req, res, next) => {
     // v1.0.21 ?raw=1: 跳过 HARDCODED 合并，直接返回上游 API 原始数据（调试用）
     if (req.query.raw === '1') {
       // ?raw=1: 跳过 HARDCODED 合并，但仍附加国家标准化字段（供前端展示）
+      // v1.0.70 附加 derived_scenarios 派生字段
+      const scenarios = loadScenarios();
       const listWithNorm = apiList.map(p => {
         const country = normalizeCountry(p.issuing_area);
         // v1.0.23 附加静态元数据(适用平台/限额/卡级别) — docx 截图数据
         const meta = CARD_METADATA.get(p.product_code) || META_BY_BIN_PREFIX6.get(String(p.bin || '').slice(0, 6));
+        const platforms = (Array.isArray(p.applicable_platforms) && p.applicable_platforms.length > 0)
+          ? p.applicable_platforms
+          : (Array.isArray(meta?.applicable_platforms) ? meta.applicable_platforms : []);
         return {
           ...p,
           issuing_area_code: country.code,
@@ -586,6 +622,8 @@ router.get('/meta/products', async (req, res, next) => {
           single_limit:         meta?.meta?.single_limit || null,
           daily_limit:          meta?.meta?.daily_limit || null,
           verification:         meta?.meta?.verification || null,
+          // v1.0.70 场景派生 (B 规则: 精确 + 大小写不敏感)
+          derived_scenarios:    deriveScenariosForProduct({ applicable_platforms: platforms }, scenarios),
         };
       });
       // v1.0.24 合并管理员 DB 覆盖(优先级最高:DB override > docx metadata)
@@ -609,6 +647,8 @@ router.get('/meta/products', async (req, res, next) => {
     // v1.0.21 HARDCODED 条目支持两层: business 字段（业务覆盖）+ display_name（前端友好别名）
     const hardcodedMap = new Map(HARDCODED_PRODUCTS.map(hp => [hp.product_code, hp]));
     // v1.0.24 合并优先级：DB override > HARDCODED > docx metadata > upstream
+    // v1.0.70 派生 derived_scenarios (用合并后最终 applicable_platforms)
+    const scenarios = loadScenarios();
     const merged = apiList
       .map(p => {
         const hp = hardcodedMap.get(p.product_code);
@@ -641,13 +681,17 @@ router.get('/meta/products', async (req, res, next) => {
       // v1.0.24 合并管理员 DB 覆盖(优先级最高:DB override > HARDCODED > docx > upstream)
       .map(item => {
         const ov = cardProductOverrideService.get(item.product_code);
-        if (!ov) return item;
-        return {
-          ...item,
-          available:              ov.available,
-          applicable_platforms:   ov.applicable_platforms !== undefined ? ov.applicable_platforms : item.applicable_platforms,
-          custom_message:         ov.custom_message !== undefined ? ov.custom_message : item.custom_message,
-        };
+        if (ov) {
+          item = {
+            ...item,
+            available:              ov.available,
+            applicable_platforms:   ov.applicable_platforms !== undefined ? ov.applicable_platforms : item.applicable_platforms,
+            custom_message:         ov.custom_message !== undefined ? ov.custom_message : item.custom_message,
+          };
+        }
+        // v1.0.70 派生 (用最终合并后的 platforms, 优先级 DB override > docx)
+        item.derived_scenarios = deriveScenariosForProduct(item, scenarios);
+        return item;
       })
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
@@ -684,5 +728,9 @@ router.get('/meta/products/upstream', async (req, res, next) => {
     res.status(500).json({ code: 500, msg: 'upstream failed: ' + err.message });
   }
 });
+
+
+// ── 公开场景列表已移到 router.use(authenticate) 之前 (v1.0.70)
+
 
 module.exports = router;

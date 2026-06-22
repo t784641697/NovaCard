@@ -283,7 +283,20 @@ db.exec(`
     updated_at             INTEGER NOT NULL,
     updated_by             TEXT    DEFAULT NULL                 -- 管理员邮箱
   );
+
+  -- v1.0.70 场景配置表 (管理员在线配置"平台→场景"映射)
+  CREATE TABLE IF NOT EXISTS scenario_mappings (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_name   TEXT    NOT NULL UNIQUE,                   -- 场景名称: '社交媒体'
+    scenario_icon   TEXT    NOT NULL DEFAULT '',                -- emoji: '🌐'
+    sort_order      INTEGER NOT NULL DEFAULT 0,                 -- 排序
+    platforms       TEXT    NOT NULL DEFAULT '[]',              -- JSON 数组: ["Facebook","OpenAI"]
+    enabled         INTEGER NOT NULL DEFAULT 1,                 -- 0=禁用, 1=启用
+    created_at      TEXT    NOT NULL DEFAULT (nowiso()),
+    updated_at      TEXT    NOT NULL DEFAULT (nowiso())
+  );
   CREATE INDEX IF NOT EXISTS idx_user_fee_configs ON user_fee_configs(user_id, fee_type, is_active);
+  CREATE INDEX IF NOT EXISTS idx_scenario_sort    ON scenario_mappings(sort_order);
 `);
 
 // ── Schema 迁移：补全旧版本缺少的字段 ───────────────────────────────────
@@ -449,6 +462,40 @@ if (!seedUser) {
     VALUES (?, ?, ?, 'user', 0)
   `).run('user@vcc.hub', hash, 'TestUser');
   console.log('[DB] 已插入默认用户账号 user@vcc.hub / User@20261');
+}
+
+// ── 场景映射种子数据 (v1.0.70) ──
+// 服务首次启动时插入 3 个默认场景: 社交媒体/电商/AI订阅
+// 已存在则跳过 (使用 INSERT OR IGNORE)
+const seedScenarios = [
+  {
+    name: '社交媒体',
+    icon: '🌐',
+    sort_order: 1,
+    platforms: ['Facebook','Instagram','Twitter','X','TikTok','Telegram','YouTube','Reddit','Snapchat','Pinterest','LinkedIn','Discord']
+  },
+  {
+    name: '电商',
+    icon: '🛒',
+    sort_order: 2,
+    platforms: ['Amazon','Shopify','Walmart','eBay','Etsy','Alibaba','AliExpress','Mercado','Lazada','Shopee','Tmall','Taobao']
+  },
+  {
+    name: 'AI订阅',
+    icon: '🤖',
+    sort_order: 3,
+    platforms: ['OpenAI','ChatGPT','Midjourney','Claude','Anthropic','Cursor','GitHub Copilot','Perplexity','Notion AI','Jasper','Runway','Suno','Poe','Hugging Face']
+  }
+];
+const insertScenario = db.prepare(`
+  INSERT OR IGNORE INTO scenario_mappings (scenario_name, scenario_icon, sort_order, platforms, enabled)
+  VALUES (?, ?, ?, ?, 1)
+`);
+for (const s of seedScenarios) {
+  const result = insertScenario.run(s.name, s.icon, s.sort_order, JSON.stringify(s.platforms));
+  if (result.changes > 0) {
+    console.log(`[DB] 已插入默认场景: ${s.icon} ${s.name} (${s.platforms.length} 个平台关键词)`);
+  }
 }
 
 // ── announcements 表兼容升级 ──

@@ -2252,6 +2252,155 @@ router.delete('/card-products/:productCode/override', (req, res) => {
   res.json({ code: 0, msg: 'ok' });
 });
 
+// ──────────────────────────────────────────────────────────────────
+// v1.0.70 场景配置 (管理员在线维护"平台→场景"映射)
+// GET    /api/admin/scenarios           — 列出所有场景 (含 platforms 数组)
+// POST   /api/admin/scenarios           — 新增场景
+// PUT    /api/admin/scenarios/:id       — 修改场景 (name/icon/sort_order/platforms/enabled)
+// DELETE /api/admin/scenarios/:id       — 删除场景
+// POST   /api/admin/scenarios/reorder   — 批量调整 sort_order [{id, sort_order}, ...]
+// ──────────────────────────────────────────────────────────────────
+router.get('/scenarios', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT id, scenario_name, scenario_icon, sort_order, platforms, enabled, created_at, updated_at
+      FROM scenario_mappings
+      ORDER BY sort_order ASC
+    `).all();
+    // platforms 字段从 JSON 字符串反序列化为数组
+    const list = rows.map(r => ({
+      ...r,
+      platforms: safeJsonArray(r.platforms),
+    }));
+    res.json({ code: 0, msg: 'ok', data: { list } });
+  } catch (e) {
+    console.error('[admin/scenarios GET] error:', e);
+    res.status(500).json({ code: 500, msg: 'failed: ' + e.message });
+  }
+});
+
+router.post('/scenarios', (req, res) => {
+  try {
+    const { scenario_name, scenario_icon, sort_order, platforms, enabled } = req.body || {};
+    if (!scenario_name || typeof scenario_name !== 'string' || !scenario_name.trim()) {
+      return res.status(400).json({ code: 400, msg: 'scenario_name 不能为空' });
+    }
+    if (!Array.isArray(platforms)) {
+      return res.status(400).json({ code: 400, msg: 'platforms 必须是数组' });
+    }
+    const platformsJson = JSON.stringify(platforms.filter(p => typeof p === 'string' && p.trim()));
+    const sort = Number.isFinite(sort_order) ? sort_order : 99;
+    const en   = enabled === 0 || enabled === false ? 0 : 1;
+    const icon = scenario_icon || '';
+    const result = db.prepare(`
+      INSERT INTO scenario_mappings (scenario_name, scenario_icon, sort_order, platforms, enabled)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(scenario_name.trim(), icon, sort, platformsJson, en);
+    const row = db.prepare(`SELECT * FROM scenario_mappings WHERE id = ?`).get(result.lastInsertRowid);
+    res.json({ code: 0, msg: 'ok', data: { ...row, platforms: safeJsonArray(row.platforms) } });
+  } catch (e) {
+    if (String(e.message).includes('UNIQUE')) {
+      return res.status(409).json({ code: 409, msg: '场景名称已存在' });
+    }
+    console.error('[admin/scenarios POST] error:', e);
+    res.status(500).json({ code: 500, msg: 'failed: ' + e.message });
+  }
+});
+
+router.put('/scenarios/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ code: 400, msg: 'invalid id' });
+    const existing = db.prepare(`SELECT * FROM scenario_mappings WHERE id = ?`).get(id);
+    if (!existing) return res.status(404).json({ code: 404, msg: 'scenario not found' });
+
+    // v1.0.70 仅把前端实际传的字段放进 patch (修复误清空 bug 模式)
+    const patch = {};
+    if (req.body.scenario_name !== undefined) {
+      if (typeof req.body.scenario_name !== 'string' || !req.body.scenario_name.trim()) {
+        return res.status(400).json({ code: 400, msg: 'scenario_name 非法' });
+      }
+      patch.scenario_name = req.body.scenario_name.trim();
+    }
+    if (req.body.scenario_icon !== undefined) {
+      patch.scenario_icon = String(req.body.scenario_icon || '');
+    }
+    if (req.body.sort_order !== undefined) {
+      if (!Number.isFinite(req.body.sort_order)) {
+        return res.status(400).json({ code: 400, msg: 'sort_order 必须是数字' });
+      }
+      patch.sort_order = req.body.sort_order;
+    }
+    if (req.body.platforms !== undefined) {
+      if (!Array.isArray(req.body.platforms)) {
+        return res.status(400).json({ code: 400, msg: 'platforms 必须是数组' });
+      }
+      patch.platforms = JSON.stringify(req.body.platforms.filter(p => typeof p === 'string' && p.trim()));
+    }
+    if (req.body.enabled !== undefined) {
+      patch.enabled = (req.body.enabled === 0 || req.body.enabled === false) ? 0 : 1;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ code: 400, msg: '没有要更新的字段' });
+    }
+    patch.updated_at = new Date().toISOString();
+
+    const setSql = Object.keys(patch).map(k => `${k} = ?`).join(', ');
+    const vals = Object.values(patch);
+    db.prepare(`UPDATE scenario_mappings SET ${setSql} WHERE id = ?`).run(...vals, id);
+    const row = db.prepare(`SELECT * FROM scenario_mappings WHERE id = ?`).get(id);
+    res.json({ code: 0, msg: 'ok', data: { ...row, platforms: safeJsonArray(row.platforms) } });
+  } catch (e) {
+    if (String(e.message).includes('UNIQUE')) {
+      return res.status(409).json({ code: 409, msg: '场景名称已存在' });
+    }
+    console.error('[admin/scenarios PUT] error:', e);
+    res.status(500).json({ code: 500, msg: 'failed: ' + e.message });
+  }
+});
+
+router.delete('/scenarios/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ code: 400, msg: 'invalid id' });
+    const result = db.prepare(`DELETE FROM scenario_mappings WHERE id = ?`).run(id);
+    if (result.changes === 0) return res.status(404).json({ code: 404, msg: 'scenario not found' });
+    res.json({ code: 0, msg: 'ok' });
+  } catch (e) {
+    console.error('[admin/scenarios DELETE] error:', e);
+    res.status(500).json({ code: 500, msg: 'failed: ' + e.message });
+  }
+});
+
+router.post('/scenarios/reorder', (req, res) => {
+  try {
+    const items = Array.isArray(req.body?.items) ? req.body.items : null;
+    if (!items) return res.status(400).json({ code: 400, msg: 'items 必须是数组' });
+    const stmt = db.prepare(`UPDATE scenario_mappings SET sort_order = ?, updated_at = ? WHERE id = ?`);
+    const txn = db.transaction((rows) => {
+      const now = new Date().toISOString();
+      for (const r of rows) {
+        if (!Number.isFinite(r.id) || !Number.isFinite(r.sort_order)) continue;
+        stmt.run(r.sort_order, now, r.id);
+      }
+    });
+    txn(items);
+    res.json({ code: 0, msg: 'ok' });
+  } catch (e) {
+    console.error('[admin/scenarios/reorder] error:', e);
+    res.status(500).json({ code: 500, msg: 'failed: ' + e.message });
+  }
+});
+
+// 工具函数: 安全解析 JSON 数组
+function safeJsonArray(s) {
+  try {
+    const arr = JSON.parse(s || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
 module.exports = router;
 // ── 异常消费告警 ─────────────────────────────────────────────────────────
 /**
