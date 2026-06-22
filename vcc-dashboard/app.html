@@ -1486,6 +1486,7 @@ select.form-control option{background:var(--bg3);}
 </div>
 
 
+<script>
 
 // ═══════════════ 全局 Confirm 模态框 ═══════════════
 let _confirmResolve = null;
@@ -2726,7 +2727,7 @@ async function showCardDetail(cardId) {
       </div>
       
       <div class="flex gap-3 mt-4">
-        ${!isInvalid ? '<button class="btn btn-primary flex-1" onclick="closeCardModal();cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>' : '<button class="btn btn-outline flex-1" disabled style="opacity:.4;cursor:not-allowed">该卡片已失效</button>'}
+        ${!isInvalid ? '<button class="btn btn-primary flex-1" onclick="closeCardModal();openRechargeModal(\'' + c.card_id + '\',\'' + (c.card_number||'') + '\')">💰 充值</button>' : '<button class="btn btn-outline flex-1" disabled style="opacity:.4;cursor:not-allowed">该卡片已失效</button>'}
         ${!isInvalid ? '<button class="btn btn-outline flex-1" onclick="closeCardModal();doFreeze(\'' + c.card_id + '\',\'' + (c.status||'ACTIVE') + '\',\'' + (c.verified_status||'') + '\')">' + (isActive ? '🔒 冻结' : '🔓 解冻') + '</button>' : ''}
         <button class="btn btn-outline flex-1" onclick="closeCardModal();showFbCodesModal(\'' + c.card_id + '\')" style="border-color:#1877f2;color:#1877f2;">🔍 FB验证码</button>
       </div>
@@ -2740,6 +2741,30 @@ function closeCardModal(e) {
   document.getElementById('cardModal').classList.remove('open');
 }
 
+// ── 冻结/解冻 ──
+async function doFreeze(cardId, currentStatus, verifiedStatus) {
+  const cur = String(currentStatus).toUpperCase();
+  const newStatus = cur==='CANCELLED'?'ACTIVE':'CANCELLED';
+  const action = newStatus==='CANCELLED'?'冻结':'解冻';
+  // 前置校验：失效卡片不允许操作
+  if (verifiedStatus === 'invalid') {
+    toast('该卡片已失效，无法执行' + action + '操作', 3000);
+    return;
+  }
+  if (!confirm('确认要' + action + '该卡片吗？')) return;
+  try {
+    const res = await apiFetch(`/cards/${cardId}/freeze`,{method:'POST',body:JSON.stringify({status:newStatus})});
+    if (res.code!==0) { toast('❌ '+(res.msg||`${action}失败`)); return; }
+    toast(`✅ 卡片已${action}`);
+    if (_curPage==='cards') renderCards();
+  } catch(e) {
+    if (e.message!=='Unauthorized') toast('❌ 操作失败');
+  }
+}
+
+// ── 复制 ──
+function copyVal(val) {
+  if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(val).then(()=>toast('✅ 已复制')).catch(()=>fallbackCopy(val));
   } else { fallbackCopy(val); }
 }
