@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard · v1.0.75-card-product-new-badge</title>
+<title>NovaCard · v1.0.76-recharge-modal-ux</title>
 <style>
 /* ══════════════════════════════════════════════
    TOKENS
@@ -1589,21 +1589,47 @@ function promptModal(opts, defaultValue) {
   return new Promise(resolve => {
     _promptResolve = resolve;
     const overlay = document.getElementById("promptModalOverlay");
-    const input = document.getElementById("promptModalInput");
     const titleEl = document.getElementById("promptModalTitle");
     const descEl = document.getElementById("promptModalDesc");
+    const iconEl = document.getElementById("promptModalIcon");
+    const ta = document.getElementById("promptModalInput");
+    const ni = document.getElementById("promptModalNumInput");
+    const cancelBtn = document.getElementById("promptModalCancelBtn");
+    const okBtn = document.getElementById("promptModalOkBtn");
     if (typeof opts === 'string') opts = { title: opts };
     if (opts.title) titleEl.textContent = opts.title;
-    if (opts.desc) descEl.textContent = opts.desc;
-    input.placeholder = opts.placeholder || '请输入';
-    input.value = defaultValue || '';
+    if (opts.desc !== undefined) descEl.textContent = opts.desc;
+    // 图标：hideIcon 时隐藏整个 emoji 容器
+    if (opts.hideIcon) { iconEl.style.display = 'none'; }
+    else { iconEl.style.display = ''; iconEl.textContent = opts.icon || '❌'; }
+    // 输入框切换：textarea(默认) / number
+    if (opts.inputType === 'number') {
+      ta.style.display = 'none';
+      ni.style.display = 'block';
+      ni.value = defaultValue || '';
+      ni.placeholder = opts.placeholder || '请输入';
+      setTimeout(() => { ni.focus(); ni.select(); }, 100);
+    } else {
+      ni.style.display = 'none';
+      ta.style.display = '';
+      ta.value = defaultValue || '';
+      ta.placeholder = opts.placeholder || '请输入';
+      setTimeout(() => { ta.focus(); ta.select(); }, 100);
+    }
+    // 按钮文字 + 颜色 + 显隐
+    okBtn.textContent = opts.okText || '拒绝并通知用户';
+    okBtn.style.background = opts.okColor || 'linear-gradient(135deg,#00f2fe,#4facfe)';
+    cancelBtn.textContent = opts.cancelText || '取消';
+    cancelBtn.style.display = opts.hideCancel ? 'none' : '';
     overlay.classList.add('show');
-    setTimeout(() => { input.focus(); input.select(); }, 100);
   });
 }
 function promptModalOk() {
   document.getElementById("promptModalOverlay").classList.remove('show');
-  const val = document.getElementById("promptModalInput").value.trim();
+  const ni = document.getElementById("promptModalNumInput");
+  const ta = document.getElementById("promptModalInput");
+  // 优先取当前可见的输入框
+  const val = (ni.style.display !== 'none' ? ni.value : ta.value).trim();
   if (_promptResolve) { _promptResolve(val); _promptResolve = null; }
 }
 function promptModalCancel() {
@@ -4538,8 +4564,13 @@ window.cmRechargeCard = async function(cardId) {
   // 用项目已有 promptModal（深色主题，跟界面统一）替代浏览器原生 prompt
   const raw = await promptModal({
     title: '💰 卡片充值',
-    desc:  '请输入充值金额（USD），将从您的账户余额扣款。',
-    placeholder: '例：100'
+    desc:  '请输入充值金额，将从您的账户可用余额划转。',
+    placeholder: '例：100',
+    hideIcon: true,                                              // 1. 隐藏头部 ❌ emoji
+    inputType: 'number',                                         // 2. 数字输入框
+    hideCancel: true,                                            // 3. 隐藏取消按钮
+    okText: '立即提交',                                          // 3. 单按钮文字
+    okColor: 'linear-gradient(135deg,#ec4899,#db2777)'           // 3. 品红色按钮
   });
   // 取消：promptModalCancel 返回 null，直接退出，不报错
   if (raw === null) return;
@@ -10123,16 +10154,17 @@ function gotoCardProductsPage(page) {
 <div class="modal-overlay" id="promptModalOverlay" onclick="if(event.target===this)promptModalCancel()">
   <div style="background:linear-gradient(135deg,#0d1322 0%,#13192a 100%);border:1px solid rgba(0,242,254,.2);border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4);">
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-      <div style="font-size:32px;line-height:1;">❌</div>
+      <div id="promptModalIcon" style="font-size:32px;line-height:1;">❌</div>
       <h3 id="promptModalTitle" style="margin:0;color:#ffb347;font-size:18px;font-weight:700;">拒绝企业认证</h3>
     </div>
     <p id="promptModalDesc" style="color:#a6aabe;margin:0 0 20px;line-height:1.6;font-size:14px;">
       请输入拒绝原因，用户将看到此提示。
     </p>
     <textarea id="promptModalInput" style="width:100%;min-height:80px;padding:12px;border-radius:10px;background:rgba(255,255,255,.06);color:#e0e2e8;border:1px solid rgba(0,242,254,.2);font-size:.9rem;resize:vertical;outline:none;box-sizing:border-box;font-family:inherit;" placeholder="请输入拒绝原因"></textarea>
+    <input id="promptModalNumInput" type="number" min="0.01" step="0.01" style="display:none;width:100%;padding:12px;border-radius:10px;background:rgba(255,255,255,.06);color:#e0e2e8;border:1px solid rgba(0,242,254,.2);font-size:.9rem;outline:none;box-sizing:border-box;font-family:inherit;" />
     <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">
-      <button onclick="promptModalCancel()" style="background:rgba(255,255,255,.08);color:#a6aabe;border:1px solid rgba(255,255,255,.12);padding:10px 24px;border-radius:10px;cursor:pointer;font-size:.9rem;transition:all .2s;">取消</button>
-      <button onclick="promptModalOk()" style="background:linear-gradient(135deg,#00f2fe,#4facfe);color:#fff;padding:10px 24px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;border:none;">拒绝并通知用户</button>
+      <button id="promptModalCancelBtn" onclick="promptModalCancel()" style="background:rgba(255,255,255,.08);color:#a6aabe;border:1px solid rgba(255,255,255,.12);padding:10px 24px;border-radius:10px;cursor:pointer;font-size:.9rem;transition:all .2s;">取消</button>
+      <button id="promptModalOkBtn" onclick="promptModalOk()" style="background:linear-gradient(135deg,#00f2fe,#4facfe);color:#fff;padding:10px 24px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;border:none;">拒绝并通知用户</button>
     </div>
   </div>
 </div>
