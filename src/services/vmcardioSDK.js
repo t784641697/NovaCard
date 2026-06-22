@@ -210,23 +210,8 @@ class VmcardioSDK {
   async rechargeCard(card_id, amount) {
     if (!amount || amount <= 0) throw new Error('充值金额必须 > 0');
     logger.info('[rechargeCard] 调用参数:', { card_id, amount, card_id_type: typeof card_id, amount_type: typeof amount, amount_value: amount });
-    try {
-      return await this.request('/rechargeCard', { card_id, amount });
-    } catch (e) {
-      // 仅对 700011 (vmcardio 上游已知异步 bug) 触发自动确认
-      if (e.vmCode === 700011) {
-        logger.warn(`[rechargeCard] ${card_id} 收到 700011, 触发异步确认(等 5 秒查 cardDetail)`);
-        await new Promise(r => setTimeout(r, 5000));
-        const detail = await this.cardDetail(card_id);
-        if (detail && detail.card_id) {
-          logger.info(`[rechargeCard] ${card_id} 异步确认成功, 新余额=${detail.available_amount}`);
-          return { ...detail, _async_success: true, _note: 'vmcardio 700011 异步确认' };
-        }
-        // 兜底: cardDetail 没返回有效数据, 原始错误继续抛
-        logger.error(`[rechargeCard] ${card_id} 异步确认失败, cardDetail 返回异常`);
-      }
-      throw e;
-    }
+    // v1.0.86: 移除 v1.0.84 的 700011 异步确认 (实测 700011 是真失败, 上游 5 秒后未真正扣款)
+    return this.request('/rechargeCard', { card_id, amount });
   }
 
   async refundCard(card_id, amount) {
