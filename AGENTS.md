@@ -189,7 +189,8 @@ sudo systemctl restart nginx
 | v1.0.71 | 2026-06-22 | 场景筛选 + 场景配置 2 个 bug 修复：(1) `deriveScenariosForProduct` 改返回对象数组 `[{id, scenario_name, scenario_icon}]` 让前端 `s.id === sid` 能匹配；(2) 5 处 `api()` 改 `apiFetch(path, {method, body})`（项目里实际叫 apiFetch） |
 | v1.0.72 | 2026-06-22 | `loadScenarios` 解析响应结构修复：后端返回 `{data: {list: [...]}}` 嵌套结构，前端改用 `(resp.data && resp.data.list) \|\| []` |
 | v1.0.73 | 2026-06-22 | `/api/cards/meta/products?raw=1` 分支在合并 DB override 后必须重算 `derived_scenarios` |
-| v1.0.74 | 2026-06-22 | 申请开卡页 "可用卡段" 标题移除，简化外层 flex 嵌套 |，否则前端拿到的派生结果是基于 docx metadata（错的空数组）。修复：listWithOverride.map 内 `merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios)` 立即重算 |
+| v1.0.74 | 2026-06-22 | 申请开卡页 "可用卡段" 标题移除，简化外层 flex 嵌套 |
+| v1.0.75 | 2026-06-22 | **卡段 NEW 标签 (滑动窗口追踪)**: 新表 `card_product_last_seen` (id=1, codes JSON), 新建 service `src/services/cardProductSeenLog.js` (5 个 pure functions), `/api/cards/meta/products` 加 `is_new` 派生 + 同步 last_seen, `/api/admin/card-products` 加 `is_new_map`, 新增 `POST /api/admin/card-products/reset-seen-log` 手动重置接口; 前端产品列加绿色 `🆕 NEW` 徽章 + 搜索框旁"重置 NEW 基准"按钮; 首次部署自动种子化 (admin 看不到假 NEW); 3 个 bug 修复: isNewMap 数组→object, ?raw=1 只读不写, reset 接口方法名 set→markAllAsSeen |，否则前端拿到的派生结果是基于 docx metadata（错的空数组）。修复：listWithOverride.map 内 `merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios)` 立即重算 |
 
 ### 🔴 重要：双环境 API 架构说明（v1.0.15 修订）
 

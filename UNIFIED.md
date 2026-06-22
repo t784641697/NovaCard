@@ -1898,4 +1898,98 @@ const rows = [
 - 复合选择器 (0,2,0) 比单类 (0,1,0) 优先级高，CSS 覆盖时优先用复合
 - 模态框内信息去重：标题 + 第一行 + label 副标题不要重复表达同一信息
 
+---
+
+## 28. 卡段 NEW 标签 (v1.0.75 — 2026-06-22)
+
+### 28.1 需求
+上游卡BIN经常变化(移除/新增), admin 拉取卡段时无法快速分辨哪些是"我熟悉的" vs "新出现的"
+解决: 滑动窗口追踪 - 拉取过的就标记"已见过", 之后再出现的才标 NEW
+
+### 28.2 数据模型
+
+```sql
+CREATE TABLE card_product_last_seen (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),  -- 单行表
+  codes      TEXT NOT NULL DEFAULT '[]',          -- JSON 数组
+  updated_at INTEGER NOT NULL
+);
+```
+
+**last_seen = 事实数据, 持久化**  
+**is_new = 派生数据, 不持久化** (每次 API response 临时算)
+
+### 28.3 service 接口 (src/services/cardProductSeenLog.js)
+
+| 方法 | 职责 |
+|------|------|
+| `getLastSeenCodes()` | 读 codes 数组 (失败返 []) |
+| `setLastSeenCodes(codes)` | UPSERT 单行, 失败返 false |
+| `computeIsNewMap(currentList)` | 只读, 返回 `{product_code: boolean}` object |
+| `syncAndCompute(currentList)` | 同步 last_seen + 算 is_new, 含首次种子化逻辑 |
+| `markAllAsSeen(currentList)` | 手动 reset, 拉上游后 setLastSeenCodes |
+
+### 28.4 首次种子化策略
+
+```js
+const lastBefore = getLastSeenCodes();
+const wasFirstRun = lastBefore.length === 0;
+setLastSeenCodes(codes);  // 总是覆盖
+if (wasFirstRun) {
+  // 首次部署: 全部 is_new = false, admin 不会看到 17 个假 NEW
+  return { isNewMap: allFalse, wasFirstRun: true };
+}
+// 正常 diff
+return { isNewMap: diffMap, wasFirstRun: false };
+```
+
+### 28.5 关键 bug 修复 (v1.0.75)
+
+#### Bug 1: isNewMap 数据结构错
+- ❌ 数组: `route 用 isNewMap[item.product_code] 当对象访问 → undefined`
+- ✅ object: `route 用 isNewMap[item.product_code] 当属性访问 → boolean`
+
+#### Bug 2: ?raw=1 重复写 last_seen
+- 修复: `?raw=1` 改调 `computeIsNewMap` (只读), 主分支保持 `syncAndCompute` (写)
+
+#### Bug 3: reset 接口方法名错
+- ❌ `cardProductSeenLog.set(codes)` (不存在)
+- ✅ `cardProductSeenLog.markAllAsSeen(apiList)` (导出名)
+
+### 28.6 为什么独立表不放在 overrides 里?
+
+| 维度 | last_seen 表 | overrides 表 |
+|------|-------------|--------------|
+| 性质 | 系统观察 (历史) | 业务控制 (admin 设置) |
+| 重置影响 | 不应被覆盖 | 应可重置 |
+| 用途 | 派生 is_new | 控制 available/platforms |
+| 维护方 | 系统自动 | admin 手动 |
+
+**独立表原则**: 不同语义的数据不应混在同一张表
+
+### 28.7 滑动窗口语义
+
+| 时刻 | upstream | last_seen | NEW |
+|------|----------|-----------|-----|
+| t1 首次 | [A,B,C,D,E] | []→[A,B,C,D,E] | 无 |
+| t2 无变化 | [A,B,C,D,E] | 不变 | 无 |
+| t3 +F | [A,B,C,D,E,F] | →[A,B,C,D,E,F] | F |
+| t4 无变化 | [A,B,C,D,E,F] | 不变 | 无 |
+
+**关键**: NEW 是临时状态, 一旦 last_seen 更新就消失, 不需要"清 NEW"操作
+
+### 28.8 API 端点
+
+| 端点 | 方法 | 用途 |
+|------|------|------|
+| `/api/cards/meta/products` | GET | 主分支, syncAndCompute |
+| `/api/cards/meta/products?raw=1` | GET | 调试用, 只读 computeIsNewMap |
+| `/api/admin/card-products` | GET | admin 卡段管理, 响应加 is_new_map |
+| `/api/admin/card-products/reset-seen-log` | POST | 手动重置 last_seen |
+
+### 28.9 前端展示
+
+- 产品列: `p.is_new === true` → 绿色 `🆕 NEW` 徽章 + tooltip
+- 搜索框旁: `🔄 重置 NEW 基准` 按钮 → confirm → POST reset 接口
+- reset 后所有 NEW 立即消失 (后端不返回, 前端重新拉取)
 
