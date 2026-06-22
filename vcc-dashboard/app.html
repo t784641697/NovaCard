@@ -1486,20 +1486,6 @@ select.form-control option{background:var(--bg3);}
 </div>
 
 
-<div class="modal-overlay" id="rechargeModal" onclick="closeRechargeModal(event)">
-  <div class="modal modal-sm" id="rechargeModalInner">
-    <button class="modal-close" onclick="closeRechargeModal()">×</button>
-    <div class="modal-title">💰 卡片充值</div>
-    <div id="rechargeCardInfo" style="margin-bottom:16px;font-size:.82rem;color:var(--text2)"></div>
-    <div class="form-group">
-      <label>充值金额（USD）</label>
-      <input class="form-control" type="number" id="rechargeAmt" placeholder="最低 $10" min="10"/>
-    </div>
-    <button class="btn btn-primary btn-block mt-3" id="rechargeConfirmBtn" onclick="confirmRecharge()">确认充值</button>
-  </div>
-</div>
-
-<script>
 
 // ═══════════════ 全局 Confirm 模态框 ═══════════════
 let _confirmResolve = null;
@@ -2740,7 +2726,7 @@ async function showCardDetail(cardId) {
       </div>
       
       <div class="flex gap-3 mt-4">
-        ${!isInvalid ? '<button class="btn btn-primary flex-1" onclick="closeCardModal();openRechargeModal(\'' + c.card_id + '\',\'' + (c.card_number||'') + '\')">💰 充值</button>' : '<button class="btn btn-outline flex-1" disabled style="opacity:.4;cursor:not-allowed">该卡片已失效</button>'}
+        ${!isInvalid ? '<button class="btn btn-primary flex-1" onclick="closeCardModal();cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>' : '<button class="btn btn-outline flex-1" disabled style="opacity:.4;cursor:not-allowed">该卡片已失效</button>'}
         ${!isInvalid ? '<button class="btn btn-outline flex-1" onclick="closeCardModal();doFreeze(\'' + c.card_id + '\',\'' + (c.status||'ACTIVE') + '\',\'' + (c.verified_status||'') + '\')">' + (isActive ? '🔒 冻结' : '🔓 解冻') + '</button>' : ''}
         <button class="btn btn-outline flex-1" onclick="closeCardModal();showFbCodesModal(\'' + c.card_id + '\')" style="border-color:#1877f2;color:#1877f2;">🔍 FB验证码</button>
       </div>
@@ -2754,60 +2740,6 @@ function closeCardModal(e) {
   document.getElementById('cardModal').classList.remove('open');
 }
 
-// ── 充值弹窗 ──
-function openRechargeModal(cardId, cardNumber) {
-  _rechargeCardId = cardId;
-  document.getElementById('rechargeCardInfo').textContent = '卡片：' + (cardNumber||cardId);
-  document.getElementById('rechargeAmt').value = '';
-  document.getElementById('rechargeModal').classList.add('open');
-}
-function closeRechargeModal(e) {
-  if (e && e.target!==document.getElementById('rechargeModal')) return;
-  document.getElementById('rechargeModal').classList.remove('open');
-}
-async function confirmRecharge() {
-  const amt = parseFloat(document.getElementById('rechargeAmt').value);
-  if (!amt||amt<=0) { toast('⚠️ 请输入有效金额'); return; }
-  if (amt<10) { toast('⚠️ 最低充值 $10'); return; }
-  const btn = document.getElementById('rechargeConfirmBtn');
-  btn.disabled = true; btn.innerHTML='<span class="spinner"></span> 处理中…';
-  try {
-    const res = await apiFetch(`/cards/${_rechargeCardId}/recharge`,{method:'POST',body:JSON.stringify({amount:amt})});
-    if (res.code!==0) { toast('❌ '+(res.msg||'充值失败')); return; }
-    toast(`✅ 充值 $${amt} 成功`);
-    closeRechargeModal();
-    if (_curPage==='cards') renderCards();
-  } catch(e) {
-    if (e.message!=='Unauthorized') toast('❌ 充值失败');
-  } finally {
-    btn.disabled=false; btn.textContent='确认充值';
-  }
-}
-
-// ── 冻结/解冻 ──
-async function doFreeze(cardId, currentStatus, verifiedStatus) {
-  const cur = String(currentStatus).toUpperCase();
-  const newStatus = cur==='CANCELLED'?'ACTIVE':'CANCELLED';
-  const action = newStatus==='CANCELLED'?'冻结':'解冻';
-  // 前置校验：失效卡片不允许操作
-  if (verifiedStatus === 'invalid') {
-    toast('该卡片已失效，无法执行' + action + '操作', 3000);
-    return;
-  }
-  if (!confirm('确认要' + action + '该卡片吗？')) return;
-  try {
-    const res = await apiFetch(`/cards/${cardId}/freeze`,{method:'POST',body:JSON.stringify({status:newStatus})});
-    if (res.code!==0) { toast('❌ '+(res.msg||`${action}失败`)); return; }
-    toast(`✅ 卡片已${action}`);
-    if (_curPage==='cards') renderCards();
-  } catch(e) {
-    if (e.message!=='Unauthorized') toast('❌ 操作失败');
-  }
-}
-
-// ── 复制 ──
-function copyVal(val) {
-  if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(val).then(()=>toast('✅ 已复制')).catch(()=>fallbackCopy(val));
   } else { fallbackCopy(val); }
 }
