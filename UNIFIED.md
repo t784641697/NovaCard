@@ -2107,3 +2107,10 @@ promptModal({
 - 所有新参数都有默认值, 旧调用方式完全兼容
 - 拒绝企业认证等场景会多出 X 关闭按钮, 这是合理升级 (不破坏使用)
 
+
+### 30.7 SDK 充值异步确认 (v1.0.84)
+- **触发条件**: `rechargeCard()` 收到 `vmCode === 700011` (vmcardio 上游已知异步 bug)
+- **流程**: 内部 sleep 5s → 调 `cardDetail(card_id)` → 拿到 `available_amount` 视为成功
+- **返回**: 完整 cardDetail + `_async_success: true` + `_note: "vmcardio 700011 异步确认"`
+- **业务影响**: 用户充 10/50 美元从"报错+手动刷新"变成"自动等 5 秒显示成功"
+- **日志关键字**: `[rechargeCard] {card_id} 收到 700011, 触发异步确认(等 5 秒查 cardDetail)`
