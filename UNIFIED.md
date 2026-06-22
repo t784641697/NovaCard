@@ -1863,6 +1863,13 @@ const rows = [
 - ✅ 升级为 `.reminder-value.reminder-msg` (0,2,0) 复合选择器
 - ✅ 颜色用 `#f59e0b` (amber-500)
 
+### 26.5 申请开卡页 "可用卡段" 标题移除 (v1.0.74)
+- 移除 `<div style="font-weight:700">可用卡段</div>` 整行
+- 外层从 `flex items-center justify-between mb-4` 简化为 `flex gap-2 flex-wrap mb-4`（少一个嵌套 div）
+- 按钮区（全部 / VISA / Mastercard / 场景动态 / 国家动态）保留不变
+- 视觉上按钮区贴左显示，更简洁
+- 修复 commit 包含 title 同步更新到 `v1.0.74-remove-available-bins-title`
+
 ### 26.3 卡段编辑模态框
 
 #### 标题 (v1.0.65)

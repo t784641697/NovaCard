@@ -188,7 +188,8 @@ sudo systemctl restart nginx
 | v1.0.70 | 2026-06-22 | **卡段场景配置（新功能）**：`scenario_mappings` 表 + 3 个种子场景（社交媒体🌐/电商🛒/AI 订阅🤖），`src/utils/scenarioMatcher.js` 派生工具（B 规则：精确+大小写不敏感），`/api/cards/meta/products` 加 `derived_scenarios` 字段，`/api/cards/meta/scenarios` 公开接口，`/api/admin/scenarios` CRUD API；前端申请开卡页场景按钮动态化 + 卡段管理页 "场景配置" tab + 编辑弹窗 |
 | v1.0.71 | 2026-06-22 | 场景筛选 + 场景配置 2 个 bug 修复：(1) `deriveScenariosForProduct` 改返回对象数组 `[{id, scenario_name, scenario_icon}]` 让前端 `s.id === sid` 能匹配；(2) 5 处 `api()` 改 `apiFetch(path, {method, body})`（项目里实际叫 apiFetch） |
 | v1.0.72 | 2026-06-22 | `loadScenarios` 解析响应结构修复：后端返回 `{data: {list: [...]}}` 嵌套结构，前端改用 `(resp.data && resp.data.list) \|\| []` |
-| v1.0.73 | 2026-06-22 | `/api/cards/meta/products?raw=1` 分支在合并 DB override 后必须重算 `derived_scenarios`，否则前端拿到的派生结果是基于 docx metadata（错的空数组）。修复：listWithOverride.map 内 `merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios)` 立即重算 |
+| v1.0.73 | 2026-06-22 | `/api/cards/meta/products?raw=1` 分支在合并 DB override 后必须重算 `derived_scenarios` |
+| v1.0.74 | 2026-06-22 | 申请开卡页 "可用卡段" 标题移除，简化外层 flex 嵌套 |，否则前端拿到的派生结果是基于 docx metadata（错的空数组）。修复：listWithOverride.map 内 `merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios)` 立即重算 |
 
 ### 🔴 重要：双环境 API 架构说明（v1.0.15 修订）
 
