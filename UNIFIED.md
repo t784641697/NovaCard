@@ -1672,3 +1672,223 @@ function selectBin(p) {
 - ❌ **修改 HARDCODED 业务层"临时"关卡段**: HARDCODED 改完要发版，不能在线调整 → 用 override
 - ❌ **POST /api/cards 端不重新检查 override**: 前端可绕过 selectBin 校验 → 后端 cards.js 合并链路已含 DB override，开卡审批时自动用最新值
 - ❌ **`applicable_platforms` 用逗号字符串**: 必须存 JSON 数组，docx 也是数组；自定义消息 textarea 用逗号分隔再 split 是前端 UX 优化
+
+---
+
+## 25. 卡段场景配置（v1.0.70-v1.0.73 — 2026-06-22）
+
+### 25.1 设计动机
+- 旧版申请开卡页场景按钮（社交媒体/电商/AI订阅）硬编码在 `app.html`，上游卡BIN变化时无法跟进
+- 管理员想新增场景（如"游戏""流媒体"）要改代码发版
+- 解决：**平台-场景映射表 + 派生机制** — 管理员在线配置场景，user 端按 `applicable_platforms` 自动派生匹配
+
+### 25.2 数据模型
+
+```sql
+CREATE TABLE scenario_mappings (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  scenario_name   TEXT    NOT NULL UNIQUE,
+  scenario_icon   TEXT    NOT NULL DEFAULT '',  -- emoji/图标
+  sort_order      INTEGER NOT NULL DEFAULT 0,    -- 小的在前
+  platforms       TEXT    NOT NULL DEFAULT '[]', -- JSON 字符串数组
+  enabled         INTEGER NOT NULL DEFAULT 1,    -- 0/1
+  updated_at      INTEGER NOT NULL,              -- ms 时间戳
+  updated_by      TEXT    DEFAULT NULL
+);
+```
+
+#### 种子数据（首次建表自动插入）
+| id | scenario_name | icon | sort_order | platforms |
+|----|---------------|------|-----------|-----------|
+| 1 | 社交媒体 | 🌐 | 1 | Facebook/Twitter/TikTok/Telegram/Discord/Instagram |
+| 2 | 电商 | 🛒 | 2 | Amazon/AliExpress/Shopify/Walmart/Alibaba/eBay |
+| 3 | AI 订阅 | 🤖 | 3 | OpenAI/ChatGPT/Claude/Gemini/Midjourney/Anthropic |
+
+### 25.3 匹配规则：精确 + 大小写不敏感（B 规则）
+
+```js
+// src/utils/scenarioMatcher.js
+function matches(platform, keyword) {
+  return String(platform).trim().toLowerCase() === String(keyword).trim().toLowerCase();
+}
+
+function deriveScenariosForProduct(product, scenarios) {
+  const platforms = (Array.isArray(product.applicable_platforms) && product.applicable_platforms.length > 0)
+    ? product.applicable_platforms
+    : (Array.isArray(product.docx_platforms) ? product.docx_platforms : []);
+  const matched = [];
+  for (const s of scenarios) {
+    if (!s.enabled) continue;
+    const hit = s.platforms.some(kw => platforms.some(p => matches(p, kw)));
+    if (hit) matched.push({ id: s.id, scenario_name: s.scenario_name, scenario_icon: s.scenario_icon });
+  }
+  return matched;
+}
+```
+
+- 关键字 vs 平台字符串**完全相等**才算命中
+- `toLowerCase()` 大小写不敏感
+- 没匹配到任何场景：返回空数组 → 前端用静态"⚪ 待分配场景"灰标签展示
+
+### 25.4 数据流（单一数据源）
+
+```
+管理员在卡段管理 → 编辑卡段 → 适用平台输入框 (复用 v1.0.58)
+   ↓ 保存
+card_product_overrides.applicable_platforms (DB)
+   ↓ 读
+/api/cards/meta/products 返回 p.applicable_platforms
+   ↓ 派生
+p.derived_scenarios = deriveScenariosForProduct(p, scenarios)
+   ↓ 前端
+用户端申请开卡场景按钮 + 派生结果联动过滤
+```
+
+**核心原则**：`applicable_platforms` 已经是管理员在卡段管理维护的"单一数据源"，场景配置**完全派生**自它，零数据冗余。
+
+### 25.5 API 端点
+
+| 端点 | 方法 | 鉴权 | 说明 |
+|------|------|------|------|
+| `/api/cards/meta/scenarios` | GET | 公开 | 列出 `enabled=1` 场景基础字段 |
+| `/api/admin/scenarios` | GET | admin | 列出全部场景（含 disabled + platforms） |
+| `/api/admin/scenarios` | POST | admin | 新增 |
+| `/api/admin/scenarios/:id` | PUT | admin | 更新（partial） |
+| `/api/admin/scenarios/:id` | DELETE | admin | 删除 |
+| `/api/admin/scenarios/:id/toggle` | POST | admin | 启用/禁用 |
+
+#### 响应嵌套结构
+- 后端统一返回 `{ code, msg, data: { list: [...] } }`
+- 前端解析必须写 `(resp.data && resp.data.list) || []`，**不能**写 `resp.data || []`（拿到的是对象不是数组）
+
+### 25.6 `?raw=1` 分支关键 bug（v1.0.73 修复）
+
+`/api/cards/meta/products?raw=1` 在合并 DB override 时，**只覆盖了 `applicable_platforms`，没有重算 `derived_scenarios`**：
+
+```js
+// ❌ 错误 (v1.0.70-72)：前端拿到的 derived_scenarios 仍是基于 docx metadata 派生的(空数组)
+const listWithOverride = listWithNorm.map(item => {
+  const ov = cardProductOverrideService.get(item.product_code);
+  if (!ov) return item;
+  return { ...item, applicable_platforms: ov.applicable_platforms };
+  // 缺：override 后必须立即重算派生！
+});
+
+// ✅ 正确 (v1.0.73)：override 后立即重算
+const listWithOverride = listWithNorm.map(item => {
+  const ov = cardProductOverrideService.get(item.product_code);
+  if (!ov) return item;
+  const merged = { ...item, applicable_platforms: ov.applicable_platforms };
+  merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios);  // 关键
+  return merged;
+});
+```
+
+**所有需要派生字段的分支都必须 override 后立即重算**，主分支（行 681-695）已做对，`?raw=1` 分支 v1.0.73 补上。
+
+### 25.7 前端实现
+
+#### 用户端 申请开卡页
+- 场景按钮列表从硬编码 → 动态从 `/api/cards/meta/scenarios` 拉取
+- 渲染顺序按 `sort_order` 升序
+- 每个按钮：`<emoji> <scenario_name>` 文本
+- 点击 → `filterBin(scenario.id)` 过滤 `_productList`（保留 `p.derived_scenarios.some(s => s.id === sid)`）
+- 派生结果空 → 卡片显示"⚪ 待分配场景"静态灰标签
+
+#### 卡段管理页 场景配置 tab
+- 新增 tab "场景配置"，位置在"卡段列表"之后
+- 列出全部场景（enabled+disabled），每个场景卡片：
+  - 名称（h3）+ 图标（大号 emoji）
+  - 关键词 chips（platforms 数组）
+  - 启用开关 / 编辑按钮 / 删除按钮
+- 编辑弹窗：名称（必填唯一） + 图标（emoji） + 排序 + 关键词（逗号分隔输入框）
+- **禁止使用 `api()` 函数**：项目里实际叫 `apiFetch(path, { method, body })`
+
+### 25.8 数据一致性
+
+- 新增/更新场景后，user 端 `/meta/scenarios` 公开接口和 admin 端 `/admin/scenarios` 必须保持一致（除了 enabled 过滤）
+- DB override 改变后，`?raw=1` 分支必须重算 derived_scenarios（见 25.6）
+- PM2 cluster 多 worker 直查 DB，**禁止**进程内 cache
+
+### 25.9 关键经验
+- 派生比硬编码更优：单一数据源、扩展性强、零数据冗余
+- 关键词必须**完全匹配** `applicable_platforms` 元素，substring 匹配会导致误伤
+- `?raw=1` / 正常分支的派生逻辑要保持一致，避免改一边忘另一边
+- 嵌套响应结构 `data.list` 必须显式取，前端易漏
+
+---
+
+## 26. 申请开卡提醒面板 + 卡段编辑模态框 UI 规范（v1.0.60-v1.0.69 — 2026-06-22）
+
+### 26.1 申请开卡页 "使用说明" 面板 (rows 数组)
+
+#### 字段定义（v1.0.60+）
+```js
+const rows = [
+  { label: '适用平台', value: p.applicable_platforms || p.docx_platforms, type: 'tags', inline: true },
+  { label: '管理员备注', value: p.custom_message, type: 'text', inline: true },  // v1.0.67+ inline
+  { label: '卡片类型', value: p.card_level, type: 'text' },
+  { label: '单笔限额', value: '$' + p.single_limit, type: 'text' },
+  { label: '每日限额', value: '$' + p.daily_limit, type: 'text' },
+];
+```
+
+#### inline: true 行为
+- 标签 + 值 横向单行，溢出横向滚动（`overflow-x: auto; white-space: nowrap`）
+- `inlineCls` 变量在 render template 抽出支持 `r.message + r.inline` 共存
+- 适用平台 / 管理员备注 / 国家 / 限额外币类型都应 inline
+
+### 26.2 管理员备注值样式 (v1.0.68-69)
+
+```css
+/* 字体/字号与"适用平台"一致 */
+.reminder-value {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 橙色 + 去引号 + 去斜体 (v1.0.68) */
+.reminder-value.reminder-msg {       /* (0,2,0) 优先级 */
+  color: #f59e0b;                     /* amber-500 */
+  font-style: normal;
+}
+```
+
+**禁止**：
+- ❌ 值外面加双引号（前端 escape 时去掉）
+- ❌ 用 `<em>` / `font-style: italic` 强调
+- ❌ CSS 只用 `.reminder-msg` 单类（被同优先级 `.reminder-value-inline` 后定义覆盖）
+
+**必须**：
+- ✅ 升级为 `.reminder-value.reminder-msg` (0,2,0) 复合选择器
+- ✅ 颜色用 `#f59e0b` (amber-500)
+
+### 26.3 卡段编辑模态框
+
+#### 标题 (v1.0.65)
+```
+编辑卡段 · S5395YL · 🇭🇰 香港
+```
+- 三段统一 font-family / font-size / font-weight
+- **禁止**用 monospace 弱化某段
+- **禁止**下方再显示 "BIN: 539502 · 🇭🇰 香港" 行（信息冗余，标题已有）
+
+#### label 文字 (v1.0.66)
+```
+适用平台 (展示在用户-申请开卡-适用平台处)
+管理员备注 (展示在用户-申请开卡-管理员备注处)
+```
+- 副标题用 `-` 分隔三段
+- 副标题样式弱化：`<span style="color: var(--text3); font-weight: 400">`
+
+#### label 副标题 (v1.0.62-63)
+- 副标题用浅灰小字弱化展示
+- 删掉冗余的"📋 docx 默认平台"和"建议:Facebook..."两行
+
+### 26.4 关键经验
+- UI 微调也走 commit，单独版本号追溯方便
+- 多次微调合并成一个 CHANGELOG 条目时保留每个版本的 commit hash
+- 复合选择器 (0,2,0) 比单类 (0,1,0) 优先级高，CSS 覆盖时优先用复合
+- 模态框内信息去重：标题 + 第一行 + label 副标题不要重复表达同一信息
+
+

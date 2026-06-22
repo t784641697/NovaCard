@@ -184,6 +184,11 @@ sudo systemctl restart nginx
 | v1.0.56 | 2026-06-19 | 卡段国家显示扩展性改造（country normalizer）：`src/utils/country.js` 统一处理 `issuing_area` 字符串 → `{code, name, flag}`（Intl.DisplayNames + ALIAS 表 + 字母偏移国旗算法），`/meta/products` 正常 + `?raw=1` 两分支均接入 |
 | v1.0.57 | 2026-06-19 | 地区筛选项动态化：移除 `app.html` 4 个硬编码国家按钮（HK/UK/SG/US），改用 `_extractCountries(apiList)` + `_renderCountryFilters()` 动态生成，filterBin 用类选择器 `.bin-country-btn[data-country]` |
 | v1.0.58 | 2026-06-19 | **卡段管理后台**：管理员侧边栏新增 "卡段管理" 模块，可在线控制每个卡段 `available` 开关 / 编辑 `applicable_platforms` / 设置 `custom_message`，新表 `card_product_overrides` 持久化（优先级最高），用户端开卡页对应卡段置灰 + "⏸ 暂不可用" 遮罩 + 显示适用平台 tag；**关键 bug 修复**: PM2 cluster 2 workers 进程内 cache 共享导致 DELETE 后另一 worker 仍命中旧 cache → 改为每次直查 DB |
+| v1.0.60-v1.0.69 | 2026-06-20~22 | 申请开卡提醒面板 + 卡段编辑模态框 UI 打磨（10 个小修合并） |
+| v1.0.70 | 2026-06-22 | **卡段场景配置（新功能）**：`scenario_mappings` 表 + 3 个种子场景（社交媒体🌐/电商🛒/AI 订阅🤖），`src/utils/scenarioMatcher.js` 派生工具（B 规则：精确+大小写不敏感），`/api/cards/meta/products` 加 `derived_scenarios` 字段，`/api/cards/meta/scenarios` 公开接口，`/api/admin/scenarios` CRUD API；前端申请开卡页场景按钮动态化 + 卡段管理页 "场景配置" tab + 编辑弹窗 |
+| v1.0.71 | 2026-06-22 | 场景筛选 + 场景配置 2 个 bug 修复：(1) `deriveScenariosForProduct` 改返回对象数组 `[{id, scenario_name, scenario_icon}]` 让前端 `s.id === sid` 能匹配；(2) 5 处 `api()` 改 `apiFetch(path, {method, body})`（项目里实际叫 apiFetch） |
+| v1.0.72 | 2026-06-22 | `loadScenarios` 解析响应结构修复：后端返回 `{data: {list: [...]}}` 嵌套结构，前端改用 `(resp.data && resp.data.list) \|\| []` |
+| v1.0.73 | 2026-06-22 | `/api/cards/meta/products?raw=1` 分支在合并 DB override 后必须重算 `derived_scenarios`，否则前端拿到的派生结果是基于 docx metadata（错的空数组）。修复：listWithOverride.map 内 `merged.derived_scenarios = deriveScenariosForProduct(merged, scenarios)` 立即重算 |
 
 ### 🔴 重要：双环境 API 架构说明（v1.0.15 修订）
 

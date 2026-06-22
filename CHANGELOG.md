@@ -1,4 +1,158 @@
 
+## v1.0.60-v1.0.69 | 2026-06-20~22 | 申请开卡提醒面板 + 卡段编辑模态框 UI 打磨
+
+### 背景
+v1.0.58 卡段管理上线后, 用户开卡页"使用说明"面板和 admin 编辑弹窗仍有 9 处细节问题, 全部用 10 个小 commit 修复打磨, 单独版本号.
+
+### 🎨 用户端 申请开卡 提醒面板 (v1.0.60-67)
+
+| 版本 | 改动 | 细节 |
+|------|------|------|
+| v1.0.60 | 提醒面板重排 | 卡段使用说明字段顺序调整, 适用平台从 tag 列式改为平铺式 (整行单行, 溢出横向滚动) |
+| v1.0.61 | 模态框 label 文字明确化 | "适用平台" 标签去掉 "(用英文逗号分隔,留空=沿用 docx)", "自定义消息" → "管理员备注" |
+| v1.0.62 | 模态框 label 括号说明弱化 | 副标题用 `<span style="color: var(--text3); font-weight: 400">` 弱化浅灰小字 |
+| v1.0.63 | 删除两段提示文字 | "📋 docx 默认平台: Facebook, Google..." + "建议:Facebook, OpenAI..." 两行整段移除 |
+| v1.0.64 | 模态框标题加地区 + 删 BIN 行 | "编辑卡段 · S5395YL" → "编辑卡段 · S5395YL · 🇭🇰 香港", 下方 "BIN: 539502 · 🇭🇰 香港" 行删除 |
+| v1.0.65 | 模态框标题字体统一 | "产品 · 别名 · 地区" 三段同一 font-family/font-size/font-weight, 移除 monospace 弱化 |
+| v1.0.66 | label 文字用 - 分隔 | "展示在用户申请开卡的适用平台" → "展示在用户-申请开卡-适用平台处" |
+| v1.0.67 | 管理员备注行也平铺 | rows 数组加 `inline: true` + render template 抽 `inlineCls` 变量支持 `r.message + r.inline` 共存 |
+
+### 🎨 管理员备注值 UI (v1.0.68-69)
+
+| 版本 | 改动 | 细节 |
+|------|------|------|
+| v1.0.68 | 去引号 + 橙色 + 字体一致 | 普通用户端管理员备注值去掉外层双引号, 字体/字号与"适用平台"一致, 颜色用橙色 (`#f59e0b`) |
+| v1.0.69 | CSS specificity 修复 | `.reminder-msg` 与 `.reminder-value-inline` 都是 (0,1,0) 同级后定义胜出导致不生效, 升级为 `.reminder-value.reminder-msg` (0,2,0) 强压 |
+
+### 🧪 验证
+- ✅ 提醒面板: 适用平台 + 管理员备注两行均单行平铺, 溢出横向滚动
+- ✅ 管理员备注: 橙色 (#f59e0b) + 无引号 + 字体与适用平台一致
+- ✅ 模态框: 标题三段统一字体, 副标题浅灰小字弱化
+- ✅ 模态框: 删除 docx 默认平台 + 建议文字 + 下方 BIN 行
+- ✅ CSS 优先级: `.reminder-msg` 升级后颜色正常生效
+
+### 📁 涉及文件
+- `vcc-dashboard/app.html` — 模态框 + 提醒面板 CSS/HTML/JS (主要改动)
+- `CHANGELOG.md` / `UNIFIED.md` — 本次同步
+
+---
+
+## v1.0.70-v1.0.73 | 2026-06-22 | 卡段场景配置 (新功能)
+
+### 背景
+申请开卡页场景搜索按钮(社交媒体/电商/AI订阅)原本是硬编码, 上游卡BIN变化时无法及时跟进, 管理员想新增场景(如"游戏"/"流媒体")也无法扩展.
+v1.0.70 重构为 **平台-场景映射表 + 派生机制**: 管理员在线配置场景, 用户端按卡BIN的 `applicable_platforms` 字段派生匹配, 无需改代码.
+
+### 🏗️ 架构 (v1.0.70)
+
+#### 数据模型: 单表 JSON
+```sql
+CREATE TABLE scenario_mappings (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  scenario_name   TEXT    NOT NULL UNIQUE,
+  scenario_icon   TEXT    NOT NULL DEFAULT '',  -- emoji/图标
+  sort_order      INTEGER NOT NULL DEFAULT 0,    -- 小的在前
+  platforms       TEXT    NOT NULL DEFAULT '[]', -- JSON 字符串数组
+  enabled         INTEGER NOT NULL DEFAULT 1,    -- 0/1
+  updated_at      INTEGER NOT NULL,              -- ms 时间戳
+  updated_by      TEXT    DEFAULT NULL
+);
+```
+
+#### 匹配规则: 精确 + 大小写不敏感 (B 规则)
+```js
+// src/utils/scenarioMatcher.js
+function matches(platform, keyword) {
+  return String(platform).trim().toLowerCase() === String(keyword).trim().toLowerCase();
+}
+```
+
+#### 派生逻辑
+```js
+// 后端 /api/cards/meta/products 调用 deriveScenariosForProduct(p, scenarios)
+// 输入: product.applicable_platforms = ["Facebook", "OpenAI", "Amazon", "ChatGPT"]
+// 输出: p.derived_scenarios = [
+//   { id: 1, scenario_name: "社交媒体", scenario_icon: "🌐" },  // Facebook 命中
+//   { id: 2, scenario_name: "电商", scenario_icon: "🛒" },      // Amazon 命中
+//   { id: 3, scenario_name: "AI 订阅", scenario_icon: "🤖" },    // OpenAI/ChatGPT 命中
+// ]
+// 没匹配到任何场景: 派生结果空数组 → 前端用静态"待分配场景"灰标签展示
+```
+
+#### 数据流
+```
+管理员在卡段管理 → 编辑卡段 → 适用平台输入框 (复用 v1.0.58)
+   ↓ 保存
+card_product_overrides.applicable_platforms (DB)
+   ↓ 读
+/api/cards/meta/products 返回 p.applicable_platforms
+   ↓ 派生
+p.derived_scenarios = deriveScenariosForProduct(p, scenarios)
+   ↓ 前端
+用户端申请开卡场景按钮 + 派生结果联动过滤
+```
+
+#### 种子数据 (3 条)
+| id | scenario_name | icon | sort_order | platforms |
+|----|---------------|------|-----------|-----------|
+| 1 | 社交媒体 | 🌐 | 1 | ["Facebook", "Twitter", "TikTok", "Telegram", "Discord", "Instagram"] |
+| 2 | 电商 | 🛒 | 2 | ["Amazon", "AliExpress", "Shopify", "Walmart", "Alibaba", "eBay"] |
+| 3 | AI 订阅 | 🤖 | 3 | ["OpenAI", "ChatGPT", "Claude", "Gemini", "Midjourney", "Anthropic"] |
+
+#### API
+| 端点 | 方法 | 鉴权 | 说明 |
+|------|------|------|------|
+| `/api/cards/meta/scenarios` | GET | 公开 | 列出 enabled=1 的场景, 返回基础字段 (id, scenario_name, scenario_icon, sort_order) |
+| `/api/admin/scenarios` | GET | admin | 列出全部场景 (含 disabled + platforms) |
+| `/api/admin/scenarios` | POST | admin | 新增场景 |
+| `/api/admin/scenarios/:id` | PUT | admin | 更新场景 |
+| `/api/admin/scenarios/:id` | DELETE | admin | 删除场景 |
+| `/api/admin/scenarios/:id/toggle` | POST | admin | 启用/禁用 |
+
+#### 前端
+- **申请开卡页**: 场景按钮列表从硬编码 → 动态从 `/api/cards/meta/scenarios` 拉取, 配 icon + sort_order 展示
+- **卡段管理页**: 新增 "场景配置" tab, 列出全部场景, 每个场景卡片: 名称 + 图标 + 关键词 + 开关 + 编辑/删除按钮
+- **场景编辑弹窗**: 名称 (唯一) + 图标 (emoji) + 排序 + 关键词 (逗号分隔, 与卡段 applicable_platforms 完全匹配)
+- **"待分配场景"标签**: 派生结果为空的卡段, 前端展示静态灰标签 "⚪ 待分配场景"
+
+### 🐛 v1.0.71-73 关键 bug 修复
+
+#### Bug 1: 场景筛选不生效 (v1.0.71)
+- **症状**: 用户端点击"社交媒体"按钮, 没有匹配的卡BIN出现
+- **根因**: `deriveScenariosForProduct` 返回字符串数组 `["社交媒体", "电商"]`, 但前端 `filterBin` 期望对象数组用 `s.id === sid` 比较
+- **修复**: 改为返回 `[{ id, scenario_name, scenario_icon }, ...]` 对象数组
+
+#### Bug 2: 管理员场景配置 tab 报 "api is not defined" (v1.0.71)
+- **症状**: 卡段管理 → 场景配置 tab 加载失败
+- **根因**: 5 处用了 `api()` 函数, 但项目里实际叫 `apiFetch(path, { method, body })`
+- **修复**: 全部改用 `apiFetch`
+
+#### Bug 3: "list.map is not a function" (v1.0.72)
+- **症状**: 卡段管理 → 场景配置 tab 列表加载失败
+- **根因**: 后端返回 `{ code, msg, data: { list: [...] } }` 嵌套结构, 但前端写 `resp.data || []` 拿到的是对象不是数组
+- **修复**: 改为 `(resp.data && resp.data.list) || []`
+
+#### Bug 4: DB override 后场景仍筛不到 (v1.0.73)
+- **症状**: 管理员给 G5554LC 配置 `applicable_platforms = ["测试"]`, 启用 "测试" 场景, 用户端点 "测试" 按钮仍筛不到 G5554LC
+- **根因**: `/api/cards/meta/products?raw=1` 分支在合并 DB override 时只覆盖 `applicable_platforms` 字段, 没有立即重算 `derived_scenarios`, 前端拿到的派生结果还是基于 docx metadata (错的空数组)
+- **修复**: `listWithOverride.map` 内, 覆盖 `applicable_platforms` 后立即调用 `deriveScenariosForProduct(merged, scenarios)` 重算派生
+
+### 🧪 端到端验证
+- ✅ 3 个种子场景: 社交媒体🌐 / 电商🛒 / AI 订阅🤖, 按钮按 sort_order 排序展示
+- ✅ 16/17 卡段正确派生场景, 1 个未分配 (G55184T) 显示 "⚪ 待分配场景"
+- ✅ 管理员新增 "测试🎯" 场景 + 关键词 "测试" + G5554LC.applicable_platforms = ["测试"] → 用户端 "🎯 测试" 按钮可筛到 G5554LC
+- ✅ 4 个 bug 全部修复: 场景按钮可点、配置 tab 可加载、嵌套 list 可解析、override 后派生正确
+
+### 📁 涉及文件
+- `src/db/database.js` — scenario_mappings 表 DDL + 3 条种子
+- `src/utils/scenarioMatcher.js` — 4 个 pure functions (matches/deriveScenariosForProduct/deriveScenariosBatch/getMatchedScenarioNames)
+- `src/routes/cards.js` — `loadScenarios()` + `/meta/scenarios` 公开接口 + `/meta/products` 派生逻辑
+- `src/routes/admin.js` — `/api/admin/scenarios` CRUD API
+- `vcc-dashboard/app.html` — 申请开卡页场景按钮动态化 + 卡段管理页 "场景配置" tab + 编辑弹窗
+- `CHANGELOG.md` / `UNIFIED.md` — 本次同步
+
+---
+
 ## v1.0.58 | 2026-06-19 | 卡段管理后台（管理员控制可用状态 + 适用平台编辑）
 
 ### 背景
