@@ -200,7 +200,7 @@ function checkBackup() {
     // 优先从备份目录取最新文件
     if (fs.existsSync(backupDir)) {
       const files = fs.readdirSync(backupDir)
-        .filter(f => f.startsWith('novacard-') && f.endsWith('.tar.gz'))
+        .filter(f => f.startsWith('novacard-') && (f.endsWith('.tar.gz') || f.endsWith('.tar.gz.gpg')))
         .map(f => ({
           name: f,
           mtime: fs.statSync(path.join(backupDir, f)).mtime,
