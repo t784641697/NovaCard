@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NovaCard · v1.0.77-recharge-modal-ux-v2</title>
+<title>NovaCard · v1.0.78-recharge-no-negative</title>
 <style>
 /* ══════════════════════════════════════════════
    TOKENS
@@ -1612,8 +1612,14 @@ function promptModal(opts, defaultValue) {
       ni.style.display = 'block';
       ni.value = defaultValue || '';
       ni.placeholder = opts.placeholder || '请输入';
-      ni.min = opts.min !== undefined ? opts.min : '';
-      ni.step = opts.step !== undefined ? opts.step : 100;  // 充值场景默认步长 100
+      ni.min = opts.min !== undefined ? opts.min : 0;            // 数字输入默认 min=0 防负值
+      ni.step = opts.step !== undefined ? opts.step : 100;        // 充值场景默认步长 100
+      // 拦截负值: 键盘输入 -100 / 粘贴 -1 时也清空 (HTML5 min 只影响箭头/校验)
+      ni.oninput = function() {
+        if (this.value !== '' && parseFloat(this.value) < 0) {
+          this.value = this.value.replace(/-/g, '');
+        }
+      };
       setTimeout(() => { ni.focus(); ni.select(); }, 100);
     } else {
       ni.style.display = 'none';
@@ -1636,7 +1642,11 @@ function promptModalOk() {
   const ni = document.getElementById("promptModalNumInput");
   const ta = document.getElementById("promptModalInput");
   // 优先取当前可见的输入框
-  const val = (ni.style.display !== 'none' ? ni.value : ta.value).trim();
+  let val = (ni.style.display !== 'none' ? ni.value : ta.value).trim();
+  // number 模式: 拦截负值兜底 (防止 oninput 未触发的边角情况)
+  if (ni.style.display !== 'none' && val !== '' && parseFloat(val) < 0) {
+    val = val.replace(/-/g, '');
+  }
   if (_promptResolve) { _promptResolve(val); _promptResolve = null; }
 }
 function promptModalCancel() {
@@ -4576,6 +4586,7 @@ window.cmRechargeCard = async function(cardId) {
     hideIcon: true,                                              // 隐藏头部 ❌ emoji
     inputType: 'number',                                         // 数字输入框
     step: 100,                                                   // 步长 100 (上下键 ±100)
+    min: 0,                                                      // 不允许负值
     hideCancel: true,                                            // 隐藏取消按钮
     okText: '立即提交',                                          // 单按钮文字
     okColor: 'var(--grad)',                                      // 项目主色 (冰蓝→薰衣草紫→品粉)
