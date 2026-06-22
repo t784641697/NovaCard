@@ -14,7 +14,7 @@ function errorHandler(err, req, res, next) {
     // 翻译常见 vmcardio 错误
     if (vmMsg.includes('status does not support') || vmMsg.includes('700010')) userMsg = '卡片当前状态不支持此操作';
     else if (vmMsg.includes('Invalid CardId') || vmMsg.includes('Card not found')) userMsg = '卡片不存在或已被删除';
-    else if (vmMsg.includes('Insufficient')) userMsg = '余额不足';
+    else if (vmMsg.includes('Insufficient') || vmMsg.includes('Balance Is Not Enough') || vmMsg.includes('700004')) userMsg = '平台账户余额不足，请联系管理员充值';
     else if (vmMsg.includes('limit') || vmMsg.includes('Limit')) userMsg = '已达到限额限制';
     else if (vmMsg.includes('Unauthorized') || vmMsg.includes('Authentication')) userMsg = '接口认证失败';
     else if (vmMsg.includes('Timeout') || vmMsg.includes('timeout')) userMsg = '卡商接口响应超时，请稍后重试';
