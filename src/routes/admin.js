@@ -1832,12 +1832,17 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         }
         db.prepare(`INSERT INTO cards (card_id, user_id, product_code, available_amount, label, status,
           card_number, expiry_month, expiry_year, cvv, card_type,
-          single_limit, day_limit, month_limit, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, nowiso(), nowiso())`).run(
+          single_limit, day_limit, month_limit,
+          address_line_one, address_line_two, address_city, address_state, address_country, address_post_code,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, nowiso(), nowiso())`).run(
           realCardId, app.user_id, app.product_code || app.card_bin, topupAmt, app.label || 'Virtual Card',
           detail?.card_number || '', detail?.expiry_month || 0, detail?.expiry_year || 0,
           detail?.cvv || '', detail?.card_type || 'save',
-          detail?.single_limit || 0, detail?.day_limit || 0, detail?.month_limit || 0
+          detail?.single_limit || 0, detail?.day_limit || 0, detail?.month_limit || 0,
+          // v1.0.97: 同步写入账单地址 (SDK 拍平后字段无前缀, 映射到带 address_ 前缀的列)
+          detail?.address_line_one || '', detail?.address_line_two || '',
+          detail?.city || '', detail?.state || '', detail?.country || '', detail?.post_code || ''
         );
         createdCards.push(realCardId);
       } catch (err) {
