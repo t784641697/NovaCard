@@ -1402,6 +1402,10 @@ router.get('/users/:id/transactions', (req, res) => {
   const user = db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(userId);
   if (!user) return res.status(404).json({ code: 404, msg: '用户不存在' });
 
+  // v1.0.94 修复：补 cardIds + userCards 定义（v1.0.92 改造时漏了）
+  const userCards = db.prepare('SELECT card_id, card_number, product_code, label, status FROM cards WHERE user_id = ?').all(userId);
+  const cardIds = userCards.map(c => c.card_id);
+
   const { type, start_date, end_date, page = 1, page_size = 50, format } = req.query;
   const limit  = Math.min(parseInt(page_size) || 50, 500);
   const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limit;
@@ -1434,7 +1438,7 @@ router.get('/users/:id/transactions', (req, res) => {
     ORDER BY created_at DESC
   `).all(...walletArgs);
 
-  // 0 张卡时, 也只返回 wallet 流水 (不返回空)
+  // v1.0.94 修复：0 张卡时也只返回 wallet 流水（不调 fetchCardTransactions 避免 SQL "IN ()" 错误）
   if (cardIds.length === 0) {
     if (format === 'csv') {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -1445,11 +1449,19 @@ router.get('/users/:id/transactions', (req, res) => {
       code: 0, msg: 'ok',
       data: {
         user: { id: user.id, email: user.email, name: user.name },
-        cards: [],
+        cards: userCards,
         list: walletRows.slice(offset, offset + limit),
         total: walletRows.length,
         page: parseInt(page), pageSize: limit,
-        summary: { total_count: walletRows.length, total_auth: 0, total_settle: 0, total_refund: 0, by_type: { wallet_topup: walletRows.filter(r=>r.type==='Topup').length, wallet_consume: walletRows.filter(r=>r.type==='Consume').length }, by_card: [] }
+        summary: {
+          total_count: walletRows.length,
+          total_auth: 0, total_settle: 0, total_refund: 0,
+          by_type: {
+            wallet_topup: walletRows.filter(r=>r.type==='Topup').length,
+            wallet_consume: walletRows.filter(r=>r.type==='Consume').length
+          },
+          by_card: []
+        }
       }
     });
   }
