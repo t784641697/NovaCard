@@ -2487,11 +2487,19 @@ async function loadOvCards() {
     if (!el) return;
     if (r.code !== 0) { el.textContent = '—'; return; }
     const now = new Date();
-    const active = (r.data||[]).filter(c => {
+    const cardsList = (r.data && Array.isArray(r.data.list)) ? r.data.list : (Array.isArray(r.data) ? r.data : []);
+    const active = cardsList.filter(c => {
       if (c.error) return false;
       if ((c.status||'').toUpperCase() !== 'ACTIVE') return false;
-      // 过期判断：expire 格式 MM/YY
-      if (c.expire) {
+      // 过期判断：DB 字段是 expiry_month / expiry_year，需自己拼 MM/YY
+      if (c.expiry_month && c.expiry_year) {
+        const mm = parseInt(c.expiry_month, 10);
+        const yy = parseInt(c.expiry_year, 10);
+        // expiry_month 到下个月初才算过期（避免边界当天误判）
+        const exp = new Date(yy, mm, 1);
+        if (exp < now) return false;
+      } else if (c.expire) {
+        // 兼容老格式 MM/YY
         const [mm, yy] = c.expire.split('/');
         const exp = new Date(2000 + parseInt(yy||0), parseInt(mm||1) - 1, 1);
         if (exp < now) return false;
