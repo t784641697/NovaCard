@@ -2224,3 +2224,30 @@ v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1
   - scripts/migrate_v1.0.97_add_card_addresses.js (用 .env VMCARDIO_DEFAULT_BILLING_ADDRESS 回填)
 - 验证: user 3 卡现在有完整地址: `6420 Hickory Hill, Plano, TX 75074, US`
 - 覆盖率 100% (1/1 张卡)
+
+## v1.0.98 (2026-06-25) — 申请开卡 `txResult is not a function` 修复
+
+### 关键修复
+- 开卡申请接口 500：`TypeError: txResult is not a function`
+- 根因：better-sqlite3@^12.8.0 的 `db.transaction(fn).immediate()` 是**同步触发器**，立即执行完返回 `undefined`
+- 错误模式：`const txResult = db.transaction(() => {...}).immediate(); txResult();`
+  - 第一行：事务已执行完，txResult 是 undefined
+  - 第二行：调 undefined() → TypeError
+- 修复：把"事务内赋值"放进回调里
+  - `db.transaction(() => { txResult = {...} }).immediate();`
+
+### 修复位置（3 处）
+- `src/routes/cards.js:130-183` — 申请开卡事务
+- `src/routes/admin.js:1881-1885` — 拒绝申请退款事务
+- `src/routes/admin.js:1915-1932` — 拒绝申请事务
+
+### 验证
+- 用户手动在 `taoliang.ligh@gmail.com` 账号开卡：成功（card_id `2069455464522190849`）
+- DB 验证：6 个地址字段全部正确写入 ✅
+- 部署：commit `036c0db` → 生产 git reset --hard + pm2 reload
+
+### 副产物：地址数据真相
+- v1.0.97 用 `.env VMCARDIO_DEFAULT_BILLING_ADDRESS` 回填的地址是**商户 KYC 地址**，**不是卡的真实账单地址**
+- 用户对比上游后台截图：卡组织分配的账单地址（`185 HANG WAI IND CENTRE, Hong Kong, 00999`）≠ Merchant API `cardDetail.card_address` 字段（KYC 商户地址 `6420 Hickory Hill, Plano, TX, US, 75074`）
+- 真相：vmcardio Merchant API `card_address` = KYC 商户地址；卡的真实账单地址 = 上游后台可见，**API 拿不到**
+- 决策：用户决定**保持现状不动**，v1.0.98 仅修 bug，地址字段保留为 KYC 地址
