@@ -5732,10 +5732,11 @@ async function exportUserTransactionsCSV() {
     if (s.startDate) qs.set('start_date', s.startDate);
     if (s.endDate)   qs.set('end_date',   s.endDate);
     // 端点（按 mode 选 user 路由 或 card 路由）
+    // 注意：API_BASE 已是 /api，path 不能再带 /api 前缀
     const idForFile = s.mode === 'card' ? s.cardId : s.userId;
     const path = (s.mode === 'card'
-      ? `/api/cards/${encodeURIComponent(s.cardId)}/transactions?`
-      : `/api/admin/users/${s.userId}/transactions?`) + qs.toString();
+      ? `/cards/${encodeURIComponent(s.cardId)}/transactions?`
+      : `/admin/users/${s.userId}/transactions?`) + qs.toString();
     // 直接 fetch 拿原始响应（保留 CSV 文本 + Content-Disposition）
     const token = localStorage.getItem('vcc_token') || '';
     const url = API_BASE + path;

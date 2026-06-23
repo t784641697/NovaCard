@@ -1406,54 +1406,85 @@ router.get('/users/:id/transactions', (req, res) => {
   const limit  = Math.min(parseInt(page_size) || 50, 500);
   const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limit;
 
-  // 该用户的卡
-  const userCards = db.prepare(`
-    SELECT id, card_id, card_number, status, available_amount, product_code, label
-    FROM cards WHERE user_id = ? ORDER BY created_at DESC
-  `).all(userId);
-  const cardIds = userCards.map(c => c.card_id);
-  // 该用户有 0 张卡时直接返回空
+  // 钱包流水 (transactions 表) — 优先返回 (业务语义是用户充/扣, 不是卡刷卡)
+  const walletWhere = ['user_id = ?'];
+  const walletArgs = [userId];
+  if (start_date) { walletWhere.push('created_at >= ?'); walletArgs.push(start_date); }
+  if (end_date)   { walletWhere.push('created_at <= ?'); walletArgs.push(end_date + ' 23:59:59'); }
+  if (type === 'Topup' || type === '充值') {
+    walletWhere.push(`type = '充值'`);
+  } else if (type === 'Consume' || type === '消费') {
+    walletWhere.push(`type = '消费'`);
+  }
+  const walletRows = db.prepare(`
+    SELECT
+      id, NULL as auth_id, NULL as card_id,
+      CASE type WHEN '充值' THEN 'Topup' WHEN '消费' THEN 'Consume' ELSE type END as type,
+      'COMPLETE' as status,
+      net_amount as auth_amount,
+      net_amount as settle_amount,
+      'USD' as auth_currency, 'USD' as settle_currency,
+      description as merchant_name,
+      created_at as create_time,
+      NULL as auth_time, NULL as sync_time,
+      NULL as card_number, NULL as product_code, NULL as label,
+      fee_amount, 'wallet' as source
+    FROM transactions
+    WHERE ${walletWhere.join(' AND ')}
+    ORDER BY created_at DESC
+  `).all(...walletArgs);
+
+  // 0 张卡时, 也只返回 wallet 流水 (不返回空)
   if (cardIds.length === 0) {
     if (format === 'csv') {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="transactions_${userId}_empty.csv"`);
-      return res.send('该用户没有卡片\n');
+      res.setHeader('Content-Disposition', `attachment; filename="transactions_${userId}.csv"`);
+      return res.send(buildTransactionsCSV(walletRows));
     }
     return res.json({
       code: 0, msg: 'ok',
       data: {
         user: { id: user.id, email: user.email, name: user.name },
         cards: [],
-        list: [], total: 0, page: 1, pageSize: 50,
-        summary: { total_count: 0, total_auth: 0, total_settle: 0, total_refund: 0, by_type: {}, by_card: [] }
+        list: walletRows.slice(offset, offset + limit),
+        total: walletRows.length,
+        page: parseInt(page), pageSize: limit,
+        summary: { total_count: walletRows.length, total_auth: 0, total_settle: 0, total_refund: 0, by_type: { wallet_topup: walletRows.filter(r=>r.type==='Topup').length, wallet_consume: walletRows.filter(r=>r.type==='Consume').length }, by_card: [] }
       }
     });
   }
 
-  // CSV 导出（最多 5000 条）
+  // CSV 导出 (最多 5000 条, 钱包流水 + 卡流水)
   if (format === 'csv') {
-    const csvAll = fetchCardTransactions(cardIds, { type, start_date, end_date, page: 1, page_size: 5000 });
-    const csv = buildTransactionsCSV(csvAll.rows);
+    const cardCsv = fetchCardTransactions(cardIds, { type: type === 'Topup' || type === '充值' || type === 'Consume' || type === '消费' ? null : type, start_date, end_date, page: 1, page_size: 5000 });
+    const merged = [...cardCsv.rows, ...walletRows].sort((a, b) => (b.create_time || '').localeCompare(a.create_time || '')).slice(0, 5000);
+    const csv = buildTransactionsCSV(merged);
     const fname = `transactions_${userId}_${(start_date||'all')}_${(end_date||'all')}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
     return res.send(csv);
   }
 
-  // 分页 + Summary（走公共函数）
-  const data = fetchCardTransactions(cardIds, { type, start_date, end_date, page, page_size });
+  // 分页 + Summary (走公共函数查卡流水) + 合并钱包流水
+  const data = fetchCardTransactions(cardIds, { type: type === 'Topup' || type === '充值' || type === 'Consume' || type === '消费' ? null : type, start_date, end_date, page, page_size });
+  const mergedList = [...walletRows, ...data.rows].sort((a, b) => (b.create_time || '').localeCompare(a.create_time || ''));
+  const mergedTotal = walletRows.length + data.total;
+  // 简化的分页: 在合并后切片
+  const paged = mergedList.slice(offset, offset + limit);
 
   res.json({
     code: 0, msg: 'ok',
     data: {
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
       cards: userCards,
-      list: data.rows,
-      total: data.total,
+      list: paged,
+      total: mergedTotal,
       page: data.page,
       pageSize: data.pageSize,
       summary: {
-        total_count:  data.totalCount,
+        total_count: mergedTotal,
+        wallet_topup_count: walletRows.filter(r=>r.type==='Topup').length,
+        wallet_consume_count: walletRows.filter(r=>r.type==='Consume').length,
         total_auth:   data.totalAuth,
         total_settle: data.totalSettle,
         total_refund: data.totalRefund,
