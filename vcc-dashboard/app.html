@@ -4736,8 +4736,7 @@ async function loadLedgerList() {
       wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无账户流水</div></div>`;
       return;
     }
-    // 表头 + 列表（之前漏 const header，导致 ReferenceError 被 catch 吞、显示"加载失败"）
-    const header = `<div class="th th-head"><div>交易时间</div><div>交易类型</div><div>费用类型</div><div>币种</div><div>交易金额</div><div>账户余额</div></div>`;
+    // 表头已在外层 panel 顶部渲染 (line 4641-4649), 这里只渲染数据
     const html = items.map(item => {
       const dt = new Date(item.created_at || item.timestamp).toLocaleString('zh-CN');
       const currency = item.currency || 'USD';
@@ -4765,7 +4764,7 @@ async function loadLedgerList() {
         <div style="text-align:right;color:var(--text1);font-weight:600;">$${balance.toFixed(2)}</div>
       </div>`;
     }).join('');
-    wrap.innerHTML = header + (html || '<div class="empty-state"><div class="empty-text">暂无记录</div></div>');
+    wrap.innerHTML = html || '<div class="empty-state"><div class="empty-text">暂无记录</div></div>';
   } catch(e) {
     if (e.message !== 'Unauthorized') {
       wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败，请稍后重试</div></div>`;
