@@ -6417,12 +6417,12 @@ window.showCardDetailModal = function(cardData) {
   document.getElementById('modalCardHolder').textContent = holderName || '—';
   
   // 账单地址
-  const addr1 = cardData.address_line_one || cardData.addr1 || '';
-  const addr2 = cardData.address_line_two || cardData.addr2 || '';
-  const city = cardData.city || '';
-  const state = cardData.state || '';
-  const country = cardData.country || '';
-  const postCode = cardData.post_code || '';
+  const addr1 = cardData.address_line_one || '';
+  const addr2 = cardData.address_line_two || '';
+  const city = cardData.address_city || '';
+  const state = cardData.address_state || '';
+  const country = cardData.address_country || '';
+  const postCode = cardData.address_post_code || '';
   const addressParts = [addr1, addr2, city, state, country, postCode].filter(Boolean);
   document.getElementById('modalCardAddress').textContent = addressParts.join(', ') || '—';
   

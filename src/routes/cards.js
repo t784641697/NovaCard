@@ -230,6 +230,8 @@ router.get('/', async (req, res, next) => {
         id, card_id, card_number, product_code, label, card_type, status,
         available_amount, expiry_month, expiry_year, cvv,
         single_limit, day_limit, month_limit,
+        address_line_one, address_line_two,
+        address_city, address_state, address_country, address_post_code,
         created_at, updated_at
       FROM cards
       WHERE user_id = ?
@@ -285,19 +287,25 @@ router.get('/:card_id', async (req, res, next) => {
     //             limit 相关 7 个字段, last_verified, verified_status
     try {
       db.prepare(`UPDATE cards SET
-          available_amount = COALESCE(?, available_amount),
-          status           = COALESCE(?, status),
-          expiry_month     = COALESCE(?, expiry_month),
-          expiry_year      = COALESCE(?, expiry_year),
-          cvv              = COALESCE(NULLIF(?, ''), cvv),
-          card_number      = COALESCE(NULLIF(?, ''), card_number),
-          card_type        = COALESCE(NULLIF(?, ''), card_type),
-          single_limit     = COALESCE(?, single_limit),
-          day_limit        = COALESCE(?, day_limit),
-          month_limit      = COALESCE(?, month_limit),
-          last_verified    = nowiso(),
-          verified_status  = 'verified',
-          updated_at       = nowiso()
+          available_amount   = COALESCE(?, available_amount),
+          status             = COALESCE(?, status),
+          expiry_month       = COALESCE(?, expiry_month),
+          expiry_year        = COALESCE(?, expiry_year),
+          cvv                = COALESCE(NULLIF(?, ''), cvv),
+          card_number        = COALESCE(NULLIF(?, ''), card_number),
+          card_type          = COALESCE(NULLIF(?, ''), card_type),
+          single_limit       = COALESCE(?, single_limit),
+          day_limit          = COALESCE(?, day_limit),
+          month_limit        = COALESCE(?, month_limit),
+          address_line_one   = COALESCE(NULLIF(?, ''), address_line_one),
+          address_line_two   = COALESCE(NULLIF(?, ''), address_line_two),
+          address_city       = COALESCE(NULLIF(?, ''), address_city),
+          address_state      = COALESCE(NULLIF(?, ''), address_state),
+          address_country    = COALESCE(NULLIF(?, ''), address_country),
+          address_post_code  = COALESCE(NULLIF(?, ''), address_post_code),
+          last_verified      = nowiso(),
+          verified_status    = 'verified',
+          updated_at         = nowiso()
         WHERE card_id = ?
       `).run(
         detail.available_amount ?? null,
@@ -310,6 +318,13 @@ router.get('/:card_id', async (req, res, next) => {
         detail.single_limit ?? null,
         detail.day_limit ?? null,
         detail.month_limit ?? null,
+        // SDK 拍平后的字段不带前缀 (city/state/country/post_code)
+        detail.address_line_one || '',
+        detail.address_line_two || '',
+        detail.city || '',
+        detail.state || '',
+        detail.country || '',
+        detail.post_code || '',
         card_id
       );
     } catch (syncErr) {
