@@ -265,3 +265,6 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 | v1.0.92 | 2026-06-23 | 修复普通用户"账户流水"表头重复 (panel + wrap 双重渲染) + admin `/users/:id/transactions` 路由补充查 transactions 表 |
 | v1.0.93 | 2026-06-23 | 修复资金概览"资金验证异常/分配验证异常"误报 (`balanceOk = d.merchant_balance >= 100` 风控阈值被误用) → 改用 `Math.abs(vmcardio - (users_total + system_reserved)) < 0.01` 真正守恒判断 |
 | v1.0.94 | 2026-06-23 | **资金安全 4 bug 一次修**：(1) 申请时充值冻结没写流水 → 改用 `BalanceService.recordSpend` 合并写 `type='消费'` 流水；(2) 拒绝/失败退还没写流水 → 改用 `BalanceService.recordRefund` 写 `type='退款'`；(3) v1.0.92 漏了 `cardIds` 变量定义导致 `/api/admin/users/:id/transactions` 500 → 补定义；(4) 申请时无事务锁并发可绕过余额检查 → 整段包进 `db.transaction().immediate()` SQLite 写锁串行化；新增 `scripts/migrate_v1.0.94_backfill_transactions.js` 历史数据 migration 工具 |
+| v1.0.95 | 2026-06-23 | 修复普通用户"账户总览"活跃卡片显示"—"（r.data 当数组调用 TypeError）+ 改用 DB 实际字段 expiry_month/expiry_year 判断过期 |
+| v1.0.96 | 2026-06-24 | 修复卡详情"单笔/日/月限额"显示错位 100 倍（前端 fmtUsd 误标"分单位"+100 → G5554LC $30K/$100K/$500K 商务卡限额正确显示）|
+| v1.0.97 | 2026-06-24 | 修复卡详情"账单地址"空（cards 表加 6 个地址列 + persistCardDetailToDb 写地址 + /api/cards 读地址 + admin.js INSERT 加地址 + migration 用 .env VMCARDIO_DEFAULT_BILLING_ADDRESS 回填现有卡）|

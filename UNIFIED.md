@@ -2191,3 +2191,36 @@ v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1
 - 资金平账: user 3 净变动 $57.40 = 余额 $57.40 ✅
 - 部署后 `pm2 reload` 正常, `/health` 9 维度全 OK
 - `/api/admin/users/3/transactions` 不再 500, 返回 7 条完整流水 (充值×2 + 开卡费×2 + 冻结×2 + 退款×1)
+
+---
+
+## v1.0.95 (2026-06-23) — 普通用户"账户总览"活跃卡片显示"—"
+
+### 关键修复
+- `/api/cards` 返回 `{data:{list:[...]}}` 嵌套结构
+- 前端 `loadOvCards` 用 `(r.data||[]).filter(...)` 把对象当数组 → TypeError
+- 静默 catch → `ovCardCount` 保持初始占位 `—`
+- 修复: `Array.isArray(r.data.list) ? r.data.list : (Array.isArray(r.data) ? r.data : [])`
+- 顺手: 过期判断改用 DB 实际字段 `expiry_month/expiry_year`
+
+## v1.0.96 (2026-06-24) — 卡详情限额显示错位 100 倍
+
+### 关键修复
+- G5554LC 卡显示 `$300/$1000/$5000` (看着像小额卡)
+- 实际是 `$30,000/$100,000/$500,000` (高端商务卡)
+- 根因: 上游所有金额都是美元, 但前端 `fmtUsd` 注释标"单位是分" → 错位 ÷100
+- 修复: 去掉 ÷100
+
+## v1.0.97 (2026-06-24) — 卡详情"账单地址"补全
+
+### 关键修复
+- 卡详情"账单地址"显示 `—`
+- 根因: `cards` 表 schema 没 6 个地址列 + persistCardDetailToDb 没写地址 + /api/cards 列表没读地址
+- 修复:
+  - ALTER TABLE cards 加 6 个地址列
+  - persistCardDetailToDb 增加写地址 6 字段
+  - /api/cards SELECT 增加 6 个地址列
+  - admin.js 审批通过 INSERT 增加 6 个地址字段
+  - scripts/migrate_v1.0.97_add_card_addresses.js (用 .env VMCARDIO_DEFAULT_BILLING_ADDRESS 回填)
+- 验证: user 3 卡现在有完整地址: `6420 Hickory Hill, Plano, TX 75074, US`
+- 覆盖率 100% (1/1 张卡)
