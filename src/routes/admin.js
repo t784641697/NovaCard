@@ -1852,9 +1852,22 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     } else {
       db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
         .run('开卡失败: ' + (lastError?.message || '未知错误'), id);
-      // 退还费用
-      const totalRefund = (app.fee_amount || 0) + (app.topup_amount || 0) * Math.max(1, Number(app.quantity) || 1);
-      db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(totalRefund, app.user_id);
+      // v1.0.94 资金安全：用 recordRefund 退还费用 + 写退款流水（之前只改余额不写流水会导致 user 看到"2 笔消费 0 笔退款"假象）
+      const totalRefund = (Number(app.fee_amount) || 0) +
+                         (Number(app.topup_amount) || 0) * Math.max(1, Number(app.quantity) || 1);
+      try {
+        db.transaction(() => {
+          BalanceService.recordRefund(
+            app.user_id,
+            totalRefund,
+            'card_creation',
+            0,
+            `开卡申请 #${id} 审批失败（${lastError?.message || '未知错误'}），退还开卡费+充值冻结`
+          );
+        }).immediate()();
+      } catch (e) {
+        logger.error(`[WebCreate] 审批失败退还 fee+topup 失败: ${e.message}`);
+      }
       logger.info(`[WebCreate] 审批失败已退还 fee+topup $${totalRefund} → user_id=${app.user_id}`);
       res.status(422).json({ code: 422, msg: '开卡失败: ' + (lastError?.message || '未知错误') });
     }
@@ -1872,13 +1885,37 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
     if (!app) return res.status(404).json({ code: 404, msg: '申请记录不存在' });
     if (app.status !== 'pending') return res.status(400).json({ code: 400, msg: '该申请已被处理' });
 
-    // 退还开卡费 + 充值冻结金额
-    const refund = (app.fee_amount || 0) + (app.topup_amount || 0) * Math.max(1, Number(app.quantity) || 1);
-    db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(refund, app.user_id);
-    db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
-      .run(reason || '管理员拒绝了申请', id);
+    // v1.0.94 资金安全：原子事务 + recordRefund 写退款流水
+    //   申请时已一次性扣"开卡费+充值冻结"（cards.js 申请逻辑），此处只退
+    //   - 开卡费 $fee_amount
+    //   - 充值冻结 $topup_amount * quantity
+    //   通过 recordRefund 写 type='退款' 的流水，避免用户看到"2 笔消费 0 笔退款"的假象
+    const refundAmount = (Number(app.fee_amount) || 0) +
+                        (Number(app.topup_amount) || 0) * Math.max(1, Number(app.quantity) || 1);
 
-    res.json({ code: 0, msg: '已拒绝该申请，费用已退还' });
+    let result;
+    try {
+      result = db.transaction(() => {
+        // 退款（自动 UPDATE users.balance + 写 type='退款' 的 transactions 记录）
+        const r = BalanceService.recordRefund(
+          app.user_id,
+          refundAmount,
+          'card_creation',
+          0,
+          `开卡申请 #${id}（${app.product_code || app.card_bin} x ${app.quantity}）被拒绝，退还开卡费+充值冻结`
+        );
+        // 改申请状态
+        db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
+          .run(reason || '管理员拒绝了申请', id);
+        return r;
+      }).immediate();  // 并发安全
+      result = result();
+    } catch (e) {
+      logger.error(`[WebCreate] 拒绝申请 #${id} 退款失败: ${e.message}`);
+      return res.status(500).json({ code: 500, msg: '退款失败: ' + e.message });
+    }
+
+    res.json({ code: 0, msg: `已拒绝该申请，费用已退还 $${refundAmount.toFixed(2)}`, data: { refund: refundAmount, transaction_id: result.transaction_id } });
   } catch (err) {
     next(err);
   }

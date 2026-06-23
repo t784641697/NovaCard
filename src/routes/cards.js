@@ -117,55 +117,82 @@ router.post('/', createCardLimiter, async (req, res, next) => {
     // 计算总开卡费（每张卡收取固定开卡费）
     const feeResult = FeeCalculator.calculateFee('card_creation', 0, req.user.id);
     const cardCreationFee = feeResult.fee_fixed * qty;
-    const totalAmount = topupAmt * qty; // 充值总额（冻结在余额里）
-
-    // 检查用户余额是否足够（开卡费 + 充值费）
-    const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(req.user.id);
-    const userBalance = Number(user?.balance || 0);
+    const totalAmount = topupAmt * qty; // 充值总额（冻结在余额里，审批通过后转到卡上）
     const totalCost = cardCreationFee + totalAmount;
-    if (userBalance < totalCost) {
-      return res.status(400).json({ code: 400, msg: `余额不足。需要 $${totalCost.toFixed(2)}（开卡费 $${cardCreationFee.toFixed(2)} + 充值 $${totalAmount.toFixed(2)}），当前余额 $${userBalance.toFixed(2)}` });
+
+    // ── v1.0.94 资金安全：原子事务 + BEGIN IMMEDIATE 锁
+    //   1) 在事务内读余额 + 写余额 + 写流水 + 插申请 → 全程原子
+    //   2) .immediate() 强制 BEGIN IMMEDIATE，并发申请自动排队
+    //   3) 合并 recordSpend：amount=充值 $X，fee=开卡费 $Y，单条流水 -$(X+Y)
+    //   4) 申请时一次性扣"开卡费+充值冻结"，避免原 line 80 单独 UPDATE 冻结不写流水
+    let newBalance = 0;
+    let lastInsertRowid = 0;
+    try {
+      const txResult = db.transaction(() => {
+        // 事务内读余额（不持锁时并发可能读到脏数据 → IMMEDIATE 强制写锁）
+        const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(req.user.id);
+        if (!user) {
+          throw new Error('用户不存在');
+        }
+        if (user.balance < totalCost) {
+          throw new Error(`余额不足。需要 $${totalCost.toFixed(2)}（开卡费 $${cardCreationFee.toFixed(2)} + 充值 $${totalAmount.toFixed(2)}），当前余额 $${Number(user.balance).toFixed(2)}`);
+        }
+        newBalance = parseFloat((user.balance - totalCost).toFixed(2));
+
+        // 更新余额
+        db.prepare("UPDATE users SET balance = ?, updated_at = nowiso() WHERE id = ?")
+          .run(newBalance, req.user.id);
+        // 更新统计字段
+        db.prepare(`
+          UPDATE users
+          SET total_spend = total_spend + ?,
+              total_fees = total_fees + ?,
+              last_fee_update = nowiso()
+          WHERE id = ?
+        `).run(totalAmount, cardCreationFee, req.user.id);
+
+        // 写 1 条合并流水（开卡费 + 充值冻结）
+        db.prepare(`
+          INSERT INTO transactions
+            (user_id, type, amount, fee_type, fee_amount, net_amount, description, created_at)
+          VALUES (?, '消费', ?, 'card_creation', ?, ?, ?, nowiso())
+        `).run(req.user.id, -totalCost, cardCreationFee, -totalCost,
+          `申请 ${qty} 张虚拟卡 ${product_code || ''}（开卡费 $${cardCreationFee.toFixed(2)} + 充值冻结 $${totalAmount.toFixed(2)}）`);
+
+        // 插申请记录（待审批）
+        const ins = db.prepare(`
+          INSERT INTO card_applications
+            (user_id, product_code, card_bin, first_name, last_name, label,
+             topup_amount, quantity, email, fee_amount)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          req.user.id,
+          product_code,
+          card_bin || '',
+          first_name,
+          last_name,
+          label || '',
+          topupAmt,
+          qty,
+          req.body.email || req.user.email,
+          cardCreationFee
+        );
+        lastInsertRowid = ins.lastInsertRowid;
+      }).immediate();  // ← 关键：强制 BEGIN IMMEDIATE，并发安全
+
+      txResult();
+    } catch (e) {
+      return res.status(400).json({ code: 400, msg: e.message || '申请失败' });
     }
-
-    // 通过余额服务扣除开卡费（amount=0，只扣 fee；topup 走 line 80 单独冻结，避免重复扣款）
-    const spendResult = BalanceService.recordSpend(
-      req.user.id,
-      0, // topup 不计入消费（由下面 UPDATE 冻结）
-      'card_creation',
-      cardCreationFee,
-      `申请 ${qty} 张虚拟卡 ${product_code || ''}，每张充值 $${topupAmt}`
-    );
-
-    // 冻结充值金额（余额扣除，审批通过后转到卡上）
-    db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(totalAmount, req.user.id);
-
-    // 插入申请记录（待审批）
-    const result = db.prepare(`
-      INSERT INTO card_applications
-        (user_id, product_code, card_bin, first_name, last_name, label,
-         topup_amount, quantity, email, fee_amount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      req.user.id,
-      product_code,
-      card_bin || '',
-      first_name,
-      last_name,
-      label || '',
-      topupAmt,
-      qty,
-      req.body.email || req.user.email,
-      cardCreationFee
-    );
 
     res.status(201).json({
       code: 0,
       msg: '申请已提交，等待管理员审批',
-      data: { 
-        application_id: result.lastInsertRowid, 
+      data: {
+        application_id: lastInsertRowid,
         status: 'pending',
         fee_charged: cardCreationFee,
-        new_balance: spendResult.new_balance
+        new_balance: newBalance
       }
     });
   } catch (err) {
