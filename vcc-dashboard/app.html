@@ -9990,7 +9990,9 @@ async function renderAdminFinance() {
     const d = r.data;
 
     const lastSync = d.merchant_last_sync ? new Date(d.merchant_last_sync).toLocaleString('zh-CN') : '未同步';
-    const balanceOk = d.merchant_balance >= 100;
+    // 资金守恒验证: 商户余额 ≈ 用户总余额 + 系统预留 (容差 $0.01)
+    const balanceDiff = Math.abs(d.balance_check.vmcardio_balance - (d.balance_check.users_total_balance + d.balance_check.system_reserved));
+    const balanceOk = balanceDiff < 0.01;
 
     let html = '';
 
