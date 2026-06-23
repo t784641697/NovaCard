@@ -2166,3 +2166,28 @@ v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1
 **Bug**: `balanceOk = d.merchant_balance >= 100` (风控提醒阈值) 被误用为"资金验证"+"分配验证"两个标签的状态判断, 导致 `70.69 < 100` → 红色异常 (实际资金守恒)
 
 **修复**: 改成真正的资金守恒判断 (容差 $0.01) — `Math.abs(vmcardio - (users_total + system_reserved)) < 0.01`
+
+---
+
+## v1.0.94 (2026-06-23) — 资金安全: 申请/拒绝/失败全部走 BalanceService 写流水 + BEGIN IMMEDIATE 防并发负余额
+
+### 4 个 Bug 一次修
+
+| # | Bug | 位置 | 修复 |
+|---|-----|------|------|
+| 1 | 申请时充值冻结没写流水 (UPDATE balance 不写 transactions) | `src/routes/cards.js:130-140` | 改用 `BalanceService.recordSpend` 一次写完整 `type='消费' amount=-(fee+topup)` 流水 |
+| 2 | 拒绝/失败退还没写流水 | `src/routes/admin.js:1828-1831` + `:1866-1885` | 改用 `BalanceService.recordRefund` 写 `type='退款' amount=+X` |
+| 3 | `/api/admin/users/:id/transactions` 报 500 (v1.0.92 漏了变量定义) | `src/routes/admin.js:1438` | 补 `cardIds` / `userCards` 变量定义 |
+| 4 | 申请时无事务锁, 并发可绕过余额检查 (余额 $30 申请 2 张 $21 → -$12) | `src/routes/cards.js:92-167` | 整段包进 `db.transaction().immediate()` — SQLite 写锁串行化 |
+
+### 新文件
+- `scripts/migrate_v1.0.94_backfill_transactions.js` — 历史数据 migration 工具
+  - 跑前自动备份 db → `data/vcc.db.pre-v1.0.94.bak`
+  - 给 user 3 补 3 条 transactions (id=18/19/20)
+  - 跑后自动校验资金平账
+
+### 验证
+- 5 个边界测试 (余额不足 / 50张 / topup<20 / quantity>50 / 缺product_code) 全过
+- 资金平账: user 3 净变动 $57.40 = 余额 $57.40 ✅
+- 部署后 `pm2 reload` 正常, `/health` 9 维度全 OK
+- `/api/admin/users/3/transactions` 不再 500, 返回 7 条完整流水 (充值×2 + 开卡费×2 + 冻结×2 + 退款×1)

@@ -257,3 +257,11 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 | v1.0.84 | 2026-06-22 | **SDK 充值异步确认**: vmcardio 上游 `rechargeCard` 收 `700011` 后内部等待 5 秒调 `cardDetail` 验证余额, 验证成功视为充值成功, 用户无需手动刷新. 验证: `XR2069080018155819008` 充 \$10 → 7 秒内返回 `available_amount: 30` (原 20) |
 | v1.0.85 | 2026-06-22 | **卡信息同步写回 DB**: `GET /:card_id` 和 `POST /:card_id/recharge` 调完上游 `cardDetail` 后用 `persistCardDetailToDb()` 工具写回 `available_amount` / `status` / `cvv` / `expiry_*` / `last_verified` / `verified_status`; 写回失败 logger.warn 不影响主流程 |
 | v1.0.86 | 2026-06-22 | **移除 v1.0.84 700011 异步确认**: 实测 700011 是 vmcardio 上游真失败 (5 秒后 cardDetail 拿到的还是原余额, 没真扣款). 移除 SDK 的 700011 自动确认, 错误码原样抛给前端让用户看到真实错误 |
+| v1.0.87 | 2026-06-23 | vmcardio 充值功能待用户与上游沟通 700011 错误 |
+| v1.0.88 | 2026-06-23 | 死代码清理 sed 误删 `<script>` 标签 → 恢复 |
+| v1.0.89 | 2026-06-23 | 精准删 v1.0.88 残留死代码 (HTML 弹窗 line 1489-1501 + 死函数 line 2743-2772) |
+| v1.0.90 | 2026-06-23 | 全面清理无用数据 (assets/ 11.4MB + 死代码 + 空目录 + 重复文档) |
+| v1.0.91 | 2026-06-23 | 修复管理员"查看消费"接口 URL 重复 /api |
+| v1.0.92 | 2026-06-23 | 修复普通用户"账户流水"表头重复 (panel + wrap 双重渲染) + admin `/users/:id/transactions` 路由补充查 transactions 表 |
+| v1.0.93 | 2026-06-23 | 修复资金概览"资金验证异常/分配验证异常"误报 (`balanceOk = d.merchant_balance >= 100` 风控阈值被误用) → 改用 `Math.abs(vmcardio - (users_total + system_reserved)) < 0.01` 真正守恒判断 |
+| v1.0.94 | 2026-06-23 | **资金安全 4 bug 一次修**：(1) 申请时充值冻结没写流水 → 改用 `BalanceService.recordSpend` 合并写 `type='消费'` 流水；(2) 拒绝/失败退还没写流水 → 改用 `BalanceService.recordRefund` 写 `type='退款'`；(3) v1.0.92 漏了 `cardIds` 变量定义导致 `/api/admin/users/:id/transactions` 500 → 补定义；(4) 申请时无事务锁并发可绕过余额检查 → 整段包进 `db.transaction().immediate()` SQLite 写锁串行化；新增 `scripts/migrate_v1.0.94_backfill_transactions.js` 历史数据 migration 工具 |
