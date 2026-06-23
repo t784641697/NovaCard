@@ -6393,9 +6393,11 @@ window.showCardDetailModal = function(cardData) {
   setCopyFieldVal('modalCardExpiry', expiryDisplay, expiryCopy);
 
   // 余额和限额（null = 加载态）
-  // 余额 available_amount 单位=美元
-  // 限额 single/day/month_limit 单位=**分**（上游原始单位），需 /100 转美元
-  const fmtUsd = (v) => loading || v === null || v === undefined ? '···' : `$${(Number(v) / 100).toFixed(2)}`;
+  // ⚠️ vmcardio 上游所有金额单位都是美元（不是美分），不需要 /100
+  // 历史 bug: 之前注释说"限额单位是分"导致前端 ÷100，错位 100 倍
+  // 验证: BIN 532113 单笔限额 $20000 (上游元数据描述)
+  //       G5554LC 上游返回 30000 → 应显示 $30,000 (实际 = 商务大额卡)
+  const fmtUsd = (v) => loading || v === null || v === undefined ? '···' : `$${Number(v).toFixed(2)}`;
   const fmtUsdDirect = (v) => loading || v === null || v === undefined ? '···' : `$${Number(v).toFixed(2)}`;
   document.getElementById('modalCardBalance').textContent      = fmtUsdDirect(cardData.available_amount);
   document.getElementById('modalCardSingleLimit').textContent  = fmtUsd(cardData.single_limit);
