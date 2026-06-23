@@ -2160,3 +2160,9 @@ v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1
 ### 修复
 - 去掉手拼的 `/api` 前缀, 改用 `/admin/...` 和 `/cards/...` (apiFetch 会自动加 /api)
 - 同步: line 5735-5737 的导出 CSV 用 `API_BASE + path` (不是 apiFetch) 路径正确, 保留原样
+
+## v1.0.93 (2026-06-23) — 资金概览异常误报修复
+
+**Bug**: `balanceOk = d.merchant_balance >= 100` (风控提醒阈值) 被误用为"资金验证"+"分配验证"两个标签的状态判断, 导致 `70.69 < 100` → 红色异常 (实际资金守恒)
+
+**修复**: 改成真正的资金守恒判断 (容差 $0.01) — `Math.abs(vmcardio - (users_total + system_reserved)) < 0.01`
