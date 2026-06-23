@@ -2149,3 +2149,14 @@ v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1
 
 ### 同步清理
 - AGENTS.md 项目结构图更新: 去掉 `vcc-dashboard/js/` 和 `vcc-dashboard/index.html` 的陈旧描述
+
+## v1.0.91 (2026-06-23) — **修复管理员"查看消费"接口 404**
+
+### Bug
+- `vcc-dashboard/app.html` line 5640 `fetchUserTransactions` 内部手拼路径多了 `/api` 前缀
+- `apiFetch()` 内部 `fetch(API_BASE + path)`, `API_BASE = '/api'`
+- 传入 `/api/admin/users/${userId}/transactions` → 实际请求 `/api/api/admin/...` → 404
+
+### 修复
+- 去掉手拼的 `/api` 前缀, 改用 `/admin/...` 和 `/cards/...` (apiFetch 会自动加 /api)
+- 同步: line 5735-5737 的导出 CSV 用 `API_BASE + path` (不是 apiFetch) 路径正确, 保留原样

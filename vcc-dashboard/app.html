@@ -5635,9 +5635,10 @@ async function loadUserTransactions() {
   if (s.endDate)    qs.set('end_date',   s.endDate);
 
   // 端点（按 mode 选 user 路由 或 card 路由）
+  // 注意：apiFetch 内部已带 API_BASE (/api)，这里不能重复 /api
   const endpoint = s.mode === 'card'
-    ? `/api/cards/${encodeURIComponent(s.cardId)}/transactions?` + qs.toString()
-    : `/api/admin/users/${s.userId}/transactions?` + qs.toString();
+    ? `/cards/${encodeURIComponent(s.cardId)}/transactions?` + qs.toString()
+    : `/admin/users/${s.userId}/transactions?` + qs.toString();
   const subjectName = s.mode === 'card' ? '该卡片' : '该用户';
 
   try {
