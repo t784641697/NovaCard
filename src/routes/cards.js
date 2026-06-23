@@ -128,7 +128,9 @@ router.post('/', createCardLimiter, async (req, res, next) => {
     let newBalance = 0;
     let lastInsertRowid = 0;
     try {
-      const txResult = db.transaction(() => {
+      // v1.0.94.1 fix: better-sqlite3@^12 .immediate() 是同步触发器 (返回 undefined),
+      //   不能再链式赋给变量然后调用 — 必须直接链式执行
+      db.transaction(() => {
         // 事务内读余额（不持锁时并发可能读到脏数据 → IMMEDIATE 强制写锁）
         const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(req.user.id);
         if (!user) {
@@ -178,9 +180,7 @@ router.post('/', createCardLimiter, async (req, res, next) => {
           cardCreationFee
         );
         lastInsertRowid = ins.lastInsertRowid;
-      }).immediate();  // ← 关键：强制 BEGIN IMMEDIATE，并发安全
-
-      txResult();
+      }).immediate();  // ← 链式立即执行 BEGIN IMMEDIATE，并发安全
     } catch (e) {
       return res.status(400).json({ code: 400, msg: e.message || '申请失败' });
     }

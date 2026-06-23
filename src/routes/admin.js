@@ -1873,6 +1873,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
       const totalRefund = (Number(app.fee_amount) || 0) +
                          (Number(app.topup_amount) || 0) * Math.max(1, Number(app.quantity) || 1);
       try {
+        // v1.0.94.1 fix: better-sqlite3@^12 .immediate() 是同步触发器, 链式 () 会变成 undefined()
         db.transaction(() => {
           BalanceService.recordRefund(
             app.user_id,
@@ -1881,7 +1882,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
             0,
             `开卡申请 #${id} 审批失败（${lastError?.message || '未知错误'}），退还开卡费+充值冻结`
           );
-        }).immediate()();
+        }).immediate();
       } catch (e) {
         logger.error(`[WebCreate] 审批失败退还 fee+topup 失败: ${e.message}`);
       }
@@ -1912,7 +1913,10 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
 
     let result;
     try {
-      result = db.transaction(() => {
+      // v1.0.94.1 fix: better-sqlite3@^12 .immediate() 是同步触发器 (返回 undefined),
+      //   必须在事务内用变量捕获 return 值, 然后链式 .immediate() 立即执行
+      let refundResult;
+      db.transaction(() => {
         // 退款（自动 UPDATE users.balance + 写 type='退款' 的 transactions 记录）
         const r = BalanceService.recordRefund(
           app.user_id,
@@ -1924,9 +1928,9 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
         // 改申请状态
         db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
           .run(reason || '管理员拒绝了申请', id);
-        return r;
+        refundResult = r;
       }).immediate();  // 并发安全
-      result = result();
+      result = { transaction_id: refundResult && refundResult.transaction_id };
     } catch (e) {
       logger.error(`[WebCreate] 拒绝申请 #${id} 退款失败: ${e.message}`);
       return res.status(500).json({ code: 500, msg: '退款失败: ' + e.message });
