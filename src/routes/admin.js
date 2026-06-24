@@ -1929,30 +1929,6 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           last_name:    sanitizeName(app.last_name),
           user_id:      '20112258',
         };
-        // v1.0.99.15: 用原始 product_code
-        const createParams = {
-          product_code: app.product_code,
-          amount:       topupAmt,
-          first_name:   sanitizeName(app.first_name),
-          last_name:    sanitizeName(app.last_name),
-          user_id:      '20112258',
-        };
-        // v1.0.99.15: 用原始 product_code
-        const createParams = {
-          product_code: app.product_code,
-          amount:       topupAmt,
-          first_name:   sanitizeName(app.first_name),
-          last_name:    sanitizeName(app.last_name),
-          user_id:      '20112258',
-        };
-        // v1.0.99.15: 用原始 product_code
-        const createParams = {
-          product_code: app.product_code,
-          amount:       topupAmt,
-          first_name:   sanitizeName(app.first_name),
-          last_name:    sanitizeName(app.last_name),
-          user_id:      '20112258',
-        };
         // v1.0.99.15: 不传 card_address（vmcardio 已为每个卡段配置默认地址）
         logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
         const result = await sdk.createCard(createParams);
