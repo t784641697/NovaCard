@@ -621,9 +621,12 @@ router.delete('/:card_id', async (req, res, next) => {
       logger.info(`[deleteCard] 上游删卡成功 card_id=${card_id} operator=${req.user.id} balance_before=$${balanceBeforeDelete.toFixed(2)}`);
     } catch (err) {
       logger.error(`[deleteCard] 上游删卡失败 card_id=${card_id}: ${err.message}`);
+      // v1.0.99.3: 透传 vmcardio 上游错误码到前端, 用户可凭 vmCode 联系客服
+      // SDK 抛错时 err.vmCode=上游 HTTP body.code, err.vmMsg=上游 body.msg
       return res.json({
         code: 701004,
-        msg: `上游删卡失败: ${err.message || '未知错误'}`
+        msg: `上游删卡失败: ${err.message || '未知错误'}`,
+        data: { vmCode: err.vmCode || null, vmMsg: err.vmMsg || null }
       });
     }
 

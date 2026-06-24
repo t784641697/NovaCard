@@ -4692,9 +4692,17 @@ window.cmDeleteCard = async function(cardId, cardNumber, holderName, btnEl) {
       if (r.code === 701001) errMsg = '卡片已是已删除状态';
       else if (r.code === 701002) errMsg = '卡内余额 > 0，请先退款到账户余额再删卡';
       else if (r.code === 701003) errMsg = r.msg || '有未结算交易，请等待结算完成';
-      else if (r.code === 701004) errMsg = '上游删卡失败: ' + (r.msg || '未知错误');
+      else if (r.code === 701004) {
+        // v1.0.99.3: 后端 msg 已含 "上游删卡失败:" 前缀, 前端不再重复加
+        // 透传 vmCode 帮用户/客服定位上游问题
+        const vmCode = r.data && r.data.vmCode;
+        errMsg = r.msg || '未知错误';
+        if (vmCode) errMsg += ` [上游错误码 ${vmCode}]`;
+        // vmcardio 上游 700013 = 第三方获取数据失败, 多为带余额 / IP / 状态限制
+        if (vmCode === 700013) errMsg += '\n（提示：上游可能因卡内仍有余额而拒绝删除，请先消费完余额或联系客服退款后再删）';
+      }
       else if (r.code === 403) errMsg = '无权限删除该卡';
-      toast('❌ ' + errMsg, 4000);
+      toast('❌ ' + errMsg, 5000);
       if (btnEl) {
         btnEl.disabled = false;
         btnEl.innerHTML = btnEl.dataset.originalText || '🗑 删卡';

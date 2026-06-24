@@ -143,7 +143,10 @@ async function main() {
 
   // 3.4 假卡 (上游不存在) → 701004
   r = await httpDelete('/api/cards/TEST_FAKE_NORMAL', adminToken);
-  await runTest('3.4 假卡 → 701004', 701004, JSON.parse(r.body).code, r.body);
+  const body34 = JSON.parse(r.body);
+  await runTest('3.4 假卡 → 701004', 701004, body34.code, r.body);
+  // v1.0.99.3: 验证 701004 响应透传 vmCode / vmMsg (用户联系上游客服用)
+  await runTest('3.4a 701004 响应 data.vmCode 字段存在', true, body34.data?.vmCode !== undefined, JSON.stringify(body34.data || {}));
 
   // 3.5 验证: 假卡本地 status 没变 (因为 701004 提前 return, 不软删)
   const dbRO3 = new Database(DB_PATH, { readonly: true });
