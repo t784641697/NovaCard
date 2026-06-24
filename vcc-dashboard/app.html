@@ -4695,11 +4695,14 @@ window.cmDeleteCard = async function(cardId, cardNumber, holderName, btnEl) {
       else if (r.code === 701004) {
         // v1.0.99.3: 后端 msg 已含 "上游删卡失败:" 前缀, 前端不再重复加
         // 透传 vmCode 帮用户/客服定位上游问题
+        // v1.0.99.4: 700013 实测 = G5554LC (VC102) 卡段上游限制 (S5258LL 同条件能成功删)
+        //             不能再甩锅余额 (5258 带 $20 也能成功), 改成中性提示 + 引导联系客服
         const vmCode = r.data && r.data.vmCode;
         errMsg = r.msg || '未知错误';
         if (vmCode) errMsg += ` [上游错误码 ${vmCode}]`;
-        // vmcardio 上游 700013 = 第三方获取数据失败, 多为带余额 / IP / 状态限制
-        if (vmCode === 700013) errMsg += '\n（提示：上游可能因卡内仍有余额而拒绝删除，请先消费完余额或联系客服退款后再删）';
+        if (vmCode === 700013) {
+          errMsg += '\n（提示：上游对部分卡段（G5554LC/VC102）存在删除限制，与卡内余额无关。请联系客服并提供 card_id + 错误码 700013）';
+        }
       }
       else if (r.code === 403) errMsg = '无权限删除该卡';
       toast('❌ ' + errMsg, 5000);
