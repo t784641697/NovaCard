@@ -451,7 +451,46 @@ router.post('/:card_id/recharge', async (req, res, next) => {
       if (!owned) return res.status(403).json({ code: 403, msg: '无权限' });
     }
 
-    const result = await sdk.rechargeCard(card_id, amount);
+    // v1.0.99.12 资金安全修复: 充值前先扣用户账户余额 (recordSpend)
+    //   历史 bug: 充值时只调 sdk.rechargeCard 给卡充, 没扣用户账户余额
+    //   导致: 用户账户 50 + 卡 20 → 充 10 后 账户 50 + 卡 30 (凭空创造 10 美元)
+    //   + 删卡时 vmcardio 上游 deleteCard 退卡余额到平台账户, 我们再退给用户 → 双重获利
+    //   修复: 仿照 v1.0.94 开卡申请的 recordSpend + 失败 recordRefund 回滚模式
+    //   recordSpend 内已包含: 余额校验 / 事务 / 扣余额 / 写流水 (type='消费')
+    try {
+      BalanceService.recordSpend(
+        req.user.id,
+        amount,
+        'card_recharge',
+        0,
+        `卡充值 ${card_id}`
+      );
+    } catch (balanceErr) {
+      logger.warn(`[POST /:card_id/recharge] 余额不足 user=${req.user.id} card=${card_id} amount=${amount} err=${balanceErr.message}`);
+      return res.status(400).json({ code: 400, msg: balanceErr.message });
+    }
+
+    let result;
+    try {
+      result = await sdk.rechargeCard(card_id, amount);
+    } catch (sdkErr) {
+      // SDK 失败 → 退回用户账户 (recordRefund 写 type='退款' 流水)
+      try {
+        BalanceService.recordRefund(
+          req.user.id,
+          amount,
+          'card_recharge_refund',
+          0,
+          `卡充值失败退款 ${card_id}: ${sdkErr.message}`
+        );
+        logger.warn(`[POST /:card_id/recharge] 上游失败已退款 user=${req.user.id} card=${card_id} amount=${amount} err=${sdkErr.message}`);
+      } catch (refundErr) {
+        // 退款也失败 (极少, 应该是 DB 错误): 记 critical log, 手工追回
+        logger.error(`[POST /:card_id/recharge] CRITICAL 退款失败 user=${req.user.id} card=${card_id} amount=${amount} sdkErr=${sdkErr.message} refundErr=${refundErr.message}`);
+      }
+      return res.status(500).json({ code: 500, msg: '上游充值失败, 已退回账户余额', data: { upstream_error: sdkErr.message } });
+    }
+
     res.json({ code: 0, msg: 'ok', data: result });
     // v1.0.99.10 充值后异步同步余额到 DB
     //   rechargeCard API 返回的不是 cardDetail (无 available_amount),
