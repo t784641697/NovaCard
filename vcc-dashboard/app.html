@@ -1214,6 +1214,7 @@ select.form-control option{background:var(--bg3);}
 .ledger-card-link{cursor:pointer;color:var(--text1);font-family:Menlo,Monaco,monospace;font-size:.78rem;transition:color .15s;}
 .ledger-card-link:hover{color:var(--cyan);}
 .ledger-card-tag{font-family:Menlo,Monaco,monospace;font-size:.7rem;padding:2px 7px;background:rgba(255,255,255,.05);color:var(--text2);border-radius:4px;opacity:.85;}
+.ledger-card-rejected{font-size:.75rem;padding:2px 8px;background:rgba(220,80,80,.12);color:#dc5050;border:1px solid rgba(220,80,80,.3);border-radius:4px;cursor:help;font-weight:500;}
 .ro-value.copyable .copy-ico{font-size:11px;color:var(--text3);opacity:0;transition:opacity .15s;}
 .ro-value.copyable:hover .copy-ico{opacity:.7;}
 .ro-value.mono{font-family:'JetBrains Mono','Consolas',monospace;letter-spacing:.3px;}
@@ -4939,10 +4940,23 @@ function formatLedgerCardCell(row) {
     }
     return masked;
   }
-  // 2) 无 ref_id 关联但 desc 有卡段 → 真实卡段名（不伪造卡号）
+  // 1.5) ref_id 是 v1.0.99.8 backfill 写的 app_rejected:N:CODE → 申请被驳回
+  if (row.ref_id && /^app_rejected:\d+:[A-Z0-9]+$/.test(row.ref_id)) {
+    return '<span class="ledger-card-rejected" title="该笔流水对应申请未通过，无真实卡片">未开卡成功</span>';
+  }
+  // 2) 申请被驳回/失败 (admin 写 description 时的业务标记) → "未开卡成功"
+  //    覆盖: 开卡费扣款 + 充值冻结 + 驳回后退款 三种流水
+  if (row.description && (
+    row.description.indexOf('被拒绝') !== -1 ||
+    row.description.indexOf('被驳回') !== -1 ||
+    row.description.indexOf('开卡失败') !== -1
+  )) {
+    return '<span class="ledger-card-rejected" title="该笔流水对应申请未通过，无真实卡片">未开卡成功</span>';
+  }
+  // 3) 无 ref_id 关联但 desc 有卡段 → 真实卡段名（不伪造卡号）
   const code = _extractProductCodeFromDescription(row.description);
   if (code) return `<span class="ledger-card-tag" title="无完整卡号关联（仅卡段）">🏷 ${code}</span>`;
-  // 3) 都没有 → 不显示
+  // 4) 都没有 → 不显示
   return '<span style="color:var(--muted-fg,#888)">—</span>';
 }
 function ledgerGoCard(cardId) {
@@ -5851,12 +5865,15 @@ async function loadUserTransactions() {
       return;
     }
     const rows = d.list.map(r => {
-      // v1.0.99.7: 关联卡号 — 真实数据 fallback (16 位卡号 → 卡段名 → —)
-      const cardNumberHtml = r.card_number
-        ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(r.card_id || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2('**** **** **** ' + String(r.card_number).replace(/\D/g, '').slice(-4))}</span>`
-        : (r.product_code
-            ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(r.product_code)}</span>`
-            : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">----</span>'; })());
+      // v1.0.99.8: 关联卡号 — 真实数据 fallback (16 位卡号 → 申请被驳回 → 卡段名 → —)
+      const isRejectedApp = r.card_id && /^app_rejected:\d+:[A-Z0-9]+$/.test(r.card_id);
+      const cardNumberHtml = isRejectedApp
+        ? `<span class="ut-tag-card ledger-card-rejected" title="该笔流水对应申请未通过，无真实卡片" style="opacity:.7;">未开卡成功</span>`
+        : (r.card_number
+            ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(r.card_id || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2('**** **** **** ' + String(r.card_number).replace(/\D/g, '').slice(-4))}</span>`
+            : (r.product_code
+                ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(r.product_code)}</span>`
+                : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">----</span>'; })()));
       const t = r.type || '';
       const st = r.status || '';
       const typeClass = { Authorization: 'ut-amount-auth', Settlement: 'ut-amount-settle', Refund: 'ut-amount-refund', Reversal: 'ut-amount-reversal' }[t] || 'ut-amount-settle';
