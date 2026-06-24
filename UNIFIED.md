@@ -1302,13 +1302,48 @@ kill -9 30772
 | 传输 | RSA 加密 `{content: encrypted}`（**不是 Apifox 文档 cURL 示例的明文 JSON**） |
 | createCard 字段 | `product_code` / `amount` / `first_name` / `last_name` / `user_id` |
 | IP 白名单 | Vultr 真实 IPv4 `139.180.188.104`（SDK 强制 IPv4 避免 IPv6 误中） |
-| 错误码 | `400005 = Ip Invalid` / `400 = field X is not set` / `700002 = Invalid Product Code` |
+| 错误码 | `400005 = Ip Invalid` / `400 = field X is not set` / `700002 = Invalid Product Code` / `700006 = 参数错误` |
 
 - **沙盒 vs 正式**：dev.vmcardio.com = 沙盒（有 Web API）；vmcardio.com = 正式（**无 Web API**，HTML 营销站）
 - **关键事实**：不要被 Apifox 文档 cURL 示例误导，**正式环境也是 RSA 加密**
 - SDK `_getToken()` 缓存 60s 提前量，AccessToken 复用避免每次重拿
 - RSA 密钥：请求用 `vmcardio_platform_public.pem` 加密；响应用 `merchant_private.pem` 解密
 - 缺失或密钥不匹配时：响应 `700002 Invalid Product Code`（实际是解密失败，但服务端不区分错误）
+
+### 21.4.1 createCard API 实测结论（v1.0.99.15）
+
+#### user_id 参数
+- **必须用 vmcardio 后台"卡关联用户"的 ID**（如 `20112258`），不是我们系统的 user_id
+- v1.0.6 曾修过（加 `'20098106'`），v1.0.15 切回 Merchant API 时漏改，导致传了我们系统的 user_id (3)
+- 不同卡段对 user_id 校验严格程度不同：
+  - **S5331GL**：不校验 user_id（传 3 也能成功）
+  - **G5450SU / G5237OH**：严格要求正确 user_id（传错 → 700006）
+- **正确值**：`'20112258'`（vmcardio 后台"卡关联用户"下拉框的 ID）
+
+#### card_address 参数
+- **不要传 card_address**（v1.0.99.15 实测确认）
+- vmcardio 上游已为每个卡段配置默认地址，传了反而可能 700006
+- 后台手动开卡时不需要填地址，API 也不应传
+
+#### product_code 参数
+- **必须用产品名**（如 `G5554LC`、`S5395PL`），不是 BIN 数字（如 `539578`）
+- 之前有代码用 `HARDCODED_BINS[product_code] || card_bin` 做 fallback → 会把 `S5395PL` 替换成 `539578`（BIN 数字）→ `700002 Invalid Product Code`
+- **已修复**：直接用 `app.product_code` 传给 API
+
+#### API 可开卡 vs 不可开卡产品（v1.0.99.15 实测）
+
+| product_code | API 开卡 | 备注 |
+|-------------|---------|------|
+| G5554LC (VC102) | ✅ | Mastercard 美国 |
+| S5258LL | ✅ | Mastercard 新加坡 |
+| S5331GL | ✅ | Mastercard 英国 |
+| S5395PL | ✅ | Mastercard（待确认国家） |
+| G5450SU | ❌ 700006 | Mastercard 香港，后台手动可开，API 不可 |
+| G5237OH | ❌ 700006 | Mastercard 美国，后台手动可开，API 不可 |
+
+- G5450SU/G5237OH 在上游产品列表中存在（getProductCode 返回 remaining_open_card_num > 0）
+- 但 API `/createCard` 返回 700006 "参数错误"（参数完全一致，仅 product_code 不同）
+- **结论**：这两个卡段可能不支持 API 开卡，需联系 vmcardio 客服确认
 
 ### 21.5 前端 promptModal 规范
 

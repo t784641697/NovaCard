@@ -2376,3 +2376,33 @@ const result = await sdk.rechargeCard(card_id, amount);
 - 生产 HEAD `23dc070`，pm2 restart 0+1 都成功，uptime 0s 健康
 - 测试期间生产又新增 4 条审批失败退款流水（admin 测产生 + 用户测试）
 
+## v1.0.99.15 (2026-06-25) — 开卡 user_id 参数修复 + G5450SU/G5237OH 排查
+
+**🔴 bug 1** — 开卡 user_id 参数错误：`admin.js:1819` `user_id: String(app.user_id)` 传的是我们系统的 user_id (3)，但 vmcardio 某些卡段严格要求 `user_id='20098106'`（固定商户 ID）→ 700006 参数错误；S5331GL 不校验 user_id 所以之前能成功
+- **根因**：v1.0.6 已修过（`user_id: '20098106'`），但 v1.0.15 切回 Merchant API 时漏改回去
+- **修复**：`user_id` 改为 `'20112258'`（vmcardio 后台"卡关联用户"下拉框的实际 ID，不是之前以为的 20098106）
+
+**🔴 bug 2** — HARDCODED_BINS 映射导致 product_code 传错：之前代码用 `HARDCODED_BINS[app.product_code] || app.card_bin || app.product_code` 做参数值，fallback 到 `card_bin`（BIN 数字如 `539578`），但 vmcardio API 的 `product_code` 参数要求传**产品名**（如 `S5395PL`），不认 BIN 数字
+- S5395PL → 传 `539578`（BIN 数字）→ Invalid Product Code
+- G5450SU → 传 `545020`（BIN 数字）→ 400 错误
+- **修复**：直接用 `app.product_code`（原始产品名），不再做 BIN 映射
+
+**🔴 bug 3** — sed 命令重复插入 `const createParams` 导致语法错误：调试期间用 sed 修改代码，sed 匹配到多行重复插入 → 5 个 `const createParams` 声明 → SyntaxError → 网站 502 崩溃
+- **修复**：手动清理重复声明，保留 1 个正确版本
+
+**🟡 未解决** — G5450SU/G5237OH 开卡失败（vmcardio 返回 700006）：
+- `product_code` 名字正确（上游 `getProductCode` API 确认存在）
+- `user_id='20112258'` 正确（后台手动开卡用的同一个）
+- 不传 card_address 也失败
+- **同参数** S5395PL/S5331GL/G5554LC 成功，唯一变量 product_code
+- **结论**：vmcardio 上游对 G5450SU/G5237OH 有特殊限制，可能不支持 API 开卡，需联系 vmcardio 客服确认
+
+**已确认可通过 API 开卡的产品**：G5554LC (VC102)、S5258LL、S5331GL、S5395PL
+**已确认不可通过 API 开卡的产品**：G5450SU、G5237OH（700006 参数错误，但后台手动可开）
+
+**部署**：
+- commit `e75729c` 修 user_id
+- 多次调试 commit（card_address/country/bin 测试）
+- commit 最终清理：移除 HARDCODED_BINS 映射，恢复 `product_code: app.product_code`
+- 生产 pm2 restart，网站恢复正常
+
