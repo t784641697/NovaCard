@@ -1211,6 +1211,9 @@ select.form-control option{background:var(--bg3);}
 .ro-value{font-size:14px;color:var(--text1);font-weight:600;text-align:left;word-break:break-all;}
 .ro-value.copyable{cursor:pointer;transition:color .15s;display:inline-flex;align-items:center;gap:6px;}
 .ro-value.copyable:hover{color:var(--cyan);}
+.ledger-card-link{cursor:pointer;color:var(--text1);font-family:Menlo,Monaco,monospace;font-size:.78rem;transition:color .15s;}
+.ledger-card-link:hover{color:var(--cyan);}
+.ledger-card-tag{font-family:Menlo,Monaco,monospace;font-size:.7rem;padding:2px 7px;background:rgba(255,255,255,.05);color:var(--text2);border-radius:4px;opacity:.85;}
 .ro-value.copyable .copy-ico{font-size:11px;color:var(--text3);opacity:0;transition:opacity .15s;}
 .ro-value.copyable:hover .copy-ico{opacity:.7;}
 .ro-value.mono{font-family:'JetBrains Mono','Consolas',monospace;letter-spacing:.3px;}
@@ -4884,10 +4887,8 @@ async function loadLedgerList() {
         'manual_recovery_v1.0.99.5':'删卡余额追回'
       };
       const feeLabel = item.fee_type && item.fee_type !== '' ? (feeTypeMap[item.fee_type] || item.fee_type) : '—';
-      // v1.0.99.6: 关联卡号（masked 5258 **** **** 3750，可点击跳详情）
-      const cardNumberHtml = item.card_number
-        ? `<span class="copyable" onclick="ledgerGoCard('${escapeAttr(item.ref_id || '')}')" title="点击查看卡详情" style="cursor:pointer;color:var(--text1);">${escapeAttr(formatCardNumberMasked(item.card_number))}</span>`
-        : '<span style="color:var(--text3);">—</span>';
+      // v1.0.99.7: 关联卡号 — 真实数据 fallback (16 位卡号 → 卡段名 → —)
+      const cardNumberHtml = formatLedgerCardCell(item);
       return `
       <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.03);display:grid;grid-template-columns:1.1fr .8fr 1fr 1.3fr .6fr 1fr 1fr;gap:12px;align-items:center;font-size:.85rem;transition:background .12s;">
         <div style="color:var(--text2);">${dt}</div>
@@ -4917,6 +4918,32 @@ function formatCardNumberMasked(cardNumber) {
   if (digits.length < 4) return '****';
   const last4 = digits.slice(-4);
   return `**** **** **** ${last4}`;
+}
+// v1.0.99.7: 从 description 提取卡段（真实数据，仅在 ref_id 关联不到时作 fallback）
+// 严禁伪造 16 位卡号（拿不到就是拿不到）
+function _extractProductCodeFromDescription(description) {
+  if (!description) return null;
+  // vmcardio 上游固定卡段（S5258LL/G5554LC/VC113/VC102 + 历史名 G5554LC），按从长到短匹配避免子串误匹配
+  const KNOWN_CODES = ['S5258LL', 'G5554LC', 'VC113', 'VC102'];
+  for (const code of KNOWN_CODES) {
+    if (description.indexOf(code) !== -1) return code;
+  }
+  return null;
+}
+function formatLedgerCardCell(row) {
+  // 1) ref_id 关联到 cards 表 → 真实 16 位卡号
+  if (row.card_number) {
+    const masked = formatCardNumberMasked(row.card_number);
+    if (row.ref_id) {
+      return `<a class="ledger-card-link" onclick="ledgerGoCard('${escapeAttr(row.ref_id)}')">${masked}</a>`;
+    }
+    return masked;
+  }
+  // 2) 无 ref_id 关联但 desc 有卡段 → 真实卡段名（不伪造卡号）
+  const code = _extractProductCodeFromDescription(row.description);
+  if (code) return `<span class="ledger-card-tag" title="无完整卡号关联（仅卡段）">🏷 ${code}</span>`;
+  // 3) 都没有 → 不显示
+  return '<span style="color:var(--muted-fg,#888)">—</span>';
 }
 function ledgerGoCard(cardId) {
   if (!cardId) {
@@ -5824,10 +5851,12 @@ async function loadUserTransactions() {
       return;
     }
     const rows = d.list.map(r => {
-      // v1.0.99.6: 关联卡号 masked 完整显示 + 可点击；source=wallet 时来自 transactions.ref_id LEFT JOIN
+      // v1.0.99.7: 关联卡号 — 真实数据 fallback (16 位卡号 → 卡段名 → —)
       const cardNumberHtml = r.card_number
         ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(r.card_id || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2('**** **** **** ' + String(r.card_number).replace(/\D/g, '').slice(-4))}</span>`
-        : '<span class="ut-tag-card" style="opacity:.4;">----</span>';
+        : (r.product_code
+            ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(r.product_code)}</span>`
+            : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">----</span>'; })());
       const t = r.type || '';
       const st = r.status || '';
       const typeClass = { Authorization: 'ut-amount-auth', Settlement: 'ut-amount-settle', Refund: 'ut-amount-refund', Reversal: 'ut-amount-reversal' }[t] || 'ut-amount-settle';
