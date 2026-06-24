@@ -4662,14 +4662,13 @@ window.cmDeleteCard = async function(cardId, cardNumber, holderName, btnEl) {
     ? '• 卡内余额 $' + balance.toFixed(2) + ' 将自动退回到账户余额\n'
     : '• 卡内余额 $0.00\n';
 
-  // 二次确认弹窗 (复用 promptModal, 加 hideIcon + okCenter 适配危险操作)
+  // 二次确认弹窗 (复用 promptModal, 项目主色按钮 + 隐藏头部 icon, 跟其他弹窗样式一致)
   const confirmed = await promptModal({
-    title: '🗑 确认删除卡片',
+    title: '确认删除卡片',
     desc: '卡号: ' + masked + (holderName ? '\n持卡人: ' + holderName : '') + '\n\n' + balanceLine + '\n⚠️ 此操作不可恢复！\n\n• 卡将永久从上游删除\n• 本地状态标记为"已删除"\n• 历史订单/交易记录保留',
-    icon: '🗑',
-    hideIcon: false,
+    hideIcon: true,
     okText: '确认删除',
-    okColor: 'linear-gradient(135deg,#ef4444,#dc2626)',
+    okColor: 'var(--grad)',
     cancelText: '取消',
     okCenter: true,
     hideCancel: false,
