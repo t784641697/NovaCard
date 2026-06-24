@@ -1811,20 +1811,16 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         if (process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS) {
           try { 
             const parsed = JSON.parse(process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS);
-            // v1.0.99.15: 去掉空字符串字段
-            const addr = Object.fromEntries(
-              Object.entries(parsed).filter(([_, v]) => v !== '' && v != null)
-            );
-            // v1.0.99.15: G5450SU 是香港卡段，country 用 "HK"
-            if (app.product_code === 'G5450SU') {
-              addr.country = 'HK';
-              addr.state = '';
-              addr.post_code = '';
-            } else if (addr.country === 'US') {
-              addr.country = 'USA';
-            }
+            // v1.0.99.15: 只传 address_line_one, city, state, post_code（不传 country，上游手动开卡不需要）
+            cardBillingAddress = {
+              address_line_one: parsed.address_line_one,
+              city: parsed.city,
+              state: parsed.state,
+              post_code: parsed.post_code,
+            };
+            // 去掉空字符串字段
             cardBillingAddress = Object.fromEntries(
-              Object.entries(addr).filter(([_, v]) => v !== '' && v != null)
+              Object.entries(cardBillingAddress).filter(([_, v]) => v !== '' && v != null)
             );
           } catch {}
         }
@@ -1835,8 +1831,8 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           last_name:    sanitizeName(app.last_name),
           user_id:      '20112258',  // v1.0.99.15: vmcardio 卡关联用户 ID
         };
-        // v1.0.99.15: 传 card_address
-        if (cardBillingAddress) {
+        // v1.0.99.15: 传 card_address（不含 country）
+        if (cardBillingAddress && Object.keys(cardBillingAddress).length > 0) {
           createParams.card_address = cardBillingAddress;
         }
         logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
