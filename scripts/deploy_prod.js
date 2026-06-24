@@ -80,8 +80,16 @@ async function main() {
     console.log('\n[2/5] 拉取最新代码 + 重置到 ' + TARGET_COMMIT);
     await exec(conn, 'cd /opt/vcc-hub && git fetch origin 2>&1 | tail -3');
     await exec(conn, 'cd /opt/vcc-hub && git reset --hard ' + TARGET_COMMIT + ' 2>&1 | tail -3');
-    const newHead = await exec(conn, 'cd /opt/vcc-hub && git rev-parse HEAD');
-    console.log('[deploy] 新 HEAD:', newHead.stdout.trim());
+    const newHead = (await exec(conn, 'cd /opt/vcc-hub && git rev-parse HEAD')).stdout.trim();
+    console.log('[deploy] 新 HEAD:', newHead);
+    // 断言: reset 后 HEAD 必须等于目标 commit (防止 fetch 慢导致 origin/main 仍旧)
+    const targetSha = TARGET_COMMIT.includes('origin/') || TARGET_COMMIT.includes('/')
+      ? (await exec(conn, 'cd /opt/vcc-hub && git rev-parse ' + TARGET_COMMIT)).stdout.trim()
+      : TARGET_COMMIT;
+    if (newHead !== targetSha) {
+      throw new Error('reset 后 HEAD (' + newHead + ') ≠ 目标 commit (' + targetSha + '). 可能 fetch 拉取失败, 请重试');
+    }
+    console.log('[deploy] ✅ HEAD 校验通过');
 
     // 3. 装依赖 (如果 package.json 改了)
     console.log('\n[3/5] 检查依赖');
