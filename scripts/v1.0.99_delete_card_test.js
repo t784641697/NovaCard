@@ -79,6 +79,7 @@ async function login(email, password) {
 
 function insertTestCards() {
   const db = new Database(DB_PATH);
+  db.function('nowiso', { deterministic: true }, () => new Date().toISOString());
   console.log('\n=== 0. 清理旧测试卡 + 插入 5 张 ===');
   for (const c of TEST_CARDS) {
     db.prepare('DELETE FROM cards WHERE card_id = ?').run(c.card_id);
@@ -154,6 +155,49 @@ async function main() {
   dbRO3.close();
   await runTest('3.5 假卡本地 status=active (未软删)', 'active', fakeAfter?.status, JSON.stringify(fakeAfter));
 
+  console.log('\n=== 3.6 v1.0.99.5 删卡后退款逻辑 (BalanceService.recordRefund) ===');
+  {
+    const dbTest = new Database(DB_PATH);
+    dbTest.function('nowiso', { deterministic: true }, () => new Date().toISOString());
+    const TEST_USER = 99991;
+    const TEST_CARD_ID = 'TEST_REFUND_5554LC';
+    // 准备
+    dbTest.prepare('INSERT OR REPLACE INTO users (id, email, password, balance, role) VALUES (?, ?, ?, ?, ?)')
+      .run(TEST_USER, 'test_refund@vcc.hub', 'x', 100, 'user');
+    dbTest.prepare(`INSERT OR REPLACE INTO cards
+      (card_id, user_id, product_code, card_number, label, status, available_amount, verified_status)
+      VALUES (?, ?, ?, ?, ?, 'active', 20, 'verified')`)
+      .run(TEST_CARD_ID, TEST_USER, 'G5554LC', '5258470125173750', '测试退款卡');
+
+    // 调用 BalanceService.recordRefund (v1.0.99.5 删卡退款核心逻辑)
+    const BalanceService = require('../src/services/balanceService');
+    const refundRes = BalanceService.recordRefund(
+      TEST_USER, 20, 'card_delete_refund', 0,
+      `[删卡退款] G5554LC ************3750 余额退还 $20.00 (TEST)`,
+      TEST_CARD_ID  // v1.0.99.5: 传 refId
+    );
+
+    // 验证 1: 用户余额从 100 → 120
+    const userAfter = dbTest.prepare('SELECT balance FROM users WHERE id = ?').get(TEST_USER);
+    await runTest('3.6a recordRefund 后 users.balance += 20', 120, userAfter.balance, JSON.stringify(userAfter));
+
+    // 验证 2: transactions 写一条 type='退款' 记录
+    const txn = dbTest.prepare("SELECT * FROM transactions WHERE user_id = ? AND type = '退款' AND amount = 20 ORDER BY id DESC LIMIT 1").get(TEST_USER);
+    const txnOK = txn && txn.ref_id === TEST_CARD_ID && txn.amount === 20 && txn.fee_amount === 0 && txn.net_amount === 20;
+    await runTest('3.6b transactions 写退款流水 (ref_id=card_id, type=退款, amount=20, net=20, fee=0)', true, txnOK, JSON.stringify(txn));
+
+    // 验证 3: description 包含卡段+卡号+金额
+    const descOK = txn && txn.description && txn.description.includes('G5554LC') && txn.description.includes('20');
+    await runTest('3.6c description 包含卡段+金额', true, descOK, JSON.stringify(txn?.description));
+
+    // 清理
+    dbTest.prepare('DELETE FROM cards WHERE card_id = ?').run(TEST_CARD_ID);
+    dbTest.prepare('DELETE FROM transactions WHERE user_id = ? AND ref_id = ?').run(TEST_USER, TEST_CARD_ID);
+    dbTest.prepare('UPDATE users SET balance = 0 WHERE id = ?').run(TEST_USER);
+    dbTest.close();
+    log('OK', 'v1.0.99.5 退款逻辑单元测试完成 (TEST_REFUND_5554LC 清理)');
+  }
+
   console.log('\n=== 4. 跑测试 (普通 user 视角) ===');
   // 4.1 user 越权删 user3 的卡 → 403
   r = await httpDelete('/api/cards/TEST_OWNER3', userToken);
@@ -176,6 +220,7 @@ async function main() {
 
   console.log('\n=== 6. 清理测试卡 ===');
   const db2 = new Database(DB_PATH);
+  db2.function('nowiso', { deterministic: true }, () => new Date().toISOString());
   for (const c of TEST_CARDS) {
     db2.prepare('DELETE FROM cards WHERE card_id = ?').run(c.card_id);
   }

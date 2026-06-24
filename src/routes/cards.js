@@ -630,12 +630,32 @@ router.delete('/:card_id', async (req, res, next) => {
       });
     }
 
-    // 6. 本地软删除 (保留历史, 订单/交易记录不丢 card_id 关联)
+    // 6. 余额退还 (v1.0.99.5: 上游 deleteCard 成功后, 卡内余额会自动退到我们 vmcardio 平台账户;
+    //    这里需要主动把余额退到用户在我们系统的账户 + 写 transactions 流水 + 写审计日志)
+    let refundResult = null;
+    if (balanceBeforeDelete > 0) {
+      try {
+        const maskedCardNum = card.card_number ? card.card_number.replace(/\d(?=\d{4})/g, '*') : '';
+        refundResult = BalanceService.recordRefund(
+          card.user_id,                                                            // userId
+          balanceBeforeDelete,                                                     // amount (正数)
+          'card_delete_refund',                                                    // feeType
+          0,                                                                       // feeAmount (无手续费)
+          `[删卡退款] ${card.product_code || '未知卡段'} ${maskedCardNum} 余额退还 $${balanceBeforeDelete.toFixed(2)} (卡已删除)`
+        );
+        logger.info(`[deleteCard] 余额已退给用户 user_id=${card.user_id} amount=$${balanceBeforeDelete.toFixed(2)} txn_id=${refundResult.transaction_id} new_balance=$${refundResult.new_balance} ref_id=${card_id}`);
+      } catch (refundErr) {
+        // 退款失败不能阻塞删卡 (卡已删除, 余额已在上游), 但要 log 出来让管理员手动补退
+        logger.error(`[deleteCard] ⚠️ 余额退款失败 card_id=${card_id} user_id=${card.user_id} amount=$${balanceBeforeDelete.toFixed(2)}: ${refundErr.message}`);
+      }
+    }
+
+    // 7. 本地软删除 (保留历史, 订单/交易记录不丢 card_id 关联)
     db.prepare(
       "UPDATE cards SET status = 'deleted', updated_at = datetime('now', 'localtime') WHERE card_id = ?"
     ).run(card_id);
 
-    // 7. 审计日志 (管理员操作不可逆, 必须有据可查)
+    // 8. 审计日志 (管理员操作不可逆, 必须有据可查)
     if (req.user.role === 'admin') {
       // 查 card 拥有者的 email (cards 表没 user_email 字段, 需 JOIN users)
       const ownerEmail = db.prepare('SELECT email FROM users WHERE id = ?').get(card.user_id)?.email || '';
@@ -652,6 +672,9 @@ router.delete('/:card_id', async (req, res, next) => {
           product_code: card.product_code || '',
           bin: card.bin || '',
           balance_at_delete: balanceBeforeDelete,
+          refund_txn_id: refundResult ? refundResult.transaction_id : null,
+          refund_amount: refundResult ? refundResult.refund_amount : 0,
+          refund_success: !!refundResult,
         }
       });
     }
@@ -659,7 +682,14 @@ router.delete('/:card_id', async (req, res, next) => {
     res.json({
       code: 0,
       msg: 'ok',
-      data: { card_id, status: 'deleted', upstream: upstreamResult }
+      data: {
+        card_id,
+        status: 'deleted',
+        upstream: upstreamResult,
+        // v1.0.99.5: 让前端 toast 提示用户有退款
+        refund_amount: refundResult ? refundResult.refund_amount : 0,
+        refund_txn_id: refundResult ? refundResult.transaction_id : null,
+      }
     });
   } catch (err) {
     next(err);

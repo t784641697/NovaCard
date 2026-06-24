@@ -142,9 +142,10 @@ class BalanceService {
    * @param {string} feeType - 退款手续费类型
    * @param {number} feeAmount - 退款手续费（正数）
    * @param {string} description 
+   * @param {string} [refId] - 业务关联ID（如card_id），v1.0.99.5+ 可选
    * @returns {object}
    */
-  static recordRefund(userId, amount, feeType, feeAmount, description) {
+  static recordRefund(userId, amount, feeType, feeAmount, description, refId = '') {
     const netReturn = amount - feeAmount; // 净返还 = 退款金额 - 手续费
     
     return db.transaction(() => {
@@ -164,11 +165,11 @@ class BalanceService {
         WHERE id = ?
       `).run(amount, feeAmount, userId);
       
-      // 记录交易流水
+      // 记录交易流水（v1.0.99.5 增 ref_id 字段, 业务方传 card_id 等关联ID）
       const txnResult = db.prepare(`
         INSERT INTO transactions
-          (user_id, type, amount, fee_type, fee_amount, net_amount, description, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, nowiso())
+          (user_id, type, amount, fee_type, fee_amount, net_amount, description, ref_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, nowiso())
       `).run(
         userId,
         '退款',
@@ -176,7 +177,8 @@ class BalanceService {
         feeType,
         feeAmount,
         netReturn,
-        description
+        description,
+        refId
       );
       
       return {
