@@ -4765,10 +4765,11 @@ async function renderLedger() {
       </div>
     </div>
     <div class="panel" style="height:calc(100vh - 280px);display:flex;flex-direction:column;">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:12px;font-size:.75rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1.1fr .8fr 1fr 1.3fr .6fr 1fr 1fr;gap:12px;font-size:.72rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         <div>交易时间</div>
         <div>交易类型</div>
         <div>费用类型</div>
+        <div>关联卡号</div>
         <div>币种</div>
         <div style="text-align:right">交易金额</div>
         <div style="text-align:right">账户余额</div>
@@ -4883,11 +4884,16 @@ async function loadLedgerList() {
         'manual_recovery_v1.0.99.5':'删卡余额追回'
       };
       const feeLabel = item.fee_type && item.fee_type !== '' ? (feeTypeMap[item.fee_type] || item.fee_type) : '—';
+      // v1.0.99.6: 关联卡号（masked 5258 **** **** 3750，可点击跳详情）
+      const cardNumberHtml = item.card_number
+        ? `<span class="copyable" onclick="ledgerGoCard('${escapeAttr(item.ref_id || '')}')" title="点击查看卡详情" style="cursor:pointer;color:var(--text1);">${escapeAttr(formatCardNumberMasked(item.card_number))}</span>`
+        : '<span style="color:var(--text3);">—</span>';
       return `
-      <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.03);display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:12px;align-items:center;font-size:.85rem;transition:background .12s;">
+      <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.03);display:grid;grid-template-columns:1.1fr .8fr 1fr 1.3fr .6fr 1fr 1fr;gap:12px;align-items:center;font-size:.85rem;transition:background .12s;">
         <div style="color:var(--text2);">${dt}</div>
         <div><span style="color:${typeColor};font-weight:600;font-size:.78rem;background:rgba(255,255,255,.04);padding:2px 8px;border-radius:4px;">${typeLabel}</span></div>
         <div style="color:${feeLabel === '—' ? 'var(--text3)' : 'var(--text2)'};font-size:.78rem;">${feeLabel}</div>
+        <div style="font-size:.78rem;">${cardNumberHtml}</div>
         <div style="color:var(--text1);font-weight:600;">${currency}</div>
         <div style="text-align:right;font-weight:700;color:${amtColor};">${txAmt > 0 ? '+' : ''}${txAmt.toFixed(2)}</div>
         <div style="text-align:right;color:var(--text1);font-weight:600;">$${balance.toFixed(2)}</div>
@@ -4898,6 +4904,30 @@ async function loadLedgerList() {
     if (e.message !== 'Unauthorized') {
       wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败，请稍后重试</div></div>`;
     }
+  }
+}
+
+// v1.0.99.6: 工具函数 — 关联卡号显示 + 跳转
+function escapeAttr(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatCardNumberMasked(cardNumber) {
+  if (!cardNumber) return '—';
+  const digits = String(cardNumber).replace(/\D/g, '');
+  if (digits.length < 4) return '****';
+  const last4 = digits.slice(-4);
+  return `**** **** **** ${last4}`;
+}
+function ledgerGoCard(cardId) {
+  if (!cardId) {
+    toast('该流水未关联卡号', 'info');
+    return;
+  }
+  // v1.0.99.6: 复用 showCardDetail 弹模态框（用户端/admin 端都注册了 window.showCardDetail）
+  if (typeof window.showCardDetail === 'function') {
+    window.showCardDetail(cardId);
+  } else {
+    toast('卡详情组件未就绪', 'warn');
   }
 }
 
@@ -5794,7 +5824,10 @@ async function loadUserTransactions() {
       return;
     }
     const rows = d.list.map(r => {
-      const last4 = r.card_number ? String(r.card_number).slice(-4) : '----';
+      // v1.0.99.6: 关联卡号 masked 完整显示 + 可点击；source=wallet 时来自 transactions.ref_id LEFT JOIN
+      const cardNumberHtml = r.card_number
+        ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(r.card_id || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2('**** **** **** ' + String(r.card_number).replace(/\D/g, '').slice(-4))}</span>`
+        : '<span class="ut-tag-card" style="opacity:.4;">----</span>';
       const t = r.type || '';
       const st = r.status || '';
       const typeClass = { Authorization: 'ut-amount-auth', Settlement: 'ut-amount-settle', Refund: 'ut-amount-refund', Reversal: 'ut-amount-reversal' }[t] || 'ut-amount-settle';
@@ -5806,7 +5839,7 @@ async function loadUserTransactions() {
       const b = parseFloat(r.settle_amount || 0);
       return `<tr>
         <td style="white-space:nowrap;color:var(--text2);font-size:.74rem;">${esc2((r.create_time||'').slice(0,19).replace('T',' '))}</td>
-        <td><span class="ut-tag-card">•••• ${esc2(last4)}</span></td>
+        <td>${cardNumberHtml}</td>
         <td><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
         <td><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
         <td class="${typeClass}" style="text-align:right;">${a ? a.toFixed(2) : '—'}</td>

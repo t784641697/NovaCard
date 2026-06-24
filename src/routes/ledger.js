@@ -25,26 +25,30 @@ router.get('/', (req, res, next) => {
       return res.status(404).json({ code: 404, msg: '用户不存在' });
     }
 
-    // 动态 WHERE
-    const where = ['user_id = ?'];
+    // 动态 WHERE (v1.0.99.6 加 t. 前缀避免 JOIN cards 后 user_id 歧义)
+    const where = ['t.user_id = ?'];
     const args = [userId];
-    if (dateFrom) { where.push('created_at >= ?'); args.push(dateFrom + ' 00:00:00'); }
-    if (dateTo)   { where.push('created_at <= ?'); args.push(dateTo   + ' 23:59:59'); }
-    if (type)     { where.push('type = ?');         args.push(type); }
+    if (dateFrom) { where.push('t.created_at >= ?'); args.push(dateFrom + ' 00:00:00'); }
+    if (dateTo)   { where.push('t.created_at <= ?'); args.push(dateTo   + ' 23:59:59'); }
+    if (type)     { where.push('t.type = ?');         args.push(type); }
     const whereSql = 'WHERE ' + where.join(' AND ');
 
     // 查询交易记录（按时间倒序）
+    // v1.0.99.6: LEFT JOIN cards 拿 card_number，前端展示「关联卡号」列
     const rows = db.prepare(`
-      SELECT id, type, amount, net_amount, fee_type, fee_amount, description, ref_id, created_at
-      FROM transactions
+      SELECT t.id, t.type, t.amount, t.net_amount, t.fee_type, t.fee_amount,
+             t.description, t.ref_id, t.created_at,
+             c.card_number, c.product_code, c.label
+      FROM transactions t
+      LEFT JOIN cards c ON c.card_id = t.ref_id
       ${whereSql}
-      ORDER BY created_at DESC
+      ORDER BY t.created_at DESC
       LIMIT ? OFFSET ?
     `).all(...args, pageSize, offset);
 
-    // 查询总数
+    // 查询总数 (v1.0.99.6 同步加 t. 别名, 因为 whereSql 含 t. 前缀)
     const total = db.prepare(`
-      SELECT COUNT(*) as cnt FROM transactions ${whereSql}
+      SELECT COUNT(*) as cnt FROM transactions t ${whereSql}
     `).get(...args).cnt;
 
     // 计算每笔交易时的余额（从当前余额倒推）
@@ -60,6 +64,10 @@ router.get('/', (req, res, next) => {
         fee_type: row.fee_type,
         fee_amount: row.fee_amount,
         description: row.description,
+        ref_id: row.ref_id,
+        card_number: row.card_number || '',     // v1.0.99.6: 关联卡号（LEFT JOIN，未关联时为空串）
+        product_code: row.product_code || '',
+        label: row.label || '',
         created_at: row.created_at,
         currency: 'USD',
         balance: balance,
@@ -91,18 +99,21 @@ router.get('/export.csv', (req, res) => {
     const { dateFrom, dateTo, type } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 10000, 50000);
 
-    const where = ['user_id = ?'];
+    const where = ['t.user_id = ?'];
     const args = [userId];
-    if (dateFrom) { where.push('created_at >= ?'); args.push(dateFrom + ' 00:00:00'); }
-    if (dateTo)   { where.push('created_at <= ?'); args.push(dateTo   + ' 23:59:59'); }
-    if (type)     { where.push('type = ?');         args.push(type); }
+    if (dateFrom) { where.push('t.created_at >= ?'); args.push(dateFrom + ' 00:00:00'); }
+    if (dateTo)   { where.push('t.created_at <= ?'); args.push(dateTo   + ' 23:59:59'); }
+    if (type)     { where.push('t.type = ?');         args.push(type); }
     const whereSql = 'WHERE ' + where.join(' AND ');
 
     const rows = db.prepare(`
-      SELECT id, type, net_amount, fee_type, fee_amount, description, ref_id, created_at
-      FROM transactions
+      SELECT t.id, t.type, t.net_amount, t.fee_type, t.fee_amount,
+             t.description, t.ref_id, t.created_at,
+             c.card_number, c.product_code, c.label
+      FROM transactions t
+      LEFT JOIN cards c ON c.card_id = t.ref_id
       ${whereSql}
-      ORDER BY created_at DESC
+      ORDER BY t.created_at DESC
       LIMIT ?
     `).all(...args, limit);
 
@@ -120,7 +131,7 @@ router.get('/export.csv', (req, res) => {
       withdrawal: '提现手续费', auth_reversal: '撤销手续费',
       management: '管理费', card_monthly: '卡月费'
     };
-    const header = ['交易时间', '交易类型', '净变动金额', '费用类型', '手续费', '描述', '关联ID'];
+    const header = ['交易时间', '交易类型', '净变动金额', '费用类型', '手续费', '关联卡号', '描述', '关联ID'];
     const lines = [header.map(esc).join(',')];
     for (const r of rows) {
       lines.push([
@@ -129,6 +140,7 @@ router.get('/export.csv', (req, res) => {
         r.net_amount,
         r.fee_type ? (feeTypeMap[r.fee_type] || r.fee_type) : '',
         r.fee_amount != null ? r.fee_amount : '',
+        r.card_number || '',     // v1.0.99.6
         r.description,
         r.ref_id,
       ].map(esc).join(','));

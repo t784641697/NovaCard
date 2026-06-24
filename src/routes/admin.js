@@ -1411,31 +1411,34 @@ router.get('/users/:id/transactions', (req, res) => {
   const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limit;
 
   // 钱包流水 (transactions 表) — 优先返回 (业务语义是用户充/扣, 不是卡刷卡)
-  const walletWhere = ['user_id = ?'];
+  // v1.0.99.6: 加 t. 前缀避免 JOIN cards 后 user_id 歧义
+  const walletWhere = ['t.user_id = ?'];
   const walletArgs = [userId];
-  if (start_date) { walletWhere.push('created_at >= ?'); walletArgs.push(start_date); }
-  if (end_date)   { walletWhere.push('created_at <= ?'); walletArgs.push(end_date + ' 23:59:59'); }
+  if (start_date) { walletWhere.push('t.created_at >= ?'); walletArgs.push(start_date); }
+  if (end_date)   { walletWhere.push('t.created_at <= ?'); walletArgs.push(end_date + ' 23:59:59'); }
   if (type === 'Topup' || type === '充值') {
-    walletWhere.push(`type = '充值'`);
+    walletWhere.push(`t.type = '充值'`);
   } else if (type === 'Consume' || type === '消费') {
-    walletWhere.push(`type = '消费'`);
+    walletWhere.push(`t.type = '消费'`);
   }
   const walletRows = db.prepare(`
     SELECT
-      id, NULL as auth_id, NULL as card_id,
-      CASE type WHEN '充值' THEN 'Topup' WHEN '消费' THEN 'Consume' ELSE type END as type,
+      t.id, NULL as auth_id,
+      CASE WHEN t.ref_id != '' THEN t.ref_id ELSE NULL END as card_id,
+      CASE t.type WHEN '充值' THEN 'Topup' WHEN '消费' THEN 'Consume' ELSE t.type END as type,
       'COMPLETE' as status,
-      net_amount as auth_amount,
-      net_amount as settle_amount,
+      t.net_amount as auth_amount,
+      t.net_amount as settle_amount,
       'USD' as auth_currency, 'USD' as settle_currency,
-      description as merchant_name,
-      created_at as create_time,
+      t.description as merchant_name,
+      t.created_at as create_time,
       NULL as auth_time, NULL as sync_time,
-      NULL as card_number, NULL as product_code, NULL as label,
-      fee_amount, 'wallet' as source
-    FROM transactions
+      c.card_number, c.product_code, c.label,                            -- v1.0.99.6: 关联卡号
+      t.fee_amount, 'wallet' as source
+    FROM transactions t
+    LEFT JOIN cards c ON c.card_id = t.ref_id
     WHERE ${walletWhere.join(' AND ')}
-    ORDER BY created_at DESC
+    ORDER BY t.created_at DESC
   `).all(...walletArgs);
 
   // v1.0.94 修复：0 张卡时也只返回 wallet 流水（不调 fetchCardTransactions 避免 SQL "IN ()" 错误）
