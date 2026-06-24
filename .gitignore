@@ -34,3 +34,4 @@ vcc-dashboard/VCC-HUB-BACKUP-PASSWORD.txt
 # 临时下载目录（不要提交备份文件）
 public/downloads/
 .codegraph
+vcc-dashboard/backups/
