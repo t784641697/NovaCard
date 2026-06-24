@@ -1809,7 +1809,13 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         // v1.0.17: 审批时传商户 KYC 默认账单地址，上游写入 card_address
         let cardBillingAddress = null;
         if (process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS) {
-          try { cardBillingAddress = JSON.parse(process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS); } catch {}
+          try { 
+            const parsed = JSON.parse(process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS);
+            // v1.0.99.15 修复：去掉空字符串字段，vmcardio 不接受空字符串
+            cardBillingAddress = Object.fromEntries(
+              Object.entries(parsed).filter(([_, v]) => v !== '' && v != null)
+            );
+          } catch {}
         }
         const createParams = {
           product_code: app.product_code || app.card_bin,
