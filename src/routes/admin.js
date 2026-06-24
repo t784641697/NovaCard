@@ -1825,22 +1825,21 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           } catch {}
         }
         */
-        // v1.0.99.15: 用 bin 代替 product_code（vmcardio 后台手动开卡用卡BIN）
-        // 从 HARDCODED 或上游 API 获取 bin
+        // v1.0.99.15: 用 6 位 bin 作为 product_code（vmcardio 后台显示卡BIN是6位）
         const HARDCODED_BINS = {
-          'G5450SU': '54502000',
-          'G5237OH': '52737560',
-          'S5331GL': '53317100',
-          'G5554LC': '55567154',  // VC102
+          'G5450SU': '545020',  // 6位
+          'G5237OH': '527375',  // 6位
+          'S5331GL': '533171',  // 6位
+          'G5554LC': '555671',  // 6位 (VC102)
         };
         const binValue = HARDCODED_BINS[app.product_code] || app.card_bin || app.product_code;
         
         const createParams = {
-          bin:            binValue,  // v1.0.99.15: 用 bin 代替 product_code
-          amount:         topupAmt,
-          first_name:     sanitizeName(app.first_name),
-          last_name:      sanitizeName(app.last_name),
-          user_id:        '20112258',  // v1.0.99.15: vmcardio 卡关联用户 ID
+          product_code: binValue,  // v1.0.99.15: 用 6 位 bin 作为 product_code
+          amount:       topupAmt,
+          first_name:   sanitizeName(app.first_name),
+          last_name:    sanitizeName(app.last_name),
+          user_id:      '20112258',  // v1.0.99.15: vmcardio 卡关联用户 ID
         };
         // v1.0.99.15: 不传 card_address（vmcardio 已为每个卡段配置默认地址）
         logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
