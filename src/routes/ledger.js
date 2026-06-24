@@ -93,69 +93,6 @@ router.get('/', (req, res, next) => {
  * Query: dateFrom, dateTo, type, limit(<=50000)
  * Permission: 当前用户（自动按 user_id 隔离）
  */
-router.get('/export.csv', (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { dateFrom, dateTo, type } = req.query;
-    const limit = Math.min(parseInt(req.query.limit) || 10000, 50000);
-
-    const where = ['t.user_id = ?'];
-    const args = [userId];
-    if (dateFrom) { where.push('t.created_at >= ?'); args.push(dateFrom + ' 00:00:00'); }
-    if (dateTo)   { where.push('t.created_at <= ?'); args.push(dateTo   + ' 23:59:59'); }
-    if (type)     { where.push('t.type = ?');         args.push(type); }
-    const whereSql = 'WHERE ' + where.join(' AND ');
-
-    const rows = db.prepare(`
-      SELECT t.id, t.type, t.net_amount, t.fee_type, t.fee_amount,
-             t.description, t.ref_id, t.created_at,
-             c.card_number, c.product_code, c.label
-      FROM transactions t
-      LEFT JOIN cards c ON c.card_id = t.ref_id
-      ${whereSql}
-      ORDER BY t.created_at DESC
-      LIMIT ?
-    `).all(...args, limit);
-
-    // CSV 转义 (RFC 4180)
-    const esc = v => {
-      if (v === null || v === undefined) return '';
-      const s = String(v);
-      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-
-    const feeTypeMap = {
-      small_transaction: '小额授权费', cross_border: '跨境交易费',
-      card_creation: '开卡费', topup: '充值费', refund: '退款手续费',
-      transaction: '交易手续费', chargeback: '拒付手续费',
-      withdrawal: '提现手续费', auth_reversal: '撤销手续费',
-      management: '管理费', card_monthly: '卡月费'
-    };
-    const header = ['交易时间', '交易类型', '净变动金额', '费用类型', '手续费', '关联卡号', '描述', '关联ID'];
-    const lines = [header.map(esc).join(',')];
-    for (const r of rows) {
-      lines.push([
-        r.created_at,
-        r.type,
-        r.net_amount,
-        r.fee_type ? (feeTypeMap[r.fee_type] || r.fee_type) : '',
-        r.fee_amount != null ? r.fee_amount : '',
-        r.card_number || '',     // v1.0.99.6
-        r.description,
-        r.ref_id,
-      ].map(esc).join(','));
-    }
-
-    const csv = '\uFEFF' + lines.join('\r\n');
-    const fname = `ledger-${new Date().toISOString().slice(0, 10)}.csv`;
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
-    res.setHeader('X-Export-Count', rows.length);
-    res.send(csv);
-  } catch (e) {
-    res.status(500).json({ code: 500, msg: e.message });
-  }
-});
 
 // GET /api/ledger/export.csv?dateFrom=...&dateTo=...&type=...
 router.get('/export.csv', (req, res, next) => {
@@ -195,13 +132,18 @@ router.get('/export.csv', (req, res, next) => {
       return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
+    // v1.0.99.14: 普通用户卡号 masked 16 位 (**** **** **** 3750), admin 保留原始
+    const maskCard = cn => {
+      if (!cn || cn.length < 4) return cn || '';
+      return '**** **** **** ' + cn.slice(-4);
+    };
     const lines = ['时间,用户ID,类型,变动金额,手续费类型,手续费,到账金额,关联卡号,说明,关联ID'];
     rows.forEach(r => {
       lines.push([
         esc(r.created_at), esc(r.user_id), esc(r.type),
         esc(r.amount), esc(r.fee_type || ''), esc(r.fee_amount || 0),
         esc(r.net_amount),
-        esc(r.card_number || ''),  // v1.0.99.14
+        esc(isAdmin ? (r.card_number || '') : maskCard(r.card_number)),
         esc(r.description || ''), esc(r.ref_id || '')
       ].join(','));
     });
