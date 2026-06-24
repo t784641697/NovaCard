@@ -2345,3 +2345,34 @@ const result = await sdk.rechargeCard(card_id, amount);
 - `af7f07e` v1.0.99.13 (删卡退款补 ref_id)
 - `17ed0ae` v1.0.99.12 (充值扣账户)
 - `b5ce116` v1.0.99.11 (弹窗动态余额)
+
+---
+
+## v1.0.99.14 (2026-06-25) — 账户流水筛选 + 导出 CSV 修复
+
+**🔴 bug 1** — 筛选"充值" tab 无效：前端传 `'管理员充值'` 但 transactions 表实际 type=`'充值'`
+**🔴 bug 2** — 日期筛选失效：`created_at` 存 ISO UTC 格式 `2026-06-18T06:23:35.720Z`，后端 SQL 字符串比较 `>= '2026-06-25 00:00:00'` 字符序错乱（`'T' > ' '` ASCII 0x54 > 0x20），导致 06-18 永远 < 06-25
+**🔴 bug 3** — 导出 CSV 失效：生产 `src/routes/ledger.js` 实际有 **2 个重复** `/export.csv` 路由（line 96 用户版 + line 161 admin 版），Express 先注册先匹配，**用户版先注册** → admin 跑导出也走用户版 → 强制 `user_id = ?` → 看到 0 条
+**🔴 bug 4** — admin 端 admin 后台看自己流水永远 0：同上原因（admin isAdmin=true 但走用户版被强制 user_id=1）
+
+**4 处修复**：
+1. `vcc-dashboard/app.html:4772` "管理员充值" → "充值"
+2. `src/routes/ledger.js:111-112` `created_at >= ?` → `date(created_at) >= ?`（SQLite `date()` 函数自动解析 ISO 头 10 位）
+3. `src/routes/ledger.js:96-158` 整段删掉（老用户版 8 列旧表头）
+4. `src/routes/ledger.js:135-147` 新增 `maskCard()`：普通用户卡号 masked `**** **** **** 3750`，admin 保留原始
+
+**测试**：`scripts/v1.0.99.14_ledger_filter_test.js` 8/8 全过
+- admin 无 filter → 23 条
+- type=充值 → 2 条
+- type=管理员扣款 → 1 条  
+- type=管理员充值 (错误 key) → 0 条
+- dateFrom=2026-06-18 → 6 条
+- dateFrom=2026-06-24 → 4 条
+- dateFrom+type 组合 → 正确
+
+**部署**：
+- commit `d7ff81f` 修 1-3 项
+- commit `23dc070` 修 4 项（删老路由）
+- 生产 HEAD `23dc070`，pm2 restart 0+1 都成功，uptime 0s 健康
+- 测试期间生产又新增 4 条审批失败退款流水（admin 测产生 + 用户测试）
+

@@ -2564,3 +2564,17 @@ const result = await sdk.rechargeCard(card_id, amount); // 2. 调上游
 **部署**：
 - commit `af7f07e` → push origin/main → 生产 git reset + pm2 reload
 - HEAD `af7f07e` uptime 6s 健康
+
+---
+
+## v1.0.99.14 账户流水筛选 + 导出 CSV 修复 — 2026-06-25
+
+**4 个 bug**：
+1. 前端 "管理员充值" tab 用错 type key → 改成 "充值"
+2. 后端 `created_at >= 'YYYY-MM-DD HH:MM:SS'` 字符串比较错乱 → 改 `date(created_at) >= 'YYYY-MM-DD'`
+3. `src/routes/ledger.js` 有 2 个重复 `/export.csv` 路由，admin 跑错版本 → 删老用户版
+4. 补 masked 卡号（普通用户看 `**** **** **** 3750`，admin 看原始）
+
+**commit**：`d7ff81f` (修 1-3) → `23dc070` (修 4 + 删老路由)
+**部署**：生产 HEAD `23dc070` pm2 restart 成功
+
