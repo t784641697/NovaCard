@@ -1826,12 +1826,9 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           amount:       topupAmt,
           first_name:   sanitizeName(app.first_name),
           last_name:    sanitizeName(app.last_name),
-          user_id:      '20112258',  // v1.0.99.15 修复：vmcardio 卡关联用户 ID（从后台截图确认）
+          user_id:      '20112258',  // v1.0.99.15 修复：vmcardio 卡关联用户 ID
         };
-        // v1.0.99.15 debug: 只对美国卡段传 card_address（香港卡段不传）
-        if (cardBillingAddress && ['G5237OH', 'G5554LC'].includes(createParams.product_code)) {
-          createParams.card_address = cardBillingAddress;
-        }
+        // v1.0.99.15: 不传 card_address（上游已为每个卡段配置默认地址）
         logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
         const result = await sdk.createCard(createParams);
         const realCardId = result.card_id;
