@@ -1832,10 +1832,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           last_name:    sanitizeName(app.last_name),
           user_id:      '20112258',  // v1.0.99.15: vmcardio 卡关联用户 ID
         };
-        // v1.0.99.15: 传 card_address（不含 country）
-        if (cardBillingAddress && Object.keys(cardBillingAddress).length > 0) {
-          createParams.card_address = cardBillingAddress;
-        }
+        // v1.0.99.15: 不传 card_address（vmcardio 已为每个卡段配置默认地址）
         logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
         const result = await sdk.createCard(createParams);
         const realCardId = result.card_id;
