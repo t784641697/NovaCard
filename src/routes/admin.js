@@ -1826,10 +1826,8 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         }
         */
         // v1.0.99.15: 用原始 product_code, user_id='20112258'
-        // G5450SU → G545020 (vmcardio 上游产品名不同)
-        const PRODUCT_CODE_MAP = { 'G5450SU': 'G545020' };
         const createParams = {
-          product_code: PRODUCT_CODE_MAP[app.product_code] || app.product_code,
+          product_code: app.product_code,
           amount:       topupAmt,
           first_name:   sanitizeName(app.first_name),
           last_name:    sanitizeName(app.last_name),
