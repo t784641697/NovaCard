@@ -1812,8 +1812,19 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           try { 
             const parsed = JSON.parse(process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS);
             // v1.0.99.15: 去掉空字符串字段
-            cardBillingAddress = Object.fromEntries(
+            const addr = Object.fromEntries(
               Object.entries(parsed).filter(([_, v]) => v !== '' && v != null)
+            );
+            // v1.0.99.15: G5450SU 是香港卡段，country 用 "HK"
+            if (app.product_code === 'G5450SU') {
+              addr.country = 'HK';
+              addr.state = '';
+              addr.post_code = '';
+            } else if (addr.country === 'US') {
+              addr.country = 'USA';
+            }
+            cardBillingAddress = Object.fromEntries(
+              Object.entries(addr).filter(([_, v]) => v !== '' && v != null)
             );
           } catch {}
         }
@@ -1824,7 +1835,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           last_name:    sanitizeName(app.last_name),
           user_id:      '20112258',  // v1.0.99.15: vmcardio 卡关联用户 ID
         };
-        // v1.0.99.15: 传 card_address（跟 S5331GL 成功时一样）
+        // v1.0.99.15: 传 card_address
         if (cardBillingAddress) {
           createParams.card_address = cardBillingAddress;
         }
