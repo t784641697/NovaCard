@@ -1816,7 +1816,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           amount:       topupAmt,
           first_name:   sanitizeName(app.first_name),
           last_name:    sanitizeName(app.last_name),
-          user_id:      String(app.user_id),
+          user_id:      '20098106',  // v1.0.99.15 修复：vmcardio 要求固定商户 user_id，不是我们系统的 user_id
         };
         if (cardBillingAddress) createParams.card_address = cardBillingAddress;
         const result = await sdk.createCard(createParams);
