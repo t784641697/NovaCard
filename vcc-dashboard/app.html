@@ -4968,6 +4968,15 @@ function formatLedgerCardCell(row) {
     return '<span class="ledger-card-rejected" title="该笔流水对应申请未通过，无真实卡片">未开卡成功</span>';
   }
   // 3) 无 ref_id 关联但 desc 有卡段 → 真实卡段名（不伪造卡号）
+  // 3.5) v1.0.99.13: ref_id 漏传(如历史 v1.0.99.99 删卡退款)但 desc 含 ****XXXX 4位后缀
+  //     → 从 desc 提取最后 4 位, 模糊显示 masked (比产品名更精确, 不让用户误以为卡段显示)
+  if (row.description) {
+    const m = row.description.match(/\*+\s*(\d{4})\b/);
+    if (m && m[1]) {
+      return `<span class="ledger-card-tag" title="历史流水未传 ref_id,仅从 desc 提取卡号后 4 位">**** **** **** ${m[1]}</span>`;
+    }
+  }
+  // 4) 都没有 → 显示卡段 (仅在 desc 明确含卡段时)
   const code = _extractProductCodeFromDescription(row.description);
   if (code) return `<span class="ledger-card-tag" title="无完整卡号关联（仅卡段）">🏷 ${code}</span>`;
   // 4) 都没有 → 不显示

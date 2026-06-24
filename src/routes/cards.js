@@ -679,12 +679,14 @@ router.delete('/:card_id', async (req, res, next) => {
     if (balanceBeforeDelete > 0) {
       try {
         const maskedCardNum = card.card_number ? card.card_number.replace(/\d(?=\d{4})/g, '*') : '';
+        // v1.0.99.13: 补传 ref_id=card_id, 让账户流水"关联卡号"列能正确显示卡号 (而不是产品名 fallback)
         refundResult = BalanceService.recordRefund(
           card.user_id,                                                            // userId
           balanceBeforeDelete,                                                     // amount (正数)
           'card_delete_refund',                                                    // feeType
           0,                                                                       // feeAmount (无手续费)
-          `[删卡退款] ${card.product_code || '未知卡段'} ${maskedCardNum} 余额退还 $${balanceBeforeDelete.toFixed(2)} (卡已删除)`
+          `[删卡退款] ${card.product_code || '未知卡段'} ${maskedCardNum} 余额退还 $${balanceBeforeDelete.toFixed(2)} (卡已删除)`,
+          card_id                                                                  // refId
         );
         logger.info(`[deleteCard] 余额已退给用户 user_id=${card.user_id} amount=$${balanceBeforeDelete.toFixed(2)} txn_id=${refundResult.transaction_id} new_balance=$${refundResult.new_balance} ref_id=${card_id}`);
       } catch (refundErr) {
