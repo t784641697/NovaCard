@@ -2,9 +2,7 @@
  * 查询 vmcardio 上游真实产品列表
  */
 require('dotenv').config();
-const VmcardioSDK = require('../src/services/vmcardioSDK');
-
-const sdk = new VmcardioSDK();
+const sdk = require('../src/services/vmcardioSDK');
 
 (async () => {
   try {
