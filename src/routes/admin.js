@@ -1828,7 +1828,10 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           last_name:    sanitizeName(app.last_name),
           user_id:      '20098106',  // v1.0.99.15 修复：vmcardio 要求固定商户 user_id，不是我们系统的 user_id
         };
-        if (cardBillingAddress) createParams.card_address = cardBillingAddress;
+        // v1.0.99.15 debug: 只对非美国卡段传 card_address（美国卡段可能有特殊要求）
+        if (cardBillingAddress && !['G5237OH', 'G5554LC'].includes(createParams.product_code)) {
+          createParams.card_address = cardBillingAddress;
+        }
         logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
         const result = await sdk.createCard(createParams);
         const realCardId = result.card_id;
