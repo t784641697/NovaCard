@@ -1811,14 +1811,10 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         if (process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS) {
           try { 
             const parsed = JSON.parse(process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS);
-            // v1.0.99.15 修复：去掉空字符串字段，vmcardio 不接受空字符串
+            // v1.0.99.15: 去掉空字符串字段
             cardBillingAddress = Object.fromEntries(
               Object.entries(parsed).filter(([_, v]) => v !== '' && v != null)
             );
-            // v1.0.99.15 修复：country "US" → "USA" (vmcardio 要求)
-            if (cardBillingAddress.country === 'US') {
-              cardBillingAddress.country = 'USA';
-            }
           } catch {}
         }
         const createParams = {
@@ -1826,9 +1822,12 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           amount:       topupAmt,
           first_name:   sanitizeName(app.first_name),
           last_name:    sanitizeName(app.last_name),
-          user_id:      '20112258',  // v1.0.99.15 修复：vmcardio 卡关联用户 ID
+          user_id:      '20112258',  // v1.0.99.15: vmcardio 卡关联用户 ID
         };
-        // v1.0.99.15: 不传 card_address（上游已为每个卡段配置默认地址）
+        // v1.0.99.15: 传 card_address（跟 S5331GL 成功时一样）
+        if (cardBillingAddress) {
+          createParams.card_address = cardBillingAddress;
+        }
         logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
         const result = await sdk.createCard(createParams);
         const realCardId = result.card_id;
