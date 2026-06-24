@@ -2251,3 +2251,30 @@ v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1
 - 用户对比上游后台截图：卡组织分配的账单地址（`185 HANG WAI IND CENTRE, Hong Kong, 00999`）≠ Merchant API `cardDetail.card_address` 字段（KYC 商户地址 `6420 Hickory Hill, Plano, TX, US, 75074`）
 - 真相：vmcardio Merchant API `card_address` = KYC 商户地址；卡的真实账单地址 = 上游后台可见，**API 拿不到**
 - 决策：用户决定**保持现状不动**，v1.0.98 仅修 bug，地址字段保留为 KYC 地址
+
+---
+
+## v1.0.99 (2026-06-25) — 卡片管理加删卡功能
+
+### 后端 `src/routes/cards.js:566-630`
+- `DELETE /api/cards/:card_id` 路由改造（硬删 → 软删）
+- 4 层校验：状态(`701001`) / 余额>0(`701002`) / pending(`701003`) / 上游失败(`701004`)
+- 软删：`UPDATE cards SET status='deleted'`
+- 审计日志：管理员写 `audit_logs`（含 ip/ua/owner_email/balance_at_delete 等）
+- 权限：admin 直通；普通用户 user_id 必须匹配（越权 403）
+- Bug 修复：`card.user_email` 列不存在 → 改为 JOIN users 表
+
+### 前端 `vcc-dashboard/app.html`
+- `renderCardManage` 加 `🗑 删卡` 按钮（普通用户 + 管理员共用）
+- 按钮禁用：status=deleted 不显示；balance>0 disabled
+- `cmDeleteCard()`：promptModal 二次确认 + 加载态
+- 新增 CSS `.cm-btn-delete`
+
+### 测试 `scripts/v1.0.99_delete_card_test.js`
+- 8/8 冒烟测试全过（admin + user 视角）
+- 200 成功路径需要真实 vmcardio 卡，生产环境验证
+
+### 设计决策
+- 软删（保留历史）/ 禁止非 0 余额 / 禁止 pending / 写审计日志
+
+部署：commit `2453d0b` → push origin/main → 生产 git reset --hard + pm2 reload
