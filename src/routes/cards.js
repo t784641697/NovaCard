@@ -452,27 +452,31 @@ router.post('/:card_id/recharge', async (req, res, next) => {
     }
 
     const result = await sdk.rechargeCard(card_id, amount);
-    // v1.0.85 充值成功后同步上游到本地 DB
-    //   之前只调 SDK 不写回 DB, v1.0.84 让前端拿到新余额 (renderCardManage 即时刷新),
-    //   但 DB 永远停留在旧值, 用户关掉弹窗再打开就掉回 20. 现在把 result 写回
-    //   兼容两种返回: (1) 同步成功 result 是 recharge 直接返回; (2) v1.0.84 异步确认
-    //   result 是 cardDetail (含 available_amount), 任一情况都按 cardDetail 字段处理
-    try {
-      const newAmt = result?.available_amount ?? null;
-      if (newAmt !== null) {
-        db.prepare(`UPDATE cards SET
-            available_amount = ?,
-            status           = COALESCE(NULLIF(?, ''), status),
-            last_verified    = nowiso(),
-            verified_status  = 'verified',
-            updated_at       = nowiso()
-          WHERE card_id = ?
-        `).run(newAmt, result?.status || '', card_id);
-      }
-    } catch (syncErr) {
-      logger.warn(`[POST /:card_id/recharge] 同步卡 ${card_id} 余额到 DB 失败: ${syncErr.message}`);
-    }
     res.json({ code: 0, msg: 'ok', data: result });
+    // v1.0.99.10 充值后异步同步余额到 DB
+    //   rechargeCard API 返回的不是 cardDetail (无 available_amount),
+    //   v1.0.85 误以为 result 含 available_amount 导致 DB 永远不更新
+    //   修复: fire-and-forget setTimeout 1.5s 调 cardDetail (读路径不触发 700011),
+    //   拉 available_amount 写回 cards 表 + 推 SSE 给前端
+    setTimeout(async () => {
+      try {
+        const detail = await sdk.cardDetail(card_id);
+        const newAmt = Number(detail?.available_amount);
+        if (Number.isFinite(newAmt)) {
+          db.prepare(`UPDATE cards SET
+              available_amount = ?,
+              status           = COALESCE(NULLIF(?, ''), status),
+              last_verified    = nowiso(),
+              verified_status  = 'verified',
+              updated_at       = nowiso()
+            WHERE card_id = ?
+          `).run(newAmt, detail?.status || '', card_id);
+          logger.info(`[POST /:card_id/recharge] 异步同步卡 ${card_id} 余额=${newAmt} 成功`);
+        }
+      } catch (syncErr) {
+        logger.warn(`[POST /:card_id/recharge] 异步同步卡 ${card_id} 余额失败: ${syncErr.message}`);
+      }
+    }, 1500);
   } catch (err) {
     next(err);
   }
