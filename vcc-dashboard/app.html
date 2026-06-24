@@ -4371,6 +4371,9 @@ async function loadCmList(forceRefresh = false) {
     const rawList = rawData.list || [];
     cards = rawList.filter(c => !c.error);
   }
+
+  // v1.0.99.11: 缓存卡列表到 window 供充值弹窗读取卡余额
+  window._cmCards = cards;
   
   if (!cards.length) {
     wrap.innerHTML = `
@@ -4563,10 +4566,24 @@ function renderCmList(cards) {
 
 // 卡片管理 — 充值弹窗
 window.cmRechargeCard = async function(cardId) {
+  // v1.0.99.11: 弹窗 desc 动态展示"卡当前余额 + 账户可用余额"
+  // 让用户在弹窗里就能看到充完会变多少, 充多少合适
+  const card = (window._cmCards || []).find(c => c.card_id === cardId);
+  const cardBalanceUsd = (card && card.available_amount != null)
+    ? '$' + Number(card.available_amount).toFixed(2)
+    : '查询中…';
+  let accountBalanceUsd = '查询中…';
+  try {
+    const balRes = await apiFetch('/user/balance/details');
+    if (balRes.code === 0 && balRes.data && typeof balRes.data.balance === 'number') {
+      accountBalanceUsd = '$' + Number(balRes.data.balance).toFixed(2);
+    }
+  } catch (e) { /* 静默失败, 仍展示"查询中…" */ }
+  const desc = `卡内当前余额 <b>${cardBalanceUsd}</b>　|　账户可用余额 <b>${accountBalanceUsd}</b><br>请输入充值金额（≥\$10），将从账户余额划转至该卡。`;
   // 用项目已有 promptModal（深色主题，跟界面统一）替代浏览器原生 prompt
   const raw = await promptModal({
     title: '💰 卡片充值',
-    desc:  '请输入充值金额，将从您的账户可用余额划转。',
+    desc:  desc,
     placeholder: '例：100',
     hideIcon: true,                                              // 隐藏头部 ❌ emoji
     inputType: 'number',                                         // 数字输入框
