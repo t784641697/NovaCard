@@ -4877,7 +4877,10 @@ async function loadLedgerList() {
         'card_creation':'开卡费','topup':'充值费','refund':'退款手续费',
         'transaction':'交易手续费','chargeback':'拒付手续费',
         'withdrawal':'提现手续费','auth_reversal':'撤销手续费',
-        'management':'管理费','card_monthly':'卡月费'
+        'management':'管理费','card_monthly':'卡月费',
+        'card_delete_refund':'删卡余额退还',
+        'card_delete_refund_v1.0.99.5_backfill':'删卡余额追回',
+        'manual_recovery_v1.0.99.5':'删卡余额追回'
       };
       const feeLabel = item.fee_type && item.fee_type !== '' ? (feeTypeMap[item.fee_type] || item.fee_type) : '—';
       return `
