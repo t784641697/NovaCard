@@ -1815,6 +1815,10 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
             cardBillingAddress = Object.fromEntries(
               Object.entries(parsed).filter(([_, v]) => v !== '' && v != null)
             );
+            // v1.0.99.15 修复：country "US" → "USA" (vmcardio 要求)
+            if (cardBillingAddress.country === 'US') {
+              cardBillingAddress.country = 'USA';
+            }
           } catch {}
         }
         const createParams = {
