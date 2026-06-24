@@ -1826,7 +1826,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           amount:       topupAmt,
           first_name:   sanitizeName(app.first_name),
           last_name:    sanitizeName(app.last_name),
-          user_id:      '20098106',  // v1.0.99.15 修复：vmcardio 要求固定商户 user_id，不是我们系统的 user_id
+          // v1.0.99.15 debug: 不传 user_id 试试（某些卡段可能不需要）
         };
         // v1.0.99.15 debug: 只对非美国卡段传 card_address（美国卡段可能有特殊要求）
         if (cardBillingAddress && !['G5237OH', 'G5554LC'].includes(createParams.product_code)) {
