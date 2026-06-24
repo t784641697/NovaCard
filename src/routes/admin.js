@@ -1819,6 +1819,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
           user_id:      '20098106',  // v1.0.99.15 修复：vmcardio 要求固定商户 user_id，不是我们系统的 user_id
         };
         if (cardBillingAddress) createParams.card_address = cardBillingAddress;
+        logger.info(`[approve] createCard params:`, createParams);  // v1.0.99.15 debug
         const result = await sdk.createCard(createParams);
         const realCardId = result.card_id;
         if (!realCardId) {
