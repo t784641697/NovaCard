@@ -1806,24 +1806,25 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
         // 正式环境走 Merchant API：RSA 加密，product_code + amount + first/last_name + user_id
         //   v1.0.7 假设的 Web API (dev.vmcardio.com/web/createCard) 在正式环境不存在
         //   v1.0.15 实测：vmapi.vmcardio.com/createCard + VC102（原 sandbox 名 G5554LC）正式环境可正常开卡
-        // v1.0.17: 审批时传商户 KYC 默认账单地址，上游写入 card_address
+        // v1.0.99.15: 不传 card_address，让 vmcardio 用每个卡段的默认地址
+        // 之前传的美国地址导致香港卡段 G5450SU 700006 参数错误
+        /*
         let cardBillingAddress = null;
         if (process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS) {
           try { 
             const parsed = JSON.parse(process.env.VMCARDIO_DEFAULT_BILLING_ADDRESS);
-            // v1.0.99.15: 只传 address_line_one, city, state, post_code（不传 country，上游手动开卡不需要）
             cardBillingAddress = {
               address_line_one: parsed.address_line_one,
               city: parsed.city,
               state: parsed.state,
               post_code: parsed.post_code,
             };
-            // 去掉空字符串字段
             cardBillingAddress = Object.fromEntries(
               Object.entries(cardBillingAddress).filter(([_, v]) => v !== '' && v != null)
             );
           } catch {}
         }
+        */
         const createParams = {
           product_code: app.product_code || app.card_bin,
           amount:       topupAmt,
