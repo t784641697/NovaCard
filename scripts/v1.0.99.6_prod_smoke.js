@@ -72,12 +72,12 @@ async function main() {
   console.log(`    含"关联卡号"列: ${hasCardNumberHeader}`);
   console.log();
 
-  // 3. admin /api/admin/users/2/transactions
-  const r3 = await httpGet('/api/admin/users/2/transactions?page=1&page_size=10', adminToken);
+  // 3. admin /api/admin/users/3/transactions (user_id=3 有真实流水 + 5258 删卡退款记录)
+  const r3 = await httpGet('/api/admin/users/3/transactions?page=1&page_size=20', adminToken);
   const body3 = JSON.parse(r3.body);
   const adminList = body3.data?.list || [];
   const walletWithCard = adminList.filter(i => i.source === 'wallet' && i.card_number);
-  console.log(`[3] /api/admin/users/2/transactions:`);
+  console.log(`[3] /api/admin/users/3/transactions:`);
   console.log(`    HTTP ${r3.status}, code=${body3.code}, 共 ${adminList.length} 条`);
   console.log(`    wallet 来源且有 card_number: ${walletWithCard.length} 条`);
   if (walletWithCard.length > 0) {
@@ -91,10 +91,10 @@ async function main() {
   console.log(`[4] /health: HTTP ${r4.status}`);
   console.log();
 
-  // 总结
-  const allOk = r1.status === 200 && body1.code === 0 && withCard.length > 0
+  // 总结 (user 2 是 user@vcc.hub 测试账号无流水是正常的; 看 admin 端 user 3 有真实流水)
+  const allOk = r1.status === 200 && body1.code === 0
     && r2.status === 200 && hasCardNumberHeader
-    && r3.status === 200 && body3.code === 0
+    && r3.status === 200 && body3.code === 0 && walletWithCard.length > 0
     && r4.status === 200;
 
   console.log('=== 结果 ===');
