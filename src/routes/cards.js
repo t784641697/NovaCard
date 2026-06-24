@@ -13,6 +13,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const db      = require('../db/database');
 const sdk     = require('../services/vmcardioSDK');
+const auditLog = require('../services/auditLog'); // v1.0.99 删卡审计日志
 const cardProductOverrideService = require('../services/cardProductOverrideService');
 const cardProductSeenLog = require('../services/cardProductSeenLog'); // v1.0.75 首次出现追踪
 const { authenticate } = require('../middleware/auth');
@@ -561,22 +562,109 @@ router.get('/:cardId/transactions', async (req, res) => {
 });
 
 /**
- * GET /api/cards/:card_id             - 删卡
+ * DELETE /api/cards/:card_id             - 删卡 (v1.0.99 改造: 软删除+余额检查+pending检查+审计)
+ *
+ * 流程:
+ *  1. 查卡 + 权限校验 (管理员直接通过; 普通用户必须 user_id 匹配)
+ *  2. 状态校验: 已是 deleted 状态 → 拒绝重复删
+ *  3. 余额检查: available_amount > 0 → 拒绝 (701002)
+ *  4. pending 交易检查: card_transactions 有 PENDING → 拒绝 (701003)
+ *  5. 调上游 deleteCard API
+ *  6. 本地软删除: status='deleted' (保留历史, 订单/交易不丢关联)
+ *  7. 审计日志: 管理员操作写 audit_logs (701005)
  */
 router.delete('/:card_id', async (req, res, next) => {
   try {
     const { card_id } = req.params;
 
-    if (req.user.role !== 'admin') {
-      const owned = db.prepare('SELECT id FROM cards WHERE card_id = ? AND user_id = ?')
+    // 1. 查卡 (管理员不查 user_id, 普通用户要双重过滤)
+    let card;
+    if (req.user.role === 'admin') {
+      card = db.prepare('SELECT * FROM cards WHERE card_id = ?').get(card_id);
+      if (!card) return res.status(404).json({ code: 404, msg: '卡片不存在' });
+    } else {
+      card = db.prepare('SELECT * FROM cards WHERE card_id = ? AND user_id = ?')
         .get(card_id, req.user.id);
-      if (!owned) return res.status(403).json({ code: 403, msg: '无权限' });
+      if (!card) return res.status(403).json({ code: 403, msg: '无权限或卡片不存在' });
     }
 
-    const result = await sdk.deleteCard(card_id);
-    db.prepare('DELETE FROM cards WHERE card_id = ?').run(card_id);
+    // 2. 状态校验
+    const currentStatus = (card.status || '').toLowerCase();
+    if (currentStatus === 'deleted') {
+      return res.json({ code: 701001, msg: '卡片已是已删除状态' });
+    }
 
-    res.json({ code: 0, msg: 'ok', data: result });
+    // 3. 余额检查 (卡里还有钱不让删, 钱不能凭空消失)
+    const balance = Number(card.available_amount || 0);
+    if (balance > 0) {
+      return res.json({
+        code: 701002,
+        msg: `卡内余额 $${balance.toFixed(2)} > 0，请先退款到账户余额再删卡`,
+        data: { available_amount: balance }
+      });
+    }
+
+    // 4. pending 交易检查 (有 PENDING 交易不让删, 防丢钱)
+    try {
+      const pending = db.prepare(
+        "SELECT COUNT(*) as cnt FROM card_transactions WHERE card_id = ? AND status = 'PENDING'"
+      ).get(card_id);
+      if (pending && pending.cnt > 0) {
+        return res.json({
+          code: 701003,
+          msg: `有 ${pending.cnt} 笔未结算交易，请等待结算完成后再删卡`,
+          data: { pending_count: pending.cnt }
+        });
+      }
+    } catch (e) {
+      // card_transactions 表可能不存在 (旧部署) → 不阻塞, 仅 warn
+      logger.warn(`[deleteCard] 检查 pending 交易失败: ${e.message}`);
+    }
+
+    // 5. 调上游 deleteCard API
+    let upstreamResult;
+    try {
+      upstreamResult = await sdk.deleteCard(card_id);
+      logger.info(`[deleteCard] 上游删卡成功 card_id=${card_id} operator=${req.user.id}`);
+    } catch (err) {
+      logger.error(`[deleteCard] 上游删卡失败 card_id=${card_id}: ${err.message}`);
+      return res.json({
+        code: 701004,
+        msg: `上游删卡失败: ${err.message || '未知错误'}`
+      });
+    }
+
+    // 6. 本地软删除 (保留历史, 订单/交易记录不丢 card_id 关联)
+    db.prepare(
+      "UPDATE cards SET status = 'deleted', updated_at = datetime('now', 'localtime') WHERE card_id = ?"
+    ).run(card_id);
+
+    // 7. 审计日志 (管理员操作不可逆, 必须有据可查)
+    if (req.user.role === 'admin') {
+      // 查 card 拥有者的 email (cards 表没 user_email 字段, 需 JOIN users)
+      const ownerEmail = db.prepare('SELECT email FROM users WHERE id = ?').get(card.user_id)?.email || '';
+      auditLog.writeLog({
+        userId: req.user.id,
+        action: 'admin_delete_card',
+        ip: req.ip,
+        ua: req.headers['user-agent'] || '',
+        detail: {
+          card_id,
+          card_owner_id: card.user_id,
+          card_owner_email: ownerEmail,
+          card_number_masked: card.card_number ? card.card_number.replace(/\d(?=\d{4})/g, '*') : '',
+          product_code: card.product_code || '',
+          bin: card.bin || '',
+          balance_at_delete: balance,
+        }
+      });
+    }
+
+    res.json({
+      code: 0,
+      msg: 'ok',
+      data: { card_id, status: 'deleted', upstream: upstreamResult }
+    });
   } catch (err) {
     next(err);
   }

@@ -226,6 +226,11 @@ select.form-control option{background:var(--bg3);}
 .cm-btn-detail:hover{background:rgba(79,143,255,.22);}
 .cm-btn-txn{background:rgba(139,92,246,.1);color:#a78bfa;border:1px solid rgba(139,92,246,.25);padding:6px 10px;font-size:12px;white-space:nowrap;}
 .cm-btn-txn:hover{background:rgba(139,92,246,.22);}
+/* v1.0.99 删卡按钮 (危险操作) */
+.cm-btn-delete{background:rgba(239,68,68,.08);color:#fca5a5;border:1px solid rgba(239,68,68,.2);}
+.cm-btn-delete:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.4);}
+.cm-btn-delete-disabled{background:rgba(156,163,175,.06);color:#9CA3AF;border:1px solid rgba(156,163,175,.2);cursor:not-allowed;opacity:.7;}
+.cm-btn-delete-disabled:hover{background:rgba(156,163,175,.06);border-color:rgba(156,163,175,.2);}
 @media(max-width:640px){
   .cm-card{flex-direction:column;align-items:flex-start;}
   .cm-card-right{width:100%;justify-content:space-between;}
@@ -4467,7 +4472,18 @@ function renderCmList(cards) {
     } else if (isFrozen) {
       freezeBtn = '<button class="cm-btn cm-btn-unfreeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'ACTIVE\',this)">解冻</button>';
     }
-    
+
+    // v1.0.99 删卡按钮: 已删除/失效不显示, 余额>0 禁用, 否则正常
+    var deleteBtn = '';
+    if (!isDeleted && !isInvalid) {
+      const balanceForDelete = Number(c.available_amount || 0);
+      if (balanceForDelete > 0) {
+        deleteBtn = '<button class="cm-btn cm-btn-delete cm-btn-delete-disabled" disabled title="卡内余额 $' + balanceForDelete.toFixed(2) + ' > 0，请先退款到账户余额再删卡">🗑 余额>0</button>';
+      } else {
+        deleteBtn = '<button class="cm-btn cm-btn-delete" onclick="window.cmDeleteCard(\'' + c.card_id + '\', \'' + (c.card_number||'') + '\', \'' + (c.user_name||c.label||'') + '\', this)" title="删除卡片（不可恢复）">🗑 删卡</button>';
+      }
+    }
+
     // 处理有效期显示
     let expireDisplay = '—';
     if (c.expire) {
@@ -4534,6 +4550,7 @@ function renderCmList(cards) {
             ${`<button class="cm-btn cm-btn-detail" onclick="window.showCardDetail('${c.card_id}')">🔍 详情</button>`}
             ${!isInvalid ? '<button class="cm-btn cm-btn-topup" onclick="window.cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>' : ''}
             ${freezeBtn}
+            ${deleteBtn}
           </div>
         </div>
       </div>`;
@@ -4618,6 +4635,88 @@ window.cmFreezeCard = async function(cardId, targetStatus, btnEl) {
     }
   }
 }
+
+// 卡片管理 — 删卡 (v1.0.99)
+// 普通用户/管理员共用, 后端按 role 区分权限, 管理员操作会写 audit_logs
+window.cmDeleteCard = async function(cardId, cardNumber, holderName, btnEl) {
+  // 0. 前置校验: 失效卡片不允许删
+  var cards = window.currentCardList || [];
+  var card = cards.find(function(c) { return c.card_id === cardId; });
+  if (card && card.verified_status === 'invalid') {
+    toast('该卡片已失效，无法执行删卡操作', 3000);
+    return;
+  }
+
+  // 1. 前置校验: 余额 > 0 拒绝 (后端 701002 也会拦, 但前端先提示)
+  var balance = Number((card && card.available_amount) || 0);
+  if (balance > 0) {
+    toast('卡内余额 $' + balance.toFixed(2) + ' > 0，请先退款再删卡', 3500);
+    return;
+  }
+
+  // 2. 卡号脱敏 (5258470125173750 → 5258 •••• •••• 3750)
+  var masked = cardId;
+  if (cardNumber && cardNumber.length >= 8) {
+    masked = cardNumber.replace(/(\d{4})/g, '$1 ').trim();
+    var parts = masked.split(' ');
+    if (parts.length === 4) {
+      masked = parts[0] + ' •••• •••• ' + parts[3];
+    }
+  }
+
+  // 3. 二次确认弹窗 (复用 promptModal, 加 hideIcon + okCenter 适配危险操作)
+  const confirmed = await promptModal({
+    title: '🗑 确认删除卡片',
+    desc: '卡号: ' + masked + (holderName ? '\n持卡人: ' + holderName : '') + '\n\n⚠️ 此操作不可恢复！\n\n• 卡将永久从上游删除\n• 本地状态标记为"已删除"\n• 历史订单/交易记录保留',
+    icon: '🗑',
+    hideIcon: false,
+    okText: '确认删除',
+    okColor: 'linear-gradient(135deg,#ef4444,#dc2626)',
+    cancelText: '取消',
+    okCenter: true,
+    hideCancel: false,
+    hideX: true,
+  });
+  if (!confirmed && confirmed !== '') return; // 取消 = null; 确认 = '' (无输入框)
+
+  // 4. 防重复点击 + loading
+  if (btnEl && btnEl.disabled) return;
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.dataset.originalText = btnEl.innerHTML;
+    btnEl.innerHTML = '<span class="spin">⟳</span> 删除中...';
+  }
+
+  try {
+    const r = await apiFetch('/cards/' + cardId, { method: 'DELETE' });
+    if (r.code !== 0) {
+      // 错误码处理
+      let errMsg = r.msg || '删卡失败';
+      if (r.code === 701001) errMsg = '卡片已是已删除状态';
+      else if (r.code === 701002) errMsg = '卡内余额 > 0，请先退款到账户余额再删卡';
+      else if (r.code === 701003) errMsg = r.msg || '有未结算交易，请等待结算完成';
+      else if (r.code === 701004) errMsg = '上游删卡失败: ' + (r.msg || '未知错误');
+      else if (r.code === 403) errMsg = '无权限删除该卡';
+      toast('❌ ' + errMsg, 4000);
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerHTML = btnEl.dataset.originalText || '🗑 删卡';
+      }
+      return;
+    }
+
+    toast('✅ 卡片已删除', 2500);
+    // 刷新卡片列表 (renderCardManage 内部会重新拉数据)
+    if (typeof loadCmList === 'function') loadCmList();
+    else if (typeof loadCardList === 'function') loadCardList();
+  } catch (err) {
+    toast('❌ 网络错误: ' + (err.message || '请稍后重试'), 4000);
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.innerHTML = btnEl.dataset.originalText || '🗑 删卡';
+    }
+  }
+};
 
 // ══════════════════════════════════════════════
 //  PAGE: 账户流水
