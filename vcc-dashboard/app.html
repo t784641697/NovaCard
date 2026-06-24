@@ -4473,15 +4473,14 @@ function renderCmList(cards) {
       freezeBtn = '<button class="cm-btn cm-btn-unfreeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'ACTIVE\',this)">解冻</button>';
     }
 
-    // v1.0.99 删卡按钮: 已删除/失效不显示, 余额>0 禁用, 否则正常
+    // v1.0.99 删卡按钮: 已删除/失效不显示, 否则正常 (余额>0 由上游自动退到账户)
     var deleteBtn = '';
     if (!isDeleted && !isInvalid) {
       const balanceForDelete = Number(c.available_amount || 0);
-      if (balanceForDelete > 0) {
-        deleteBtn = '<button class="cm-btn cm-btn-delete cm-btn-delete-disabled" disabled title="卡内余额 $' + balanceForDelete.toFixed(2) + ' > 0，请先退款到账户余额再删卡">🗑 余额>0</button>';
-      } else {
-        deleteBtn = '<button class="cm-btn cm-btn-delete" onclick="window.cmDeleteCard(\'' + c.card_id + '\', \'' + (c.card_number||'') + '\', \'' + (c.user_name||c.label||'') + '\', this)" title="删除卡片（不可恢复）">🗑 删卡</button>';
-      }
+      const willRefund = balanceForDelete > 0
+        ? '卡内余额 $' + balanceForDelete.toFixed(2) + ' 将退回到账户余额'
+        : '卡内余额 $0';
+      deleteBtn = '<button class="cm-btn cm-btn-delete" onclick="window.cmDeleteCard(\'' + c.card_id + '\', \'' + (c.card_number||'') + '\', \'' + (c.user_name||c.label||'') + '\', this)" title="删除卡片（不可恢复）">🗑 删卡</button>';
     }
 
     // 处理有效期显示
@@ -4647,14 +4646,7 @@ window.cmDeleteCard = async function(cardId, cardNumber, holderName, btnEl) {
     return;
   }
 
-  // 1. 前置校验: 余额 > 0 拒绝 (后端 701002 也会拦, 但前端先提示)
-  var balance = Number((card && card.available_amount) || 0);
-  if (balance > 0) {
-    toast('卡内余额 $' + balance.toFixed(2) + ' > 0，请先退款再删卡', 3500);
-    return;
-  }
-
-  // 2. 卡号脱敏 (5258470125173750 → 5258 •••• •••• 3750)
+  // 卡号脱敏 (5258470125173750 → 5258 •••• •••• 3750)
   var masked = cardId;
   if (cardNumber && cardNumber.length >= 8) {
     masked = cardNumber.replace(/(\d{4})/g, '$1 ').trim();
@@ -4664,10 +4656,16 @@ window.cmDeleteCard = async function(cardId, cardNumber, holderName, btnEl) {
     }
   }
 
-  // 3. 二次确认弹窗 (复用 promptModal, 加 hideIcon + okCenter 适配危险操作)
+  // 余额信息 (v1.0.99: 余额>0 由上游自动退到账户, 不再是阻断条件)
+  var balance = Number((card && card.available_amount) || 0);
+  var balanceLine = balance > 0
+    ? '• 卡内余额 $' + balance.toFixed(2) + ' 将自动退回到账户余额\n'
+    : '• 卡内余额 $0.00\n';
+
+  // 二次确认弹窗 (复用 promptModal, 加 hideIcon + okCenter 适配危险操作)
   const confirmed = await promptModal({
     title: '🗑 确认删除卡片',
-    desc: '卡号: ' + masked + (holderName ? '\n持卡人: ' + holderName : '') + '\n\n⚠️ 此操作不可恢复！\n\n• 卡将永久从上游删除\n• 本地状态标记为"已删除"\n• 历史订单/交易记录保留',
+    desc: '卡号: ' + masked + (holderName ? '\n持卡人: ' + holderName : '') + '\n\n' + balanceLine + '\n⚠️ 此操作不可恢复！\n\n• 卡将永久从上游删除\n• 本地状态标记为"已删除"\n• 历史订单/交易记录保留',
     icon: '🗑',
     hideIcon: false,
     okText: '确认删除',

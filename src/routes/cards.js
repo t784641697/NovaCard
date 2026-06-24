@@ -594,15 +594,8 @@ router.delete('/:card_id', async (req, res, next) => {
       return res.json({ code: 701001, msg: '卡片已是已删除状态' });
     }
 
-    // 3. 余额检查 (卡里还有钱不让删, 钱不能凭空消失)
-    const balance = Number(card.available_amount || 0);
-    if (balance > 0) {
-      return res.json({
-        code: 701002,
-        msg: `卡内余额 $${balance.toFixed(2)} > 0，请先退款到账户余额再删卡`,
-        data: { available_amount: balance }
-      });
-    }
+    // 3. 记录删卡前余额 (供审计/对账用, vmcardio 上游会自动退余额到账户)
+    const balanceBeforeDelete = Number(card.available_amount || 0);
 
     // 4. pending 交易检查 (有 PENDING 交易不让删, 防丢钱)
     try {
@@ -625,7 +618,7 @@ router.delete('/:card_id', async (req, res, next) => {
     let upstreamResult;
     try {
       upstreamResult = await sdk.deleteCard(card_id);
-      logger.info(`[deleteCard] 上游删卡成功 card_id=${card_id} operator=${req.user.id}`);
+      logger.info(`[deleteCard] 上游删卡成功 card_id=${card_id} operator=${req.user.id} balance_before=$${balanceBeforeDelete.toFixed(2)}`);
     } catch (err) {
       logger.error(`[deleteCard] 上游删卡失败 card_id=${card_id}: ${err.message}`);
       return res.json({
@@ -655,7 +648,7 @@ router.delete('/:card_id', async (req, res, next) => {
           card_number_masked: card.card_number ? card.card_number.replace(/\d(?=\d{4})/g, '*') : '',
           product_code: card.product_code || '',
           bin: card.bin || '',
-          balance_at_delete: balance,
+          balance_at_delete: balanceBeforeDelete,
         }
       });
     }

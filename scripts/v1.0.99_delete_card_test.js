@@ -14,7 +14,7 @@ const BASE = 'http://localhost:5000';
 
 // 5 张测试卡
 const TEST_CARDS = [
-  { card_id: 'TEST_BALANCE_10',  user_id: 2, balance: 10,  status: 'active',  desc: '余额>0 → 期望 701002' },
+  { card_id: 'TEST_BALANCE_10',  user_id: 2, balance: 10,  status: 'active',  desc: '余额>0 → 期望 701004 (上游失败, v1.0.99.1 余额不再拦截)' },
   { card_id: 'TEST_DELETED',     user_id: 2, balance: 0,   status: 'deleted', desc: '已删除 → 期望 701001' },
   { card_id: 'TEST_PENDING',     user_id: 2, balance: 0,   status: 'active',  desc: '有 pending → 期望 701003' },
   { card_id: 'TEST_OWNER3',      user_id: 3, balance: 0,   status: 'active',  desc: 'user2 越权删 user3 卡 → 期望 403' },
@@ -129,9 +129,9 @@ async function main() {
   }
 
   console.log('\n=== 3. 跑测试 (admin 视角) ===');
-  // 3.1 余额>0 → 701002
+  // 3.1 余额>0 → 701004 (v1.0.99.1 余额不再拦截, 由上游自动退)
   let r = await httpDelete('/api/cards/TEST_BALANCE_10', adminToken);
-  await runTest('3.1 余额>0 → 701002', 701002, JSON.parse(r.body).code, r.body);
+  await runTest('3.1 余额>0 → 701004 (上游失败)', 701004, JSON.parse(r.body).code, r.body);
 
   // 3.2 已删除 → 701001
   r = await httpDelete('/api/cards/TEST_DELETED', adminToken);

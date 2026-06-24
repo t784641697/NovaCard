@@ -2278,3 +2278,25 @@ v1.0.88 用 `sed -i '1489,1502d' app.html` 清理死代码时，误删了 line 1
 - 软删（保留历史）/ 禁止非 0 余额 / 禁止 pending / 写审计日志
 
 部署：commit `2453d0b` → push origin/main → 生产 git reset --hard + pm2 reload
+
+---
+
+## v1.0.99.1 (2026-06-25) — 删卡余额逻辑修正
+
+### 🔴 业务规则确认
+**vmcardio 上游 `deleteCard` 会自动退卡内余额到用户账户**（不需要用户先手动退款）。
+
+### 🛠️ 修正内容
+- **后端** `src/routes/cards.js:597-605`：
+  - 删除 701002 余额检查
+  - 新增 `balanceBeforeDelete` 记录删卡前余额
+  - 审计日志加 `balance_at_delete` 字段
+- **前端** `vcc-dashboard/app.html:4470-4479, 4651-4667`：
+  - 删除余额前置校验
+  - 余额>0 按钮可点
+  - 弹窗 desc 加 `balanceLine` 提示"余额将退回"
+- **测试** `scripts/v1.0.99_delete_card_test.js:17, 132-134`：
+  - 3.1 用例：701002 → 701004（不再被前端拒绝）
+  - 8/8 冒烟测试全过
+
+部署：commit + push → 生产 git reset --hard + pm2 reload
