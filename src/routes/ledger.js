@@ -168,16 +168,23 @@ router.get('/export.csv', (req, res, next) => {
     const where = [];
     const args = [];
     if (!isAdmin) { where.push('user_id = ?'); args.push(userId); }
-    if (dateFrom) { where.push('created_at >= ?'); args.push(dateFrom + ' 00:00:00'); }
-    if (dateTo)   { where.push('created_at <= ?'); args.push(dateTo   + ' 23:59:59'); }
+    // v1.0.99.14: created_at 是 ISO 8601 UTC (2026-06-18T06:23:35.720Z),
+    // 字符串比较 'YYYY-MM-DD HH:MM:SS' 会因 'T' > ' ' 字符序错乱。
+    // 改用 SQLite date() 函数自动解析 ISO 字符串头 10 位 YYYY-MM-DD
+    if (dateFrom) { where.push('date(created_at) >= ?'); args.push(dateFrom); }
+    if (dateTo)   { where.push('date(created_at) <= ?'); args.push(dateTo); }
     if (type)     { where.push('type = ?');         args.push(type); }
     const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
+    // v1.0.99.14: 关联卡号列 (LEFT JOIN cards) 跟用户版统一
     const rows = db.prepare(`
-      SELECT id, user_id, type, amount, fee_type, fee_amount, net_amount, description, ref_id, created_at
-      FROM transactions
+      SELECT t.id, t.user_id, t.type, t.amount, t.fee_type, t.fee_amount, t.net_amount,
+             t.description, t.ref_id, t.created_at,
+             c.card_number, c.product_code, c.label
+      FROM transactions t
+      LEFT JOIN cards c ON c.card_id = t.ref_id
       ${whereSql}
-      ORDER BY created_at DESC
+      ORDER BY t.created_at DESC
       LIMIT ?
     `).all(...args, limit);
 
@@ -188,12 +195,14 @@ router.get('/export.csv', (req, res, next) => {
       return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
-    const lines = ['时间,用户ID,类型,变动金额,手续费类型,手续费,到账金额,说明,关联ID'];
+    const lines = ['时间,用户ID,类型,变动金额,手续费类型,手续费,到账金额,关联卡号,说明,关联ID'];
     rows.forEach(r => {
       lines.push([
         esc(r.created_at), esc(r.user_id), esc(r.type),
         esc(r.amount), esc(r.fee_type || ''), esc(r.fee_amount || 0),
-        esc(r.net_amount), esc(r.description || ''), esc(r.ref_id || '')
+        esc(r.net_amount),
+        esc(r.card_number || ''),  // v1.0.99.14
+        esc(r.description || ''), esc(r.ref_id || '')
       ].join(','));
     });
 
