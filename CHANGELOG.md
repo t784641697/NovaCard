@@ -2260,3 +2260,88 @@ setTimeout(async () => {
 - pm2 cluster 2 workers online
 
 
+
+---
+
+## v1.0.99.11 (2026-06-24) — 充值弹窗动态展示卡余额+账户余额
+
+**v1.0.99.11 核心**：`vcc-dashboard/app.html` `cmRechargeCard` 函数弹窗 desc 从硬编码改动态：
+- `window._cmCards = cards;` 缓存卡列表
+- 弹窗 desc 显示 "卡内当前余额 $XX.XX，账户可用 $YY.YY (充后卡内 $XX+amount)"
+- 改 `async` 函数 + setLoading 兼容前版
+- commit `b5ce116`
+
+**问题**：原弹窗 desc 只说"请输入充值金额"，用户不知道充完会变多少
+
+**修复**：弹窗打开时根据缓存查 `card.available_amount` + `user.balance` 动态显示
+
+---
+
+## v1.0.99.12 (2026-06-25) — 🔴 资金安全 — 充值时扣用户账户余额
+
+**🔴 关键 bug**：v1.0.99 之前 `/api/cards/:card_id/recharge` 路由**只调 `sdk.rechargeCard`，没扣用户账户余额**
+
+**事故链还原** (user 3 / taoliang.ligh@gmail.com)：
+| 时间 | 事件 | user 3 账户 | G5554LC 卡 |
+|------|------|------------|------------|
+| 06-18 07:34 | 申请 #5 G5554LC (开卡费 1 + 冻结 20) | -21 | — |
+| 上游创建 | 卡创建 | — | 20 |
+| 06-24 07:10/07:44/07:55 | **充 10×3（账户没扣！）** | **0** | 20→50 |
+| 06-24 08:05:33 | 删卡 | +50 (id=23) | 50→0 |
+| 至今 | user 3 余额 | **$106.40** | — |
+
+**凭空金额 = $30** = 充值总额 (30) — 上游删卡时退卡内余额 (50) — 申请冻结 (20) = +$30
+
+**v1.0.99.12 修复** (`src/routes/cards.js` `/recharge` 路由)：
+```js
+// 1. 先扣用户账户
+BalanceService.recordSpend(req.user.id, amount, 'card_recharge', 0, '卡充值 - ' + card_id, card_id);
+// 2. 调上游
+const result = await sdk.rechargeCard(card_id, amount);
+// 3. 失败回滚
+} catch (e) {
+  await BalanceService.recordRefund(req.user.id, amount, 'card_recharge_refund', 0, '充值失败退款 - ' + card_id + ' (' + e.message + ')', card_id);
+  throw e;
+}
+```
+
+**测试**：`scripts/v1.0.99.12_recharge_deduct_test.js` 5/5 全过
+- 正常充值 / 余额不足 / SDK 失败 / 非法金额 / 资金守恒
+
+**部署**：commit `17ed0ae` → push origin/main → 生产 git reset + pm2 reload
+
+---
+
+## v1.0.99.13 (2026-06-25) — 删卡退款流水补 ref_id (卡号列正确显示)
+
+**🔴 关键 bug**：v1.0.99.99 改造的 `DELETE /api/cards/:card_id` 路由调 `BalanceService.recordRefund` **漏传第 6 个参数 refId**
+
+**事故现象**：
+- user 3 2026/6/24 16:05:34 删卡退款 (id=23) ref_id=空
+- 前端 `formatLedgerCardCell` 走 Path 3 fallback → 匹配 description "G5554LC" → 显示产品名 `🏷 G5554LC`
+- **应该显示** `**** **** **** 7240` 卡号
+
+**对比**：
+- id=21/22 (5258 卡)：ref_id=`2069455464522190849` → JOIN 成功 → `**** **** **** 3750` ✅
+- id=23 (G5554LC)：ref_id=空 → JOIN 失败 → 走 Path 3 → `G5554LC` ❌
+
+**v1.0.99.13 修复** (3 件套)：
+1. **后端** (`src/routes/cards.js:687`)：recordRefund 补传 `card_id` 作为第 6 个参数
+2. **前端** (`vcc-dashboard/app.html:formatLedgerCardCell`)：加 Path 3.5 —— desc 含 `****XXXX` 时直接显示 masked `**** **** **** XXXX`
+3. **历史回滚** (`scripts/v1.0.99.13_backfill_ref_id.js`)：扫所有 `ref_id 空 + desc 含 ****XXXX` 的流水，提取后 4 位 → 找 cards 表 card_id → 回填 ref_id
+
+**生产回滚结果**：
+```
+[v1.0.99.13] 找到 1 条需要回滚的流水
+  ✏️  id=23: user=3 $50 desc="[删卡退款] G5554LC ************7240 ..." → ref_id=XR2067511181878833152 (G5554LC)
+```
+
+**部署**：
+- commit `af7f07e` → push origin/main
+- 生产 HEAD `af7f07e` (v1.0.99.13)
+- pm2 reload 0+1 都成功，uptime 6s 健康
+
+**commit 链**：
+- `af7f07e` v1.0.99.13 (删卡退款补 ref_id)
+- `17ed0ae` v1.0.99.12 (充值扣账户)
+- `b5ce116` v1.0.99.11 (弹窗动态余额)

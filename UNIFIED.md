@@ -2524,3 +2524,43 @@ setTimeout(async () => {
 
 **生产 HEAD**：`4df1496` → 后手动升级到 `49a1b49`
 
+
+---
+
+## v1.0.99.11 充值弹窗动态展示余额 — 2026-06-24
+
+**问题**：原充值弹窗只说"请输入充值金额"，用户不知道充完会变多少
+**修复**：`cmRechargeCard` 改 async + `window._cmCards` 缓存 + 弹窗 desc 动态显示 "卡内当前余额 $XX，账户可用 $YY (充后卡内 $XX+amount)"
+**commit**：`b5ce116`
+
+## v1.0.99.12 🔴 资金安全 — 充值扣用户账户 — 2026-06-25
+
+**🔴 bug**：`/api/cards/:card_id/recharge` 路由只调 `sdk.rechargeCard` 不扣用户账户
+**事故链** (user 3)：
+- 06-18 申请 G5554LC 冻结 20 → 06-24 三次充 10 共 30 (账户没扣) → 06-24 删卡退 50 → user 3 凭空 +30
+- 删卡退款时退到平台账户，我们 recordRefund 给 user → user 余额 +50 (实际 20 是合法申请冻结，30 是凭空)
+
+**修复**：
+```js
+BalanceService.recordSpend(userId, amount, 'card_recharge', 0, '...', card_id); // 1. 扣
+const result = await sdk.rechargeCard(card_id, amount); // 2. 调上游
+} catch (e) { await BalanceService.recordRefund(...); } // 3. 失败回滚
+```
+
+**测试**：`scripts/v1.0.99.12_recharge_deduct_test.js` 5/5 全过
+**commit**：`17ed0ae`
+
+## v1.0.99.13 删卡退款流水补 ref_id — 2026-06-25
+
+**🔴 bug**：v1.0.99.99 `DELETE /api/cards/:card_id` 调 `recordRefund` 漏传第 6 个参数 refId
+**现象**：user 3 16:05:34 删卡退款 (id=23) ref_id=空 → 前端 `formatLedgerCardCell` 走 Path 3 fallback → 匹配 description "G5554LC" → 显示产品名而非卡号
+
+**3 件套修复**：
+1. **后端** `src/routes/cards.js:687`：recordRefund 补传 `card_id` ref_id
+2. **前端** `vcc-dashboard/app.html:formatLedgerCardCell`：加 Path 3.5 — desc 含 `****XXXX` 时显示 `**** **** **** XXXX` masked
+3. **历史回滚** `scripts/v1.0.99.13_backfill_ref_id.js`：扫所有 `ref_id 空 + desc 含 ****XXXX` 流水，从 desc 提取 4 位后缀 → 找 cards 表 → 回填 ref_id
+   - 生产回滚 **1 条**: id=23 G5554LC → ref_id=XR2067511181878833152
+
+**部署**：
+- commit `af7f07e` → push origin/main → 生产 git reset + pm2 reload
+- HEAD `af7f07e` uptime 6s 健康
