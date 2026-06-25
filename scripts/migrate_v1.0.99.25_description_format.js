@@ -15,7 +15,7 @@ const path = require('path');
 // 确保在项目根目录执行
 process.chdir(path.resolve(__dirname, '..'));
 
-const db = require('./src/db');
+const db = require('../src/db');
 
 function run() {
   console.log('=== v1.0.99.25 迁移：统一 description 格式 ===\n');
