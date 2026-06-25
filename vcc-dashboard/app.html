@@ -4842,33 +4842,13 @@ function ledgerReset() {
 function ledgerExport() {
   const s = window._ledgerSearch || {};
   const qs = new URLSearchParams();
+  const token = localStorage.getItem('vcc_token') || '';
+  qs.set('token', token);
   if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
   if (s.dateTo)   qs.set('dateTo',   s.dateTo);
   if (s.type)     qs.set('type',     s.type);
   qs.set('limit', '50000');
-  const url = '/api/ledger/export.csv?' + qs.toString();
-  const token = localStorage.getItem('vcc_token') || '';
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-  xhr.responseType = 'blob';
-  xhr.onload = function() {
-    if (xhr.status !== 200) {
-      toast('\u274C \u5BFC\u51FA\u5931\u8D25: HTTP ' + xhr.status, 'error');
-      return;
-    }
-    const blob = xhr.response;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'ledger-' + new Date().toISOString().slice(0,10) + '.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-    toast('\u2705 \u5DF2\u5BFC\u51FA');
-  };
-  xhr.onerror = function() { toast('\u274C \u5BFC\u51FA\u5931\u8D25: \u7F51\u7EDC\u9519\u8BEF', 'error'); };
-  xhr.send();
+  window.open('/api/ledger/export.csv?' + qs.toString());
 }
 
 async function loadLedgerList() {
@@ -5084,16 +5064,13 @@ function cardTxReset() {
 function cardTxExport() {
   const s = window._cardTxSearch || {};
   const qs = new URLSearchParams();
+  const token = localStorage.getItem('vcc_token') || '';
+  qs.set('token', token);
   if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
   if (s.dateTo)   qs.set('dateTo',   s.dateTo);
   if (s.type)     qs.set('type',     s.type);
   qs.set('limit', '50000');
-  const url = '/api/transactions/export.csv?' + qs.toString();
-  const token = localStorage.getItem('vcc_token') || '';
-  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t); }); return r.blob(); })
-    .then(blob => { const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = 'transactions-' + new Date().toISOString().slice(0,10) + '.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(u), 1000); toast('✅ 已导出'); })
-    .catch(e => { try { const m = JSON.parse(e.message); toast('❌ 导出失败: ' + (m.msg||m.message||e.message), 'error'); } catch(_) { toast('❌ 导出失败: ' + e.message, 'error'); } });
+  window.open('/api/transactions/export.csv?' + qs.toString());
 }
 
 async function loadCardTxList() {
@@ -5223,27 +5200,13 @@ function cardSettleReset() {
 function cardSettleExport() {
   const s = window._cardSettleSearch || {};
   const qs = new URLSearchParams();
+  const token = localStorage.getItem('vcc_token') || '';
+  qs.set('token', token);
   if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
   if (s.dateTo)   qs.set('dateTo',   s.dateTo);
   qs.set('type', 'Settlement');  // 结算记录固定
   qs.set('limit', '50000');
-  const url = '/api/transactions/export.csv?' + qs.toString();
-  const token = localStorage.getItem('vcc_token') || '';
-  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-    .then(csv => {
-      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = 'settlements-' + new Date().toISOString().slice(0,10) + '.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-      toast('✅ 已导出');
-    })
-    .catch(e => toast('❌ 导出失败: ' + e.message, 'error'));
+  window.open('/api/transactions/export.csv?' + qs.toString());
 }
 
 async function loadCardSettleList() {

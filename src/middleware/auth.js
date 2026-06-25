@@ -12,12 +12,17 @@ const db     = require('../db/database');
  * 同时回查数据库确认账号当前状态（禁用的账号即使 token 有效也拒绝）
  */
 function authenticate(req, res, next) {
+  // 支持 query token (用于 window.open 下载 CSV 等场景)
+  let token = null;
   const authHeader = req.headers['authorization'];
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ')) {
+    token = authHeader.slice(7);
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  }
+  if (!token) {
     return res.status(401).json({ code: 401, msg: '未提供认证 Token' });
   }
-
-  const token = authHeader.slice(7);
   try {
     const JWT_SECRET = process.env.JWT_SECRET || 'vcc-secret-change-in-production';
     const payload = jwt.verify(token, JWT_SECRET);
