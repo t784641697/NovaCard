@@ -3669,8 +3669,7 @@ async function renderCardManage() {
   if (isAdmin) { area.style.paddingTop = '10px'; area.style.paddingLeft = '12px'; area.style.maxWidth = '100%'; }
   else { area.style.paddingTop = ''; area.style.paddingLeft = ''; area.style.maxWidth = ''; }
   area.innerHTML = `
-    ${!isAdmin ? '<div class="page-header"><div class="flex items-center justify-between"><div><h2>卡片管理</h2><p class="text-muted mt-1">管理您的所有虚拟卡</p></div><button class="btn btn-primary" onclick="gotoPage(\'apply\')">✨ 申请新卡</button></div></div>' : ''}
-    ${isAdmin ? renderCmSearchBar() : ''}
+    ${isAdmin ? renderCmSearchBar() : renderUserCmSearchBar()}
     <div class="cm-results-section"><div id="cmListWrap">
       <div class="skeleton" style="height:240px;border-radius:16px;"></div>
     </div></div>`;
@@ -3722,6 +3721,124 @@ function renderCmSearchBar() {
     + '</div>'
     + '</div>' // 关闭 cm-search-row
     + '</div>'; // 关闭 cm-search-section
+}
+
+// 卡片管理搜索栏 HTML（普通用户版）
+function renderUserCmSearchBar() {
+  var s = window._cmSearch || {};
+  function tabCls(v) { return 'cm-status-tab' + (s.status === v ? ' active' : ''); }
+  return '<div class="cm-search-section">'
+    + '<div class="cm-search-row">'
+    // 卡号搜索框
+    + '<div class="cm-search-input-wrap">'
+    + '<svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+    + '<input id="cmSearchInput" type="text" placeholder="卡号搜索..."'
+    + ' onkeydown="if(event.key===\'Enter\'){doCmSearch();}">'
+    + '</div>'
+    // 状态标签组
+    + '<div class="cm-tabs-group">'
+    + '<button class="' + tabCls('') + '" onclick="cmSelectTab(this,\'\')">全部</button>'
+    + '<button class="' + tabCls('active') + '" onclick="cmSelectTab(this,\'active\')">正常</button>'
+    + '<button class="' + tabCls('cancelled') + '" onclick="cmSelectTab(this,\'cancelled\')">冻结</button>'
+    + '<button class="' + tabCls('deleted') + '" onclick="cmSelectTab(this,\'deleted\')">已注销</button>'
+    + '</div>'
+    // 日期选择器容器
+    + '<span id="cmDateWrap"></span>'
+    // 搜索/重置/导出按钮组
+    + '<div class="cm-search-actions">'
+    + '<button class="cm-btn-search" onclick="doCmSearch();">🔍 搜索</button>'
+    + '<button class="cm-btn-reset" onclick="resetCmSearch();">重置</button>'
+    + '<button class="cm-btn-reset" onclick="exportCmCardsCSV();" title="导出筛选后的卡片列表">📤 导出</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+// 导出卡片列表 CSV（普通用户）
+async function exportCmCardsCSV() {
+  var s = window._cmSearch || {};
+  // 从后端获取全量用户卡片（不分页）
+  var res = await apiFetch('/cards?pageSize=999');
+  if (res.code !== 0 || !res.data || !res.data.list) {
+    toast('导出失败: ' + (res.msg || '数据加载错误'));
+    return;
+  }
+  var cards = res.data.list;
+
+  // 前端本地筛选（与 loadCmList 逻辑一致）
+  var filtered = cards;
+  // 卡号搜索
+  if (s.q) {
+    var q = s.q.toLowerCase();
+    filtered = filtered.filter(function(c) {
+      return (c.card_number || '').toLowerCase().indexOf(q) >= 0
+        || (c.product_code || '').toLowerCase().indexOf(q) >= 0
+        || (c.label || '').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  // 状态筛选
+  if (s.status) {
+    filtered = filtered.filter(function(c) {
+      var st = (c.status || '').toLowerCase();
+      if (s.status === 'active') return st === 'active';
+      if (s.status === 'cancelled') return st === 'cancelled' || st === 'frozen';
+      if (s.status === 'deleted') return st === 'deleted';
+      return true;
+    });
+  }
+  // 日期筛选
+  if (s.dateFrom || s.dateTo) {
+    filtered = filtered.filter(function(c) {
+      var d = (c.created_at || '').slice(0, 10);
+      if (s.dateFrom && d < s.dateFrom) return false;
+      if (s.dateTo && d > s.dateTo) return false;
+      return true;
+    });
+  }
+
+  if (!filtered.length) {
+    toast('当前筛选条件下没有卡片数据');
+    return;
+  }
+
+  // 生成 CSV
+  var BOM = '\uFEFF';
+  var header = '卡号,卡段,状态,可用余额(USD),单笔限额,日限额,月限额,有效期,持卡人,创建时间\n';
+  var rows = filtered.map(function(c) {
+    var statusMap = { active: '正常', cancelled: '已冻结', frozen: '已冻结', deleted: '已注销' };
+    var st = statusMap[(c.status || '').toLowerCase()] || c.status || '—';
+    var expire = c.expire || (c.expiry_month && c.expiry_year ? String(c.expiry_month).padStart(2,'0') + '/' + String(c.expiry_year).slice(-2) : '—');
+    var holder = [c.first_name, c.last_name].filter(Boolean).join(' ') || c.user_name || c.label || '—';
+    var cn = (c.card_number || '').replace(/\D/g, '');
+    var numDisplay = cn.length >= 8 ? cn : (c.card_number || '—');
+    return [numDisplay, c.product_code || '—', st,
+      Number(c.available_amount || 0).toFixed(2),
+      c.single_limit || '—', c.day_limit || '—', c.month_limit || '—',
+      expire, holder,
+      (c.created_at || '—').replace('T', ' ')
+    ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\n');
+
+  var csv = BOM + header + rows;
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  // 使用 csv-proxy 解决 Safari 兼容性问题
+  try {
+    var csvStr = csv;
+    var postRes = await apiFetch('/api/csv-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv: csvStr, filename: 'cards_' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14) + '.csv' })
+    });
+    if (postRes.code === 0 && postRes.data && postRes.data.token) {
+      window.open('/api/csv-proxy?token=' + postRes.data.token);
+      return;
+    }
+  } catch (e) { /* fallback */ }
+  // fallback: blob download
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'cards_' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
 }
 
 // 执行搜索
@@ -4324,7 +4441,8 @@ async function loadCmList(forceRefresh = false) {
     params.set('sync', 'true'); // 每次加载从上游拉取最新状态
     apiUrl = '/admin/cards?' + params.toString();
   } else {
-    apiUrl = '/cards';
+    // 普通用户：获取全量数据，前端本地筛选
+    apiUrl = '/cards?pageSize=999';
   }
 
   const res = await apiFetch(apiUrl);    
@@ -4372,7 +4490,41 @@ async function loadCmList(forceRefresh = false) {
     cards = rawList.filter(c => !c.error);
   }
 
-  // v1.0.99.11: 缓存卡列表到 window 供充值弹窗读取卡余额
+  // 普通用户：前端本地筛选
+  if (!isAdmin) {
+    // 缓存全量数据
+    window._cmAllCards = cards;
+    // 卡号搜索
+    if (s.q) {
+      var q = s.q.toLowerCase();
+      cards = cards.filter(function(c) {
+        return (c.card_number || '').toLowerCase().indexOf(q) >= 0
+          || (c.product_code || '').toLowerCase().indexOf(q) >= 0
+          || (c.label || '').toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    // 状态筛选
+    if (s.status) {
+      cards = cards.filter(function(c) {
+        var st = (c.status || '').toLowerCase();
+        if (s.status === 'active') return st === 'active';
+        if (s.status === 'cancelled') return st === 'cancelled' || st === 'frozen';
+        if (s.status === 'deleted') return st === 'deleted';
+        return true;
+      });
+    }
+    // 日期筛选
+    if (s.dateFrom || s.dateTo) {
+      cards = cards.filter(function(c) {
+        var d = (c.created_at || '').slice(0, 10);
+        if (s.dateFrom && d < s.dateFrom) return false;
+        if (s.dateTo && d > s.dateTo) return false;
+        return true;
+      });
+    }
+  }
+
+  // v1.0.99.11: 缓存筛选后卡列表到 window 供充值弹窗读取卡余额
   window._cmCards = cards;
   
   if (!cards.length) {
@@ -4380,9 +4532,8 @@ async function loadCmList(forceRefresh = false) {
       <div class="empty-state">
         <div class="empty-icon">💳</div>
         <div class="empty-text">暂无卡片</div>
-        <div class="empty-sub">${s.q ? '未找到匹配的卡片，试试其他搜索条件' : isAdmin ? '暂无用户申请卡片' : '点击右上角申请您的第一张虚拟卡'}</div>
-        ${!isAdmin ? '<button class="btn btn-primary mt-4" onclick=\"gotoPage(\'apply\')\">✨ 立即申请</button>' : ''}
-        ${s.q ? '<button class="btn btn-primary mt-4" onclick=\"resetCmSearch()\">✨ 重置搜索</button>' : ''}
+        <div class="empty-sub">${s.q || s.status || s.dateFrom ? '未找到匹配的卡片，试试其他搜索条件' : '暂无卡片数据'}</div>
+        ${s.q || s.status || s.dateFrom ? '<button class="btn btn-primary mt-4" onclick="resetCmSearch()">✨ 重置搜索</button>' : ''}
       </div>`;
     return;
   }
@@ -4452,7 +4603,7 @@ function renderCmList(cards) {
     const idLast4  = (c.card_id || '').slice(-4);
     const last4    = numLast4 || idLast4;
     const masked   = (c.card_number && c.card_number.length >= 8)
-      ? c.card_number.replace(/(\d{4})(?=\d)/g, '$1 ').replace(/\d{4}(?= \d{4} \d{4} \d{4}$)/, '****')
+      ? c.card_number.slice(0,4) + ' **** **** ' + c.card_number.slice(-4)
       : (last4 ? `**** **** **** ${last4}` : '**** **** **** ****');
     const isVisa = /visa/i.test(c.network||c.card_type||'');
     const statusBadge = isDeleted
@@ -4941,8 +5092,10 @@ function formatCardNumberMasked(cardNumber) {
   if (!cardNumber) return '—';
   const digits = String(cardNumber).replace(/\D/g, '');
   if (digits.length < 4) return '****';
+  if (digits.length < 8) return '**** **** **** ' + digits.slice(-4);
+  const first4 = digits.slice(0, 4);
   const last4 = digits.slice(-4);
-  return `**** **** **** ${last4}`;
+  return first4 + ' **** **** ' + last4;
 }
 // v1.0.99.7: 从 description 提取卡段（真实数据，仅在 ref_id 关联不到时作 fallback）
 // 严禁伪造 16 位卡号（拿不到就是拿不到）
