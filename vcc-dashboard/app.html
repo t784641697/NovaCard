@@ -4848,6 +4848,7 @@ function ledgerExport() {
   if (s.dateTo)   qs.set('dateTo',   s.dateTo);
   if (s.type)     qs.set('type',     s.type);
   qs.set('limit', '50000');
+  qs.set('_', Date.now()); // 防 Cloudflare 缓存
   window.open('/api/ledger/export.csv?' + qs.toString());
 }
 
@@ -5070,6 +5071,7 @@ function cardTxExport() {
   if (s.dateTo)   qs.set('dateTo',   s.dateTo);
   if (s.type)     qs.set('type',     s.type);
   qs.set('limit', '50000');
+  qs.set('_', Date.now()); // 防 Cloudflare 缓存
   window.open('/api/transactions/export.csv?' + qs.toString());
 }
 
@@ -5206,6 +5208,7 @@ function cardSettleExport() {
   if (s.dateTo)   qs.set('dateTo',   s.dateTo);
   qs.set('type', 'Settlement');  // 结算记录固定
   qs.set('limit', '50000');
+  qs.set('_', Date.now()); // 防 Cloudflare 缓存
   window.open('/api/transactions/export.csv?' + qs.toString());
 }
 
