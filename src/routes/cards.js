@@ -605,8 +605,9 @@ router.get('/:cardId/transactions', async (req, res) => {
           r.auth_id || ''
         ].join(',')
       ).join('\n');
-      const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-      const filename = `card_txn_${cardId.slice(-8)}_${ts}.csv`;
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const last4 = card.card_number && /^\d{16}$/.test(card.card_number) ? card.card_number.slice(-4) : cardId.slice(-4);
+      const filename = `${last4}_${dateStr}.csv`;
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Cache-Control', 'no-store');
