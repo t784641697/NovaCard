@@ -238,6 +238,7 @@ router.get('/', async (req, res, next) => {
         single_limit, day_limit, month_limit,
         address_line_one, address_line_two,
         address_city, address_state, address_country, address_post_code,
+        first_name, last_name,
         created_at, updated_at
       FROM cards
       WHERE user_id = ?

@@ -368,6 +368,8 @@ db.exec(`
   addCard('last_verified',    "TEXT    DEFAULT ''");
   addCard('verified_status',  "TEXT    DEFAULT ''");
   addCard('verification_error',"TEXT   DEFAULT ''");
+  addCard('first_name',       "TEXT    DEFAULT ''");
+  addCard('last_name',        "TEXT    DEFAULT ''");
 
   // topup_requests 老表加列（兜底迁移：v1.0.14 之前的老库没 fee/net 字段）
   const topupCols = db.prepare("PRAGMA table_info(topup_requests)").all().map(c => c.name);
