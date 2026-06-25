@@ -152,6 +152,7 @@ router.get('/export.csv', (req, res, next) => {
       'management': '管理费',
       'card_recharge': '卡充值',
       'card_recharge_refund': '卡充值退款',
+      'card_delete_refund': '删卡退款',
     };
     const feeTypeLabel = ft => FEE_TYPE_MAP[ft] || ft || '—';
 
