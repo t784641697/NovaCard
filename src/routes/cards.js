@@ -155,7 +155,8 @@ router.post('/', createCardLimiter, async (req, res, next) => {
         `).run(totalAmount, cardCreationFee, req.user.id);
 
         // 写 1 条合并流水（开卡费 + 充值冻结）
-        db.prepare(`
+        // v1.0.99.26: 捕获 txnId，稍后关联 application_id
+        const txnResult = db.prepare(`
           INSERT INTO transactions
             (user_id, type, amount, fee_type, fee_amount, net_amount, description, created_at)
           VALUES (?, '消费', ?, 'card_creation', ?, ?, ?, nowiso())
@@ -181,6 +182,10 @@ router.post('/', createCardLimiter, async (req, res, next) => {
           cardCreationFee
         );
         lastInsertRowid = ins.lastInsertRowid;
+
+        // v1.0.99.26: 关联交易流水 → 申请记录（审批通过后更新为 card_id）
+        db.prepare('UPDATE transactions SET ref_id = ? WHERE id = ?')
+          .run('app:' + ins.lastInsertRowid, txnResult.lastInsertRowid);
       }).immediate();  // ← 链式立即执行 BEGIN IMMEDIATE，并发安全
     } catch (e) {
       return res.status(400).json({ code: 400, msg: e.message || '申请失败' });

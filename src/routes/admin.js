@@ -1875,6 +1875,10 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     if (createdCards.length > 0) {
       db.prepare(`UPDATE card_applications SET card_id = ?, status = 'approved', updated_at = nowiso() WHERE id = ?`)
         .run(createdCards.join(','), id);
+      // v1.0.99.26: 将原始 card_creation 流水的 ref_id 从 'app:N' 更新为真实 card_id
+      // 这样前端账户流水「关联卡号」列能通过 LEFT JOIN 显示掩码卡号而非产品名
+      db.prepare("UPDATE transactions SET ref_id = ? WHERE ref_id = ? AND user_id = ?")
+        .run(createdCards[0], 'app:' + id, app.user_id);
       res.json({
         code: 0,
         msg: `已成功创建 ${createdCards.length}/${qty} 张卡片（card_id 已写入本地，详情可点同步按钮拉取）`,
@@ -1888,6 +1892,9 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
     } else {
       db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
         .run('开卡失败: ' + (lastError?.message || '未知错误'), id);
+      // v1.0.99.26: 将原始 card_creation 流水的 ref_id 更新为 app_rejected 格式
+      db.prepare("UPDATE transactions SET ref_id = ? WHERE ref_id = ? AND user_id = ?")
+        .run(`app_rejected:${id}:${app.product_code}`, 'app:' + id, app.user_id);
       // v1.0.94 资金安全：用 recordRefund 退还费用 + 写退款流水（之前只改余额不写流水会导致 user 看到"2 笔消费 0 笔退款"假象）
       const totalRefund = (Number(app.fee_amount) || 0) +
                          (Number(app.topup_amount) || 0) * Math.max(1, Number(app.quantity) || 1);
@@ -1899,7 +1906,8 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
             totalRefund,
             'card_creation',
             0,
-            `开卡申请-开卡失败，退还开卡费+充值冻结`
+            `开卡申请-开卡失败，退还开卡费+充值冻结`,
+            `app_rejected:${id}:${app.product_code}`  // v1.0.99.26: 关联卡号显示
           );
         }).immediate();
       } catch (e) {
@@ -1942,9 +1950,16 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
           refundAmount,
           'card_creation',
           0,
-          `开卡申请（${app.product_code} x ${app.quantity}）被拒绝，退还开卡费+充值冻结`
+          `开卡申请（${app.product_code} x ${app.quantity}）被拒绝，退还开卡费+充值冻结`,
+          `app_rejected:${id}:${app.product_code}`  // v1.0.99.26: 关联卡号显示
         );
         // 改申请状态
+        db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
+          .run(reason || '管理员拒绝了申请', id);
+        // v1.0.99.26: 将原始 card_creation 流水的 ref_id 更新为 app_rejected 格式
+        db.prepare("UPDATE transactions SET ref_id = ? WHERE ref_id = ? AND user_id = ?")
+          .run(`app_rejected:${id}:${app.product_code}`, 'app:' + id, app.user_id);
+        refundResult = r;
         db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
           .run(reason || '管理员拒绝了申请', id);
         refundResult = r;
