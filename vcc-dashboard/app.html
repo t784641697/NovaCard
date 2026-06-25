@@ -3824,7 +3824,7 @@ async function exportCmCardsCSV() {
   // 使用 csv-proxy 解决 Safari 兼容性问题
   try {
     var csvStr = csv;
-    var postRes = await apiFetch('/api/csv-proxy', {
+    var postRes = await apiFetch('/csv-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ csv: csvStr, filename: 'cards_' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14) + '.csv' })
