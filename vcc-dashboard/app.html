@@ -4496,17 +4496,14 @@ function renderCmList(cards) {
       topupBtn = '<button class="cm-btn cm-btn-topup" onclick="window.cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>';
     }
 
-    // 流水按钮：已删除/失效置灰不可点击
-    var txnBtn = '';
-    if (isDeleted) {
-      txnBtn = '<button class="cm-btn" disabled style="background:#374151;color:#6B7280;cursor:not-allowed;border:1px solid #4B5563;opacity:0.5;">🧾 流水</button>';
-    } else {
-      txnBtn = '<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal(\'' + c.card_id + '\')" title="查看消费明细">🧾 流水</button>';
-    }
+    // 流水按钮：已删除卡仍可点击查看历史流水
+    var txnBtn = '<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal(\'' + c.card_id + '\')" title="查看消费明细">🧾 流水</button>';
 
-    // v1.0.99 删卡按钮: 已删除/失效不显示, 否则正常 (余额>0 由上游自动退到账户)
+    // v1.0.99 删卡按钮: 已删除显示"已注销"(置灰不可点击), 已失效不显示, 否则正常
     var deleteBtn = '';
-    if (!isDeleted && !isInvalid) {
+    if (isDeleted) {
+      deleteBtn = '<button class="cm-btn" disabled style="background:#374151;color:#6B7280;cursor:not-allowed;border:1px solid #4B5563;opacity:0.5;">已注销</button>';
+    } else if (!isInvalid) {
       const balanceForDelete = Number(c.available_amount || 0);
       const willRefund = balanceForDelete > 0
         ? '卡内余额 $' + balanceForDelete.toFixed(2) + ' 将退回到账户余额'
@@ -5610,7 +5607,7 @@ async function openUserTransactionsModal(userId, userName, userEmail, cardCount)
   return _openTxnModalShell({ mode: 'user', headerInfo: { userId, userName, userEmail, cardCount } });
 }
 
-async function openCardTransactionsModal(cardId) {
+window.openCardTransactionsModal = async function(cardId) {
   if (!cardId) return;
   // v1.0.17: 移除 admin 限制，普通用户可查看自己卡的流水
   // 拉取卡片信息用于头部（直接 fetch，绕开不存在的 apiGet）
