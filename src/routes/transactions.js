@@ -16,10 +16,27 @@ router.use(authenticate);
  * 支持 card_id / transaction_type / status / start_time / end_time / page / page_size
  * 鉴权：管理员看全部，普通用户只看自己卡的
  */
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const userId  = req.user.id;
     const isAdmin = req.user.role === 'admin';
+
+    // 自动触发上游交易同步（10分钟内不重复同步，15秒超时）
+    const _lastSync = transactionsRoute._lastSync || 0;
+    const SYNC_INTERVAL = 10 * 60 * 1000; // 10 minutes
+    if (Date.now() - _lastSync > SYNC_INTERVAL) {
+      try {
+        const { syncTransactions } = require('../services/transactionSyncService');
+        await Promise.race([
+          syncTransactions(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('sync timeout')), 15000))
+        ]);
+        transactionsRoute._lastSync = Date.now();
+      } catch (syncErr) {
+        require('../utils/logger').warn('[transactions] sync skipped:', syncErr.message);
+      }
+    }
+
     const where = [];
     const args  = [];
 
