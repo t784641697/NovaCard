@@ -5886,19 +5886,24 @@ async function loadUserTransactions() {
       pager.innerHTML = '';
       return;
     }
+    const cardInfo = d.card || {};  // 卡片维度: d.card 有 card_number / product_code
     const rows = d.list.map(r => {
       // v1.0.99.8: 关联卡号 — 真实数据 fallback (16 位卡号 → 审批中 → 申请被驳回 → 卡段名 → —)
-      const isRejectedApp = r.card_id && /^app_rejected:\d+:[A-Z0-9]+$/.test(r.card_id);
-      const isPendingApp = r.card_id && /^app:\d+$/.test(r.card_id);
+      // card 维度流水: r 本身无 card_number, 从 d.card 取; user 维度流水: r 自带
+      const effectiveCardNumber = r.card_number || cardInfo.card_number;
+      const effectiveProductCode = r.product_code || cardInfo.product_code;
+      const effectiveCardId = r.card_id || cardInfo.card_id;
+      const isRejectedApp = effectiveCardId && /^app_rejected:\d+:[A-Z0-9]+$/.test(effectiveCardId);
+      const isPendingApp = effectiveCardId && /^app:\d+$/.test(effectiveCardId);
       const cardNumberHtml = isRejectedApp
         ? `<span class="ut-tag-card ledger-card-rejected" title="该笔流水对应申请未通过，无真实卡片" style="opacity:.7;">未开卡成功</span>`
         : isPendingApp
         ? `<span class="ut-tag-card" style="background:rgba(251,191,36,.12);color:#fbbf24;" title="开卡申请待审批中">⏳ 审批中</span>`
-        : (r.card_number
-            ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(r.card_id || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2('**** **** **** ' + String(r.card_number).replace(/\D/g, '').slice(-4))}</span>`
-            : (r.product_code
-                ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(r.product_code)}</span>`
-                : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">----</span>'; })()));
+        : (effectiveCardNumber
+            ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(effectiveCardId || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2('**** **** **** ' + String(effectiveCardNumber).replace(/\D/g, '').slice(-4))}</span>`
+            : (effectiveProductCode
+                ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(effectiveProductCode)}</span>`
+                : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name || r.description || ''); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">—</span>'; })()));
       const t = r.type || '';
       const st = r.status || '';
       const typeClass = { Authorization: 'ut-amount-auth', Settlement: 'ut-amount-settle', Refund: 'ut-amount-refund', Reversal: 'ut-amount-reversal' }[t] || 'ut-amount-settle';
