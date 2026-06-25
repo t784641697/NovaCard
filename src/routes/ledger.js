@@ -168,8 +168,9 @@ router.get('/export.csv', (req, res, next) => {
 
     const csv = '\uFEFF' + lines.join('\r\n');  // BOM 防 Excel 乱码
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    res.setHeader('Content-Disposition', `attachment; filename="ledger-${ts}.csv"`);
+    const now = new Date();
+    const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+    res.setHeader('Content-Disposition', `attachment; filename="ledger_${ts}.csv"`);
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('X-Export-Count', rows.length);
