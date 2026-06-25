@@ -137,14 +137,32 @@ router.get('/export.csv', (req, res, next) => {
       if (!cn || cn.length < 4) return cn || '';
       return '**** **** **** ' + cn.slice(-4);
     };
-    const lines = ['时间,用户ID,类型,变动金额,手续费类型,手续费,到账金额,关联卡号,说明,关联ID'];
+
+    // 手续费类型中文映射 (fee_type 英文 key → 中文)
+    const FEE_TYPE_MAP = {
+      'card_creation': '开卡费',
+      'topup': '入账手续费',
+      'transaction': '交易手续费',
+      'refund': '退款手续费',
+      'chargeback': '拒付手续费',
+      'cross_border': '跨境交易费',
+      'small_transaction': '小额授权费',
+      'withdrawal': '提现手续费',
+      'auth_reversal': '撤销手续费',
+      'management': '管理费',
+      'card_recharge': '卡充值',
+      'card_recharge_refund': '卡充值退款',
+    };
+    const feeTypeLabel = ft => FEE_TYPE_MAP[ft] || ft || '—';
+
+    const lines = ['时间,类型,变动金额,手续费类型,手续费,到账金额,关联卡号,说明'];
     rows.forEach(r => {
       lines.push([
-        esc(r.created_at), esc(r.user_id), esc(r.type),
-        esc(r.amount), esc(r.fee_type || ''), esc(r.fee_amount || 0),
+        esc(r.created_at), esc(r.type),
+        esc(r.amount), esc(feeTypeLabel(r.fee_type)), esc(r.fee_amount || 0),
         esc(r.net_amount),
         esc(isAdmin ? (r.card_number || '') : maskCard(r.card_number)),
-        esc(r.description || ''), esc(r.ref_id || '')
+        esc(r.description || '')
       ].join(','));
     });
 
