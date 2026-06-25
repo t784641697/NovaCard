@@ -5686,8 +5686,7 @@ async function _openTxnModalShell({ mode, headerInfo }) {
         `</div>` +
         `<div style="color:var(--text3);font-size:.78rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">` +
           `<span>${esc2(c.brand || '')}</span><span style="opacity:.5;">·</span>` +
-          `<span>余额 $${bal} ${esc2(c.currency || 'USD')}</span><span style="opacity:.5;">·</span>` +
-          `<span style="font-family:Menlo,Monaco,monospace;">${esc2(c.card_id || '')}</span>` +
+          `<span>余额 $${bal} ${esc2(c.currency || 'USD')}</span>` +
         `</div>` +
       `</div>`;
     titleText = `卡片 ${c.card_number || c.card_id || ''} 的消费明细`;
