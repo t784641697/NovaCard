@@ -168,7 +168,8 @@ router.get('/export.csv', (req, res, next) => {
 
     const csv = '\uFEFF' + lines.join('\r\n');  // BOM 防 Excel 乱码
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="ledger-${new Date().toISOString().slice(0,10)}.csv"`);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    res.setHeader('Content-Disposition', `attachment; filename="ledger-${ts}.csv"`);
     res.setHeader('X-Export-Count', rows.length);
     res.send(csv);
   } catch (err) {

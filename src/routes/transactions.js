@@ -160,7 +160,8 @@ router.get('/export.csv', (req, res) => {
     // 加 BOM 让 Excel 正确识别 UTF-8
     const csv = '\uFEFF' + lines.join('\r\n');
 
-    const fname = `transactions-${new Date().toISOString().slice(0,10)}.csv`;
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fname = `transactions-${ts}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
     res.setHeader('X-Export-Count', rows.length);
