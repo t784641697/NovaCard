@@ -2610,6 +2610,162 @@ const result = await sdk.rechargeCard(card_id, amount); // 2. 调上游
 3. `src/routes/ledger.js` 有 2 个重复 `/export.csv` 路由，admin 跑错版本 → 删老用户版
 4. 补 masked 卡号（普通用户看 `**** **** **** 3750`，admin 看原始）
 
-**commit**：`d7ff81f` (修 1-3) → `23dc070` (修 4 + 删老路由)
+**部署**：commit `d7ff81f` (修 1-3) → `23dc070` (修 4 + 删老路由)
 **部署**：生产 HEAD `23dc070` pm2 restart 成功
+
+## v1.0.99.26 关联卡号 ref_id 生命周期完善 (2026-06-25)
+
+### 问题
+账户流水"关联卡号"列显示产品名（`🏷 G5554LC`）而非掩码卡号（`**** **** **** 7240`）。
+
+### 根因
+`card_creation` 交易 `ref_id` 为空 → LEFT JOIN cards 查不到 `card_number`。审批通过后也没更新 ref_id。
+
+### ref_id 生命周期
+
+```
+申请开卡 → ref_id = 'app:' + app.id (占位)
+审批通过 → ref_id = card_id (真卡号)
+拒绝/失败 → ref_id = 'app_rejected:' + app.id + ':' + product_code
+```
+
+### 前端 formatLedgerCardCell 多路径
+
+| 路径 | 条件 | 显示 |
+|------|------|------|
+| 1 | `card_number` 16 位 | `**** **** **** XXXX` 可点击 |
+| 1.5 | `app_rejected:N:CODE` | 🟠 "未开卡成功" badge + pulse |
+| 2 | `app:N` | ⏳ 审批中 |
+| 3 | product_code 匹配 | 🏷 产品名 badge |
+| 3.5 | desc 含 `****XXXX` | `**** **** **** XXXX` masked |
+| 4 | 空 | — |
+
+### Backfill 脚本
+- `scripts/migrate_v1.0.99.26_backfill_card_creation_ref_id.js` — 回填 25 条
+- `scripts/migrate_v1.0.99.26b_backfill_failed_refund_ref_id.js` — 回填 18 条
+
+---
+
+## v1.0.99.27-28 已删除卡按钮处理 + 流水按钮修复 (2026-06-25)
+
+### 已删除/已注销卡按钮规范
+
+| 按钮 | 状态 | 样式 |
+|------|------|------|
+| 冻结 | 置灰 disabled | `opacity:0.5; pointer-events:none` |
+| 详情 | 置灰 disabled | 同上 |
+| 充值 | 置灰 disabled | 同上 |
+| 已注销 (原"删卡") | 置灰 disabled | 改名+同上样式 |
+| 流水 | 保持可点击 | 无变化 |
+
+### 流水按钮修复
+- **根因**：`async function openCardTransactionsModal(){}` 不会自动挂载到 `window`
+- **修复**：`window.openCardTransactionsModal = async function`
+
+### ❌ 反例
+- ❌ 已删除卡按钮直接消失（用户要求"置灰不可点击"而非消失）
+- ❌ `async function foo(){}` 以为 `onclick="window.foo()"` 能找到
+
+---
+
+## v1.0.99.29-36 流水弹窗多项修复 (2026-06-25)
+
+### 改动汇总
+
+| 版本 | 改动 | 位置 |
+|------|------|------|
+| v1.0.99.29 | 卡号空值修复：从 `d.card` 补充 `card_number`/`product_code` | `app.html:loadUserTransactions` |
+| v1.0.99.30 | 卡号只显示后四位：`**** **** **** 0208` → `0208` | `app.html:renderUserTransactionsTable` |
+| v1.0.99.31 | AUTH ID 改名"消费记录ID" | `app.html:renderUserTransactionsTable` |
+| v1.0.99.32 | 新增授权币种列 `auth_currency` | `app.html:renderUserTransactionsTable` |
+| v1.0.99.33 | CSV Safari 兼容：window.open + query token | `app.html` + `src/routes/cards.js` |
+| v1.0.99.34 | CSV 文件名格式：`cardNumber_YYYYMMDDHHmmss.csv` | `src/routes/cards.js` |
+| v1.0.99.35-36 | 移除上游 card_id 显示 | `app.html` 流水弹窗头部 + 卡片管理列表 |
+
+---
+
+## v1.0.99.37 流水弹窗筛选功能重写 (2026-06-25)
+
+### 核心架构变更
+
+**问题**：上游 vmcardio `cardTransaction` API 忽略所有筛选参数 → 时间/类型筛选无效。
+
+**方案**：前端本地筛选，全量获取+缓存+本地过滤。
+
+### loadUserTransactions 重写
+
+```
+首次调用 → page_size=999 全量获取 → _utState.allData 缓存
+后续调用 → 读取 allData → 前端本地筛选(type/status/日期) → 分页渲染
+forceRefresh → 重新全量获取 → 更新 allData
+```
+
+### exportUserTransactionsCSV 重写
+
+前端本地生成 CSV（基于筛选后数据），Blob + `a.click()` 下载。
+
+### 筛选字段
+
+| 字段 | 控件 | 说明 |
+|------|------|------|
+| type | `<select id="utType">` | 预授权/结算/退款/撤销 (卡模式) + 充值/消费 (用户模式) |
+| status | `<select id="utStatus">` | COMPLETE/DECLINED/PENDING |
+| startDate/endDate | DateRangePicker | 初始不设日期限制 |
+
+### 摘要统计
+
+| 模式 | 统计项 |
+|------|--------|
+| 卡模式 | 授权总额 + 结算总额 + 退款总额 |
+| 用户模式 | 充值总额 + 消费总额 + 退款总额 |
+
+- 授权总额自动检测标注币种：单币种 `(HKD)`，多币种 `(HKD为主)`
+
+### 关键设计决策
+
+1. **默认不加日期筛选**：初始显示全量数据，不限制当月
+2. **前端分页**：每页 50 条，底部"共X条 · 每页50条"
+3. **admin.js page_size 上限**：从 500 提升到 9999，支持全量获取
+4. **卡模式 API 端点**：`/cards/:cardId/transactions`（不是 `/cards/:cardId`）
+
+### ❌ 反例
+- ❌ 继续传筛选参数给上游 API（已被验证忽略）
+- ❌ `_utState` 缺少 `allData`/`status`/`cardInfo` 字段初始化
+- ❌ `applyLocalFilters()` 函数未定义却调用
+
+---
+
+## v1.0.99.38 流水弹窗修复 + Safari CSV 兼容 (2026-06-25)
+
+### 修复 1: 移除"📅 时间范围"文字
+流水弹窗筛选区 `<span>📅 时间范围</span>` 移除
+
+### 修复 2: 授权总额标注币种
+遍历筛选后数据统计 `auth_currency` 出现次数 → 取最多的币种标注
+
+### 修复 3: CSV 导出 Safari 兼容
+
+#### 方案：csv-proxy 端点
+
+```
+前端生成 CSV 文本
+  → POST /api/csv-proxy (body: {csv, filename}) → 返回 {token, filename}
+  → window.open('/api/csv-proxy?token=xxx') → 下载
+```
+
+#### 后端新增端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/csv-proxy` | POST | 鉴权后生成一次性 token，写入文件系统，返回 token+filename |
+| `/api/csv-proxy` | GET | 读 token 找文件，下载后删除文件 |
+
+#### 存储：文件系统 (`/tmp/vcc-csv-proxy/`)
+
+**为什么不用内存 Map**：PM2 cluster 有 2 个 worker，POST 创建 token 在 worker A，`window.open` GET 可能路由到 worker B → B 的内存 Map 找不到 token → "无效或过期的下载令牌"。文件系统两个 worker 共享磁盘。
+
+**Token 生命周期**：
+- 5 分钟过期
+- 每分钟清理过期文件
+- 使用后立即删除
 

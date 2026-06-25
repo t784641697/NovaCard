@@ -284,3 +284,14 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 | v1.0.99.13 | 2026-06-25 | **删卡退款流水补 ref_id (卡号列正确显示)**：v1.0.99.99 `DELETE /api/cards/:card_id` 调 `recordRefund` 漏传第 6 个参数 refId → user 3 id=23 删卡退款 ref_id=空 → 前端 `formatLedgerCardCell` 走 Path 3 fallback 匹配 "G5554LC" 显示产品名而非卡号；3 件套修复：(1) 后端 `src/routes/cards.js:687` recordRefund 补传 `card_id`；(2) 前端 `formatLedgerCardCell` 加 Path 3.5 desc 含 `****XXXX` 时显示 `**** **** **** XXXX` masked；(3) 历史回滚 `scripts/v1.0.99.13_backfill_ref_id.js` 扫所有 ref_id 空流水 → 生产回滚 1 条 id=23 → ref_id=XR2067511181878833152；commit `af7f07e` + push + pm2 reload |
 | v1.0.99.14 | 2026-06-25 | **账户流水筛选 + 导出 CSV 修复**：(1) 前端"管理员充值"→实际 type='充值' (line 4772 修正)；(2) 后端 `created_at >= 'YYYY-MM-DD HH:MM:SS'` 字符串比较错乱（'T' > ' ' ASCII）→ 改用 `date(created_at) >= ?` (ledger.js line 111-112)；(3) 两个重复 /export.csv 路由（老用户版先注册覆盖新 admin 版）→ 删老用户版 (line 96-158)；(4) 普通用户卡号没 masked → 加 maskCard() (ledger.js)；commit `d7ff81f` → `23dc070` |
 | v1.0.99.15 | 2026-06-25 | **开卡参数全面修复**：(1) `user_id` 从 `String(app.user_id)` (3) 改为 `'20112258'`（vmcardio 后台"卡关联用户"ID）；(2) 移除 `card_address` 参数（vmcardio 上游已为每个卡段配置默认地址，传了反而 700006）；(3) `product_code` 直接用 `app.product_code`（如 `S5395PL`），不用 BIN 数字 fallback；(4) 实测结论：G5554LC/S5258LL/S5331GL/S5395PL API 可开卡 ✅，G5450SU/G5237OH API 返回 700006 ❌（后台手动可开，API 可能不支持，需联系 vmcardio 客服）|
+| v1.0.99.26 | 2026-06-25 | **关联卡号 ref_id 生命周期完善**：申请时 `ref_id='app:N'` → 审批通过更新为 `card_id` → 拒绝更新为 `'app_rejected:N:CODE'`；前端 `formatLedgerCardCell` 多路径(真卡/app:N审批中/app_rejected未开卡成功/fallback/—)；backfill 脚本回填 25+18 条历史数据 |
+| v1.0.99.27-28 | 2026-06-25 | **已删除卡按钮处理**：冻结/详情/充值/已注销 按钮置灰disabled(opacity:0.5)；"删卡"改名为"已注销"；流水按钮保持可点击；修复 `openCardTransactionsModal` 未挂载到 window 导致点击无反应 |
+| v1.0.99.29 | 2026-06-25 | **流水弹窗卡号空值修复**：上游 cardTransaction API 返回 list 项无 card_number/product_code → 从 `d.card` 补充 |
+| v1.0.99.30 | 2026-06-25 | **流水弹窗卡号只显示后四位**：`**** **** **** 0208` → `0208` |
+| v1.0.99.31 | 2026-06-25 | **AUTH ID 改名 + 授权金额说明**：AUTH ID 列名改为"消费记录ID"；授权金额 52.00 实为 HKD 非USD |
+| v1.0.99.32 | 2026-06-25 | **新增授权币种列**：流水弹窗表格在授权金额后加 `auth_currency` 字段列 |
+| v1.0.99.33 | 2026-06-25 | **CSV导出Safari兼容**：fetch+blob → window.open+query token（避免WebKitBlobResource error 1） |
+| v1.0.99.34 | 2026-06-25 | **CSV文件名格式**：`cardNumber_YYYYMMDDHHmmss.csv` |
+| v1.0.99.35-36 | 2026-06-25 | **移除上游 card_id 显示**：流水弹窗头部 + 卡片管理列表均不再显示 vmcardio 上游 card_id |
+| v1.0.99.37 | 2026-06-25 | **流水弹窗筛选功能重写**：上游API忽略筛选参数→改为前端本地筛选(全量获取+缓存allData+本地type/status/日期过滤)；新增状态筛选(COMPLETE/DECLINED/PENDING)；移除分页文字；前端本地生成CSV |
+| v1.0.99.38 | 2026-06-25 | **3个流水弹窗修复**：(1) 移除"📅 时间范围"标签文字；(2) 授权总额自动检测标注币种(如HKD)；(3) CSV导出Safari兼容：前端生成CSV→POST /api/csv-proxy换token→window.open GET下载(避免WebKitBlobResource error 1)；PM2 cluster多worker内存不共享→csv-proxy改用文件系统存储(/tmp/vcc-csv-proxy/) |

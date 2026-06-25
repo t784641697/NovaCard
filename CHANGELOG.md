@@ -2406,3 +2406,125 @@ const result = await sdk.rechargeCard(card_id, amount);
 - commit 最终清理：移除 HARDCODED_BINS 映射，恢复 `product_code: app.product_code`
 - 生产 pm2 restart，网站恢复正常
 
+---
+
+## v1.0.99.26 (2026-06-25) — 关联卡号 ref_id 生命周期完善
+
+### 问题
+账户流水"关联卡号"列显示产品名（如 `🏷 G5554LC`）而非掩码卡号（如 `**** **** **** 7240`）。
+
+### 根因
+申请开卡时 `card_creation` 交易的 `ref_id` 为空，LEFT JOIN cards 表查不到 `card_number`。审批通过后也没有更新 ref_id。
+
+### 修复
+1. **后端 cards.js**：申请时设 `ref_id = 'app:' + app.id`（占位标识）
+2. **后端 admin.js**：审批通过 → 更新 ref_id 为实际 `card_id`；拒绝/失败 → 更新为 `'app_rejected:' + app.id + ':' + product_code`
+3. **前端 formatLedgerCardCell**：多路径判断
+   - Path 1: 16 位 card_number → masked `**** **** **** XXXX`
+   - Path 1.5: `app_rejected:N:CODE` → 黄/橙 "未开卡成功" badge + pulse 动效
+   - Path 2: `app:N` → ⏳ 审批中
+   - Path 3: product_code fallback → 产品 badge
+   - Path 4: —
+4. **Backfill 脚本**：`migrate_v1.0.99.26_backfill_card_creation_ref_id.js` 回填 25 条 + `migrate_v1.0.99.26b_backfill_failed_refund_ref_id.js` 回填 18 条
+
+### 部署
+commit → push origin/main → 生产 git reset + pm2 reload
+
+---
+
+## v1.0.99.27-28 (2026-06-25) — 已删除卡按钮处理 + 流水按钮修复
+
+### 用户反馈
+1. 已注销卡的冻结/详情/充值按钮消失 → 应该置灰不可点击
+2. "删卡"按钮应改名为"已注销"
+3. 流水按钮点击无反应
+
+### 修复
+- 冻结/详情/充值/"已注销" 按钮：`disabled + opacity:0.5 + pointer-events:none`
+- "删卡" → "已注销"（仅 deleted 卡）
+- 流水按钮：保持可点击
+- **根因**：`openCardTransactionsModal` 声明为 `async function` 但未赋值到 `window` → `onclick="window.openCardTransactionsModal()"` 找不到 → 改为 `window.openCardTransactionsModal = async function`
+
+---
+
+## v1.0.99.29-30 (2026-06-25) — 流水弹窗卡号修复
+
+### v1.0.29 卡号显示空值
+上游 `cardTransaction` API 返回的 list 项没有 `card_number`/`product_code`，但 `d.card` 有 → 补充从 `d.card` 取值
+
+### v1.0.30 卡号只显示后四位
+`**** **** **** 0208` → `0208`
+
+---
+
+## v1.0.99.31-32 (2026-06-25) — 流水弹窗列名/列修复
+
+### v1.0.31 AUTH ID 改名
+AUTH ID 列名改为"消费记录ID"；授权金额 52.00 实为 HKD（非 USD）
+
+### v1.0.32 新增授权币种列
+在授权金额后加 `auth_currency` 字段列
+
+---
+
+## v1.0.99.33-34 (2026-06-25) — CSV 导出修复
+
+### v1.0.33 Safari 兼容
+Safari 不支持跨域 Blob URL（`WebKitBlobResource error 1`）→ 改为 `window.open` + query token 方式下载。后端 `/cards/:cardId/transactions` 新增 `format=csv` 支持。
+
+### v1.0.34 文件名格式
+`cardNumber_YYYYMMDDHHmmss.csv`
+
+---
+
+## v1.0.99.35-36 (2026-06-25) — 移除上游 card_id 显示
+
+流水弹窗头部 + 卡片管理列表均不再显示 vmcardio 上游 card_id（如 `2070029667411562498`）
+
+---
+
+## v1.0.99.37 (2026-06-25) — 流水弹窗筛选功能重写
+
+### 核心问题
+上游 vmcardio `cardTransaction` API **忽略所有筛选参数**（type/start_date/end_date），前端传了也返回全量数据 → 时间、类型筛选完全无效。
+
+### 解决方案
+改为前端本地筛选：首次全量获取 + 缓存 + 本地过滤。
+
+### 改动详情
+
+| 改动 | 说明 |
+|------|------|
+| `loadUserTransactions` 重写 | 首次 `page_size=999` 全量获取 → 缓存 `_utState.allData`；后续筛选在前端本地执行(type/status/日期)；摘要统计基于筛选后数据；分页基于筛选后数据 |
+| `exportUserTransactionsCSV` 重写 | 前端本地生成 CSV（基于筛选后数据），Blob+a.click() 下载 |
+| 新增状态筛选 | 下拉框 COMPLETE/DECLINED/PENDING |
+| 移除"共N条·第1/1页"文字 | 改为底部"共X条 · 每页50条" |
+| 类型选项优化 | 去掉英文括号（如"预授权"而非"预授权 (Authorization)"）；admin 模式增加"充值/消费"选项 |
+| 摘要统计区分模式 | 卡模式:授权/结算/退款；用户模式:充值/消费/退款 |
+| admin.js page_size 上限 | 从 500 提升到 9999，支持全量获取 |
+| 默认不加日期筛选 | 初始显示全量数据，不限制当月 |
+| Bug 修复 | `applyLocalFilters()` 未定义→改用 `loadUserTransactions()`；卡模式 API 端点 `/cards/:cardId`→`/cards/:cardId/transactions` |
+
+---
+
+## v1.0.99.38 (2026-06-25) — 流水弹窗 3 个修复 + Safari CSV 兼容
+
+### 修复 1: 移除"📅 时间范围"文字
+流水弹窗筛选区不再显示日期选择器前的标签文字
+
+### 修复 2: 授权总额标注币种
+摘要统计自动检测筛选数据中的主要币种并标注：
+- 只有一种币种且是 USD → 不标注
+- 只有一种币种且非 USD → 标注该币种（如"授权总额 (HKD)"）
+- 多种币种混合 → 标注最多的（如"授权总额 (HKD为主)"）
+
+### 修复 3: CSV 导出 Safari 兼容
+前端生成 CSV → `POST /api/csv-proxy` 换一次性 token → `window.open` GET 下载。
+
+**新增后端 `/api/csv-proxy` 端点**：
+- `POST /api/csv-proxy`：鉴权后生成一次性 token，写入文件系统 `/tmp/vcc-csv-proxy/`，返回 `{token, filename}`
+- `GET /api/csv-proxy?token=xxx`：读取文件，设置响应头下载，使用后立即删除文件
+- Token 5 分钟过期，每分钟清理过期文件
+
+**PM2 cluster 多 worker 问题**：首次部署用内存 Map 存储 token → POST 在 worker A 创建 token，GET 路由到 worker B 找不到 → "无效或过期的下载令牌"。修复：改用文件系统 `/tmp/vcc-csv-proxy/` 存储，两个 worker 共享磁盘。
+
