@@ -104,13 +104,13 @@ router.get('/export.csv', (req, res, next) => {
 
     const where = [];
     const args = [];
-    if (!isAdmin) { where.push('user_id = ?'); args.push(userId); }
+    if (!isAdmin) { where.push('t.user_id = ?'); args.push(userId); }
     // v1.0.99.14: created_at 是 ISO 8601 UTC (2026-06-18T06:23:35.720Z),
     // 字符串比较 'YYYY-MM-DD HH:MM:SS' 会因 'T' > ' ' 字符序错乱。
     // 改用 SQLite date() 函数自动解析 ISO 字符串头 10 位 YYYY-MM-DD
-    if (dateFrom) { where.push('date(created_at) >= ?'); args.push(dateFrom); }
-    if (dateTo)   { where.push('date(created_at) <= ?'); args.push(dateTo); }
-    if (type)     { where.push('type = ?');         args.push(type); }
+    if (dateFrom) { where.push('date(t.created_at) >= ?'); args.push(dateFrom); }
+    if (dateTo)   { where.push('date(t.created_at) <= ?'); args.push(dateTo); }
+    if (type)     { where.push('t.type = ?');         args.push(type); }
     const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
     // v1.0.99.14: 关联卡号列 (LEFT JOIN cards) 跟用户版统一
