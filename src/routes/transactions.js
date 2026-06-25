@@ -34,7 +34,7 @@ router.get('/', (req, res, next) => {
     if (req.query.end_time)         { where.push('t.create_time <= ?'); args.push(req.query.end_time); }
 
     const page      = Math.max(1, parseInt(req.query.page)      || 1);
-    const pageSize  = Math.min(200, Math.max(1, parseInt(req.query.page_size) || 20));
+    const pageSize  = Math.min(999, Math.max(1, parseInt(req.query.page_size) || 20));
     const offset    = (page - 1) * pageSize;
 
     const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';

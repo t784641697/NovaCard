@@ -2533,16 +2533,16 @@ async function loadOvChart(days) {
   // 获取交易数据（首次拉取，后续用缓存）
   if (!_ovTxCache) {
     try {
-      const r = await apiFetch('/transactions?page_size=200');
+      const r = await apiFetch('/transactions?page_size=999');
       _ovTxCache = (r.code === 0 && r.data?.list) ? r.data.list : [];
     } catch(e) { _ovTxCache = []; }
   }
 
-  // 只保留消费成功的记录（transaction_type: consume / spend，status: success）
-  const successTx = _ovTxCache.filter(t => {
-    const type = (t.transaction_type||t.type||'').toLowerCase();
+  // 图表只统计 COMPLETE 的 Authorization（消费成功）
+  const chartTx = _ovTxCache.filter(t => {
+    const type = (t.type||'').toLowerCase();
     const status = (t.status||'').toLowerCase();
-    return status === 'success' && (type.includes('consume') || type.includes('spend') || type.includes('payment'));
+    return status === 'complete' && type === 'authorization';
   });
 
   // 按天聚合最近 N 天
@@ -2554,10 +2554,10 @@ async function loadOvChart(days) {
     d.setDate(d.getDate() - i);
     const key = `${d.getMonth()+1}/${d.getDate()}`;
     labels.push(key);
-    const dayTotal = successTx.filter(t => {
-      const td = new Date(t.auth_time || t.created_at || 0);
+    const dayTotal = chartTx.filter(t => {
+      const td = new Date(t.create_time || t.auth_time || 0);
       return td.getFullYear()===d.getFullYear() && td.getMonth()===d.getMonth() && td.getDate()===d.getDate();
-    }).reduce((sum, t) => sum + Math.abs(Number(t.transaction_amount || t.amount || 0)), 0);
+    }).reduce((sum, t) => sum + Math.abs(Number(t.auth_amount || 0)), 0);
     values.push(parseFloat(dayTotal.toFixed(2)));
   }
 
@@ -2640,8 +2640,16 @@ async function loadOvTxList() {
   </div>`;
 
   try {
-    const r = await apiFetch('/transactions?page_size=10');
-    if (r.code !== 0 || !(r.data?.list||[]).length) {
+    // 复用图表缓存（已全量获取 page_size=999），避免重复请求
+    if (!_ovTxCache) {
+      try {
+        const r = await apiFetch('/transactions?page_size=999');
+        _ovTxCache = (r.code === 0 && r.data?.list) ? r.data.list : [];
+      } catch(e) { _ovTxCache = []; }
+    }
+    // 取最近10条交易（按create_time降序）
+    const txList = [..._ovTxCache].sort((a,b) => new Date(b.create_time||0) - new Date(a.create_time||0)).slice(0, 10);
+    if (!txList.length) {
       wrap.innerHTML = TABLE_HEAD +
         '<div style="text-align:center;padding:28px 0;color:var(--text3);font-size:.85rem">暂无交易记录</div>';
       return;
@@ -2657,8 +2665,8 @@ async function loadOvTxList() {
       DECLINED: { cls: 'tag-red', label: '失败' },
       COMPLETE: { cls: 'tag-green', label: '已完成' },
     };
-    const rows = r.data.list.map(t => {
-      const typeRaw = (t.transaction_type || t.type || '').toString();
+    const rows = txList.map(t => {
+      const typeRaw = (t.type || '').toString();
       const typeCn = txTypeMap[typeRaw] || typeRaw || '—';
       const statusRaw = (t.status || '').toUpperCase();
       const statusInfo = txStatusMap[statusRaw] || { cls: 'tag-purple', label: statusRaw || '—' };
