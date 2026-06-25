@@ -25,8 +25,15 @@ router.get('/', (req, res, next) => {
 
     if (req.query.card_id) { where.push('t.card_id = ?'); args.push(req.query.card_id); }
     if (!isAdmin) {
-      where.push('c.user_id = ?');
-      args.push(userId);
+      // 用子查询获取用户所有 card_id（含已删除卡），避免 LEFT JOIN 丢失孤儿交易
+      const userCardIds = db.prepare('SELECT card_id FROM cards WHERE user_id = ?').all(userId).map(r => r.card_id);
+      if (userCardIds.length) {
+        const placeholders = userCardIds.map(() => '?').join(',');
+        where.push(`t.card_id IN (${placeholders})`);
+        args.push(...userCardIds);
+      } else {
+        where.push('1=0'); // 无卡则无交易
+      }
     }
     if (req.query.transaction_type) { where.push('t.type = ?'); args.push(req.query.transaction_type); }
     if (req.query.status)           { where.push('t.status = ?'); args.push(req.query.status); }

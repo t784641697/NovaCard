@@ -2631,10 +2631,10 @@ async function loadOvTxList() {
     <div>卡号</div>
     <div>商户名称</div>
     <div>交易类型</div>
-    <div>交易状态</div>
-    <div style="text-align:right">结算金额</div>
     <div style="text-align:right">授权金额</div>
     <div>授权币种</div>
+    <div>交易状态</div>
+    <div style="text-align:right">结算金额</div>
     <div>消费记录ID</div>
     <div style="text-align:right">交易时间</div>
   </div>`;
@@ -2686,14 +2686,14 @@ async function loadOvTxList() {
         <div class="ov-tx-cell" style="font-family:monospace;font-size:.78rem">${cardNum}</div>
         <div class="ov-tx-cell ov-tx-merchant">${merchant}</div>
         <div class="ov-tx-cell"><span class="tag tag-blue" style="font-size:.68rem">${typeCn}</span></div>
-        <div class="ov-tx-cell"><span class="tag ${statusInfo.cls}" style="font-size:.68rem">${statusInfo.label}</span></div>
-        <div class="ov-tx-cell" style="text-align:right;font-weight:700;color:${settleColor}">
-          ${settleAmt !== null ? (settleAmt >= 0 ? '+' : '') + settleAmt.toFixed(2) : '—'}
-        </div>
         <div class="ov-tx-cell" style="text-align:right;font-weight:700;color:${authColor}">
           ${authAmt !== null ? (authAmt >= 0 ? '+' : '') + authAmt.toFixed(2) : '—'}
         </div>
         <div class="ov-tx-cell">${authCurr}</div>
+        <div class="ov-tx-cell"><span class="tag ${statusInfo.cls}" style="font-size:.68rem">${statusInfo.label}</span></div>
+        <div class="ov-tx-cell" style="text-align:right;font-weight:700;color:${settleColor}">
+          ${settleAmt !== null ? (settleAmt >= 0 ? '+' : '') + settleAmt.toFixed(2) : '—'}
+        </div>
         <div class="ov-tx-cell" style="font-size:.72rem;color:var(--text2)">${authId}</div>
         <div class="ov-tx-cell" style="text-align:right;color:var(--text3);font-size:.78rem">${dt}</div>
       </div>`;
