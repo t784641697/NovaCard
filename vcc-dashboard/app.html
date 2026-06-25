@@ -589,18 +589,18 @@ select.form-control option{background:var(--bg3);}
 /* 最近交易记录表格 */
 .ov-tx-head{
   display:grid;
-  grid-template-columns: 150px 1fr 80px 72px 86px 86px 62px 110px 140px;
-  gap:0 8px;
-  padding:8px 14px;
-  font-size:.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;
+  grid-template-columns: 110px 1fr 72px 78px 68px 72px 78px 100px 130px;
+  gap:0 10px;
+  padding:10px 16px;
+  font-size:.75rem;color:var(--text3);letter-spacing:.04em;
   border-bottom:1px solid var(--border);
 }
 .ov-tx-body{display:flex;flex-direction:column;}
 .ov-tx-row{
   display:grid;
-  grid-template-columns: 150px 1fr 80px 72px 86px 86px 62px 110px 140px;
-  gap:0 8px;
-  padding:10px 14px;
+  grid-template-columns: 110px 1fr 72px 78px 68px 72px 78px 100px 130px;
+  gap:0 10px;
+  padding:11px 16px;
   align-items:center;
   border-bottom:1px solid rgba(255,255,255,.03);
   transition:background .12s;
@@ -609,10 +609,10 @@ select.form-control option{background:var(--bg3);}
 .ov-tx-cell{font-size:.8rem;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ov-tx-merchant{color:var(--text2);}
 @media(max-width:1100px){
-  .ov-tx-head,.ov-tx-row{grid-template-columns:120px 1fr 70px 62px 76px 76px 54px 96px 120px;font-size:.72rem;gap:0 6px;}
+  .ov-tx-head,.ov-tx-row{grid-template-columns:90px 1fr 64px 68px 60px 64px 68px 90px 115px;font-size:.72rem;gap:0 7px;}
 }
 @media(max-width:900px){
-  .ov-tx-head,.ov-tx-row{grid-template-columns:100px 1fr 62px 56px 66px 66px 48px 86px 110px;font-size:.68rem;gap:0 4px;}
+  .ov-tx-head,.ov-tx-row{grid-template-columns:80px 1fr 56px 60px 54px 58px 60px 80px 105px;font-size:.68rem;gap:0 5px;}
 }
 
 .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
@@ -2631,12 +2631,12 @@ async function loadOvTxList() {
     <div>卡号</div>
     <div>商户名称</div>
     <div>交易类型</div>
-    <div style="text-align:right">授权金额</div>
+    <div>授权金额</div>
     <div>授权币种</div>
     <div>交易状态</div>
-    <div style="text-align:right">结算金额</div>
+    <div>结算金额</div>
     <div>消费记录ID</div>
-    <div style="text-align:right">交易时间</div>
+    <div>交易时间</div>
   </div>`;
 
   try {
@@ -2668,34 +2668,32 @@ async function loadOvTxList() {
     const rows = txList.map(t => {
       const typeRaw = (t.type || '').toString();
       const typeCn = txTypeMap[typeRaw] || typeRaw || '—';
-      const statusRaw = (t.status || '').toUpperCase();
-      const statusInfo = txStatusMap[statusRaw] || { cls: 'tag-purple', label: statusRaw || '—' };
-      const cardNum = t.card_number || '—';
+      const stRaw = (t.status || '').toUpperCase();
+      const statusInfo = txStatusMap[stRaw] || { cls: 'tag-purple', label: stRaw || '—' };
+      const rawCard = t.card_number || '';
+      const cardNum = rawCard.length >= 16 ? rawCard.slice(0,4) + '****' + rawCard.slice(-4) : rawCard || '—';
       const merchant = t.merchant_name || '—';
       const settleAmt = t.settle_amount !== undefined && t.settle_amount !== null ? Number(t.settle_amount) : null;
       const authAmt = t.auth_amount !== undefined && t.auth_amount !== null ? Number(t.auth_amount) : null;
       const authCurr = t.auth_currency || '—';
       const authId = t.auth_id || '—';
-      const settleColor = settleAmt !== null && settleAmt < 0 ? 'var(--red)' : settleAmt !== null && settleAmt > 0 ? 'var(--green)' : 'var(--text2)';
-      const authColor = authAmt !== null && authAmt < 0 ? 'var(--red)' : authAmt !== null && authAmt > 0 ? 'var(--green)' : 'var(--text2)';
+      // 金额配色: 已完成=绿, 失败=红, 清算中=蓝
+      const amtColor = stRaw === 'COMPLETE' ? 'var(--green)' : stRaw === 'DECLINED' ? 'var(--red)' : stRaw === 'PENDING' ? '#60a5fa' : 'var(--text2)';
       const dt = t.create_time
         ? (() => { const d = new Date(t.create_time.replace(/-/g,'/')); return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); })()
         : '—';
+      const amtStyle = `color:${amtColor};font-weight:600;font-size:.8rem;font-family:inherit`;
       return `
       <div class="ov-tx-row">
-        <div class="ov-tx-cell" style="font-family:monospace;font-size:.78rem">${cardNum}</div>
-        <div class="ov-tx-cell ov-tx-merchant">${merchant}</div>
-        <div class="ov-tx-cell"><span class="tag tag-blue" style="font-size:.68rem">${typeCn}</span></div>
-        <div class="ov-tx-cell" style="text-align:right;font-weight:700;color:${authColor}">
-          ${authAmt !== null ? (authAmt >= 0 ? '+' : '') + authAmt.toFixed(2) : '—'}
-        </div>
-        <div class="ov-tx-cell">${authCurr}</div>
-        <div class="ov-tx-cell"><span class="tag ${statusInfo.cls}" style="font-size:.68rem">${statusInfo.label}</span></div>
-        <div class="ov-tx-cell" style="text-align:right;font-weight:700;color:${settleColor}">
-          ${settleAmt !== null ? (settleAmt >= 0 ? '+' : '') + settleAmt.toFixed(2) : '—'}
-        </div>
-        <div class="ov-tx-cell" style="font-size:.72rem;color:var(--text2)">${authId}</div>
-        <div class="ov-tx-cell" style="text-align:right;color:var(--text3);font-size:.78rem">${dt}</div>
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${cardNum}</div>
+        <div class="ov-tx-cell ov-tx-merchant" style="font-size:.8rem;font-family:inherit">${merchant}</div>
+        <div class="ov-tx-cell"><span class="tag tag-blue" style="font-size:.75rem">${typeCn}</span></div>
+        <div class="ov-tx-cell" style="${amtStyle}">${authAmt !== null ? authAmt.toFixed(2) : '—'}</div>
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authCurr}</div>
+        <div class="ov-tx-cell"><span class="tag ${statusInfo.cls}" style="font-size:.75rem">${statusInfo.label}</span></div>
+        <div class="ov-tx-cell" style="${amtStyle}">${settleAmt !== null ? settleAmt.toFixed(2) : '—'}</div>
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authId}</div>
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${dt}</div>
       </div>`;
     }).join('');
     wrap.innerHTML = TABLE_HEAD + `<div class="ov-tx-body">${rows}</div>`;
