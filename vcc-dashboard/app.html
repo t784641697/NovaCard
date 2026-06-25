@@ -101,7 +101,7 @@ input,select,button,textarea{font-family:inherit;}
 .cm-search-actions .cm-btn-search,
 .cm-search-actions .cm-btn-reset{min-width:76px;text-align:center;justify-content:center;}
 /* 结果列表区域（独立卡片，有明显区分） */
-.cm-results-section{background:var(--bg3);border-radius:14px;padding:20px;border:1px solid var(--border);min-height:400px;margin-top:16px;}
+.cm-results-section{background:var(--bg3);border-radius:14px;padding:20px;border:1px solid var(--border);height:640px;margin-top:16px;display:flex;flex-direction:column;}
 
 .spin{display:inline-block;animation:spin-anim .8s linear infinite;}
 
@@ -4727,7 +4727,7 @@ function renderCmList(cards) {
               <span class="cm-sep">·</span>
               <span>有效期 ${expireDisplay}</span>
             </div>
-            <div class="cm-meta" style="opacity:0.55;font-size:12px;">开卡时间：${c.created_at ? c.created_at.replace(/-/g,'/').replace('T',' ') : '—'}</div>
+            <div class="cm-meta" style="opacity:0.55;font-size:12px;">开卡时间：${c.created_at ? c.created_at.replace(/-/g,'/').replace('T',' ').replace(/\.\d+Z$/,'') : '—'}</div>
             ${userInfo}
           </div>
         </div>
@@ -4753,17 +4753,31 @@ function renderCmList(cards) {
   if (isUserMode && cards.length > CM_PAGE_SIZE) {
     const start = (page - 1) * CM_PAGE_SIZE + 1;
     const end = Math.min(page * CM_PAGE_SIZE, cards.length);
+    const btnStyle = (active) => `
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:32px;height:32px;padding:0 8px;border:none;
+      border-radius:8px;font-size:13px;font-weight:500;
+      cursor:pointer;transition:all .15s;
+      background:${active?'var(--primary,#7c3aed)':'transparent'};
+      color:${active?'#fff':'var(--on-surface-variant,#999)'};
+    `;
+    // 生成页码按钮
+    let pageButtons = '';
+    for (let i = 1; i <= totalPages; i++) {
+      pageButtons += `<button onclick="window._cmPage=${i};renderCmList(window._cmPageCards)" style="${btnStyle(i===page)}">${i}</button>`;
+    }
     paginationHtml = `
-      <div class="cm-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 0;font-size:13px;color:var(--on-surface-variant,#999);">
-        <button onclick="window._cmPage=1;renderCmList(window._cmPageCards)" ${page<=1?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page<=1?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page<=1?'not-allowed':'pointer'};opacity:${page<=1?0.4:1};">«</button>
-        <button onclick="window._cmPage=Math.max(1,${page}-1);renderCmList(window._cmPageCards)" ${page<=1?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page<=1?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page<=1?'not-allowed':'pointer'};opacity:${page<=1?0.4:1};">‹</button>
-        <span style="color:var(--on-surface,#ddd);">${start}-${end} / ${cards.length}</span>
-        <button onclick="window._cmPage=Math.min(${totalPages},${page}+1);renderCmList(window._cmPageCards)" ${page>=totalPages?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page>=totalPages?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page>=totalPages?'not-allowed':'pointer'};opacity:${page>=totalPages?0.4:1};">›</button>
-        <button onclick="window._cmPage=${totalPages};renderCmList(window._cmPageCards)" ${page>=totalPages?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page>=totalPages?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page>=totalPages?'not-allowed':'pointer'};opacity:${page>=totalPages?0.4:1};">»</button>
-      </div>`;
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:14px 0 2px;font-size:13px;">
+        <button onclick="window._cmPage=1;renderCmList(window._cmPageCards)" ${page<=1?'disabled':''} style="${btnStyle(false)};opacity:${page<=1?0.3:1};cursor:${page<=1?'not-allowed':'pointer'};">«</button>
+        <button onclick="window._cmPage=Math.max(1,${page}-1);renderCmList(window._cmPageCards)" ${page<=1?'disabled':''} style="${btnStyle(false)};opacity:${page<=1?0.3:1};cursor:${page<=1?'not-allowed':'pointer'};">‹</button>
+        ${pageButtons}
+        <button onclick="window._cmPage=Math.min(${totalPages},${page}+1);renderCmList(window._cmPageCards)" ${page>=totalPages?'disabled':''} style="${btnStyle(false)};opacity:${page>=totalPages?0.3:1};cursor:${page>=totalPages?'not-allowed':'pointer'};">›</button>
+        <button onclick="window._cmPage=${totalPages};renderCmList(window._cmPageCards)" ${page>=totalPages?'disabled':''} style="${btnStyle(false)};opacity:${page>=totalPages?0.3:1};cursor:${page>=totalPages?'not-allowed':'pointer'};">»</button>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--on-surface-variant,#666);padding-bottom:4px;">${start}-${end} / 共 ${cards.length} 张</div>`;
   }
   
-  document.getElementById('cmListWrap').innerHTML = `<div class="cm-list">${rows}</div>${paginationHtml}`;
+  document.getElementById('cmListWrap').innerHTML = `<div class="cm-list" style="flex:1;overflow-y:auto;">${rows}</div>${paginationHtml}`;
 }
 
 // 卡片管理 — 充值弹窗
