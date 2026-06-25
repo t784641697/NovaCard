@@ -5919,6 +5919,7 @@ async function loadUserTransactions() {
         <td><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
         <td><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
         <td class="${typeClass}" style="text-align:right;">${a ? a.toFixed(2) : '—'}</td>
+        <td style="color:var(--text2);text-align:center;">${esc2(r.auth_currency || '—')}</td>
         <td class="${typeClass}" style="text-align:right;">${b ? b.toFixed(2) : '—'}</td>
         <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.merchant_name||'')}">${esc2(r.merchant_name || '—')}</td>
         <td style="color:var(--text3);font-family:Menlo,Monaco,monospace;font-size:.7rem;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.auth_id||'')}">${esc2(r.auth_id || '—')}</td>
@@ -5928,7 +5929,7 @@ async function loadUserTransactions() {
     body.innerHTML = `<table class="ut-table">
       <thead><tr>
         <th>时间</th><th>卡号</th><th>类型</th><th>状态</th>
-        <th style="text-align:right;">授权金额</th><th style="text-align:right;">结算金额</th>
+        <th style="text-align:right;">授权金额</th><th>授权币种</th><th style="text-align:right;">结算金额</th>
         <th>商家</th><th>消费记录ID</th>
       </tr></thead>
       <tbody>${rows}</tbody>
