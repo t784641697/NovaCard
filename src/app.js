@@ -110,6 +110,35 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   swaggerOptions: { persistAuthorization: true },
 }));
 
+// ── CSV 代理下载（Safari 兼容：前端生成 CSV → POST 换 token → window.open GET 下载）──
+const csvProxyStore = new Map(); // token → { csv, filename, ts }
+const { authenticate } = require('./middleware/auth');
+app.post('/api/csv-proxy', authenticate, (req, res) => {
+  const { filename, csv } = req.body || {};
+  if (!csv || !filename) return res.status(400).json({ code: 400, msg: '缺少 csv 或 filename' });
+  const token = require('crypto').randomBytes(16).toString('hex');
+  csvProxyStore.set(token, { csv, filename, ts: Date.now() });
+  // 5 分钟后自动清理
+  setTimeout(() => csvProxyStore.delete(token), 5 * 60 * 1000);
+  res.json({ code: 0, msg: 'ok', data: { token } });
+});
+app.get('/api/csv-proxy', (req, res) => {
+  const token = req.query.token;
+  if (!token || !csvProxyStore.has(token)) return res.status(404).json({ code: 404, msg: '无效或过期的下载令牌' });
+  const { csv, filename } = csvProxyStore.get(token);
+  csvProxyStore.delete(token); // 一次性令牌
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  res.send(csv);
+});
+// 定期清理过期令牌（每分钟）
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of csvProxyStore) { if (now - v.ts > 5 * 60 * 1000) csvProxyStore.delete(k); }
+}, 60 * 1000);
+
 // ── 静态文件服务（提供前端页面）────────────────────────────────────────────
 const path = require('path');
 const fs = require('fs');

@@ -5709,7 +5709,6 @@ async function _openTxnModalShell({ mode, headerInfo }) {
       `<!-- 筛选区 -->` +
       `<div style="padding:10px 24px 12px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.015);">` +
         `<div style="display:flex;align-items:center;gap:6px;">` +
-          `<span style="color:var(--text3);font-size:.78rem;">📅 时间范围</span>` +
           `<div id="utDrWrap" style="display:inline-flex;"></div>` +
         `</div>` +
         `<div style="display:flex;align-items:center;gap:6px;">` +
@@ -5903,9 +5902,14 @@ async function loadUserTransactions(forceRefresh) {
     if (t === 'Consume') sumConsume += parseFloat(r.auth_amount || 0);
   });
   const isCardMode = s.mode === 'card';
+  // 检测主要授权币种（卡交易模式）
+  const currCount = {};
+  filtered.forEach(r => { if (r.auth_currency) currCount[r.auth_currency] = (currCount[r.auth_currency] || 0) + 1; });
+  const mainCurr = Object.entries(currCount).sort((a,b) => b[1] - a[1])[0]?.[0] || 'USD';
+  const currHint = Object.keys(currCount).length > 1 ? ` (${mainCurr}为主)` : (mainCurr !== 'USD' ? ` (${mainCurr})` : '');
   const sumItems = isCardMode ? [
     { label: '总笔数',   value: filtered.length,                                color: '#a78bfa' },
-    { label: '授权总额', value: '$' + sumAuth.toFixed(2),      color: '#00f2fe' },
+    { label: '授权总额' + currHint, value: '$' + sumAuth.toFixed(2),      color: '#00f2fe' },
     { label: '结算总额', value: '$' + sumSettle.toFixed(2),    color: '#00c758' },
     { label: '退款总额', value: '$' + sumRefund.toFixed(2),    color: '#ffaa00' },
   ] : [
@@ -6024,19 +6028,32 @@ async function exportUserTransactionsCSV() {
   ]);
   const csvContent = [header, ...rows].map(row => row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',')).join('\n');
   const BOM = '\uFEFF';
-  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  // Safari 兼容：通过后端代理下载（避免 WebKitBlobResource error 1）
   const cardNum = s.cardInfo?.card_number || s.cardId || 'unknown';
   const now = new Date();
   const ts = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
-  a.href = url;
-  a.download = cardNum + '_' + ts + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
-  toast('✅ CSV 已下载');
+  const filename = cardNum + '_' + ts + '.csv';
+  try {
+    const resp = await apiFetch('/csv-proxy', {
+      method: 'POST',
+      body: { filename, csv: BOM + csvContent }
+    });
+    if (resp && resp.code === 0 && resp.data?.token) {
+      window.open('/api/csv-proxy?token=' + resp.data.token, '_blank');
+      toast('✅ CSV 已下载');
+    } else {
+      // fallback: 尝试 Blob 方式（非 Safari 浏览器）
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast('✅ CSV 已下载');
+    }
+  } catch(e) {
+    toast('❌ CSV 导出失败: ' + (e.message || ''));
+  }
 }
 
 
