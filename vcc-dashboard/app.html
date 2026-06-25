@@ -5900,7 +5900,7 @@ async function loadUserTransactions() {
         : isPendingApp
         ? `<span class="ut-tag-card" style="background:rgba(251,191,36,.12);color:#fbbf24;" title="开卡申请待审批中">⏳ 审批中</span>`
         : (effectiveCardNumber
-            ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(effectiveCardId || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2('**** **** **** ' + String(effectiveCardNumber).replace(/\D/g, '').slice(-4))}</span>`
+            ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(effectiveCardId || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2(String(effectiveCardNumber).replace(/\D/g, '').slice(-4) || '—')}</span>`
             : (effectiveProductCode
                 ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(effectiveProductCode)}</span>`
                 : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name || r.description || ''); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">—</span>'; })()));
