@@ -4468,16 +4468,40 @@ function renderCmList(cards) {
     const balLabel = '可用余额';
     const balValueClass = isInvalid ? 'cm-bal-value cm-bal-invalid' : 'cm-bal-value';
     
-    // 按钮逻辑：失效卡片显示"失效"、"详情"、"已冻结"
+    // 按钮逻辑：已删除/失效卡片按钮置灰不可点击
     var freezeBtn = '';
     if (isDeleted) {
-      freezeBtn = '<button class="cm-btn cm-btn-disabled" disabled style="background:#374151;color:#9CA3AF;cursor:not-allowed;border:1px solid #4B5563;">已删除</button>';
+      freezeBtn = '<button class="cm-btn" disabled style="background:#374151;color:#6B7280;cursor:not-allowed;border:1px solid #4B5563;opacity:0.5;">冻结</button>';
     } else if (isInvalid) {
       freezeBtn = '<button class="cm-btn cm-btn-frozen" disabled>已冻结</button>';
     } else if (isActive) {
       freezeBtn = '<button class="cm-btn cm-btn-freeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'CANCELLED\',this)">冻结</button>';
     } else if (isFrozen) {
       freezeBtn = '<button class="cm-btn cm-btn-unfreeze" onclick="window.cmFreezeCard(\'' + c.card_id + '\',\'ACTIVE\',this)">解冻</button>';
+    }
+
+    // 详情按钮：已删除/已注销置灰不可点击
+    var detailBtn = '';
+    if (isDeleted) {
+      detailBtn = '<button class="cm-btn" disabled style="background:#374151;color:#6B7280;cursor:not-allowed;border:1px solid #4B5563;opacity:0.5;">🔍 详情</button>';
+    } else {
+      detailBtn = '<button class="cm-btn cm-btn-detail" onclick="window.showCardDetail(\'' + c.card_id + '\')">🔍 详情</button>';
+    }
+
+    // 充值按钮：已删除/失效置灰不可点击
+    var topupBtn = '';
+    if (isDeleted || isInvalid) {
+      topupBtn = '<button class="cm-btn" disabled style="background:#374151;color:#6B7280;cursor:not-allowed;border:1px solid #4B5563;opacity:0.5;">💰 充值</button>';
+    } else {
+      topupBtn = '<button class="cm-btn cm-btn-topup" onclick="window.cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>';
+    }
+
+    // 流水按钮：已删除/失效置灰不可点击
+    var txnBtn = '';
+    if (isDeleted) {
+      txnBtn = '<button class="cm-btn" disabled style="background:#374151;color:#6B7280;cursor:not-allowed;border:1px solid #4B5563;opacity:0.5;">🧾 流水</button>';
+    } else {
+      txnBtn = '<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal(\'' + c.card_id + '\')" title="查看消费明细">🧾 流水</button>';
     }
 
     // v1.0.99 删卡按钮: 已删除/失效不显示, 否则正常 (余额>0 由上游自动退到账户)
@@ -4546,15 +4570,15 @@ function renderCmList(cards) {
           </div>
         </div>
         <div class="cm-card-right">
-          ${`<button class="cm-btn cm-btn-txn" onclick="window.openCardTransactionsModal('${c.card_id}')" title="查看消费明细">🧾 流水</button>`}
+          ${txnBtn}
           <div class="cm-bal">
             <div class="cm-bal-label">${balLabel}</div>
             <div class="${balValueClass}">$${balDisplay}</div>
           </div>
           <div class="cm-actions-row">
             ${isInvalid ? '<span class="cm-status-badge cm-status-invalid">失效</span>' : `<div class="cm-status">${statusBadge}</div>`}
-            ${`<button class="cm-btn cm-btn-detail" onclick="window.showCardDetail('${c.card_id}')">🔍 详情</button>`}
-            ${!isInvalid ? '<button class="cm-btn cm-btn-topup" onclick="window.cmRechargeCard(\'' + c.card_id + '\')">💰 充值</button>' : ''}
+            ${detailBtn}
+            ${topupBtn}
             ${freezeBtn}
             ${deleteBtn}
           </div>
@@ -5607,7 +5631,8 @@ async function openCardTransactionsModal(cardId) {
 }
 
 async function _openTxnModalShell({ mode, headerInfo }) {
-  if (_me?.role !== 'admin') return;
+  // v1.0.99.27: 移除 admin-only 限制，普通用户可查看自己卡的流水
+  if (mode === 'user' && _me?.role !== 'admin') return;
   // 状态初始化（按 mode 存不同 ID 字段）
   const stateInit = { mode, page: 1, pageSize: 50, type: '', startDate: '', endDate: '' };
   if (mode === 'user') {
