@@ -5960,40 +5960,16 @@ async function exportUserTransactionsCSV() {
   if (!s) return;
   if (s.mode === 'user' && !s.userId) return;
   if (s.mode === 'card' && !s.cardId) return;
-  const btn = document.getElementById('utExportBtn');
-  const oldText = btn.textContent;
-  btn.textContent = '⏳ 导出中…';
-  btn.disabled = true;
-  try {
-    const qs = new URLSearchParams({ format: 'csv' });
-    if (s.type)      qs.set('type', s.type);
-    if (s.startDate) qs.set('start_date', s.startDate);
-    if (s.endDate)   qs.set('end_date',   s.endDate);
-    // 端点（按 mode 选 user 路由 或 card 路由）
-    // 注意：API_BASE 已是 /api，path 不能再带 /api 前缀
-    const idForFile = s.mode === 'card' ? s.cardId : s.userId;
-    const path = (s.mode === 'card'
-      ? `/cards/${encodeURIComponent(s.cardId)}/transactions?`
-      : `/admin/users/${s.userId}/transactions?`) + qs.toString();
-    // 直接 fetch 拿原始响应（保留 CSV 文本 + Content-Disposition）
-    const token = localStorage.getItem('vcc_token') || '';
-    const url = API_BASE + path;
-    const resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-    if (!resp.ok) { toast('❌ 导出失败：HTTP ' + resp.status); return; }
-    const blob = await resp.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `transactions_${idForFile}_${s.startDate||'all'}_${s.endDate||'all'}.csv`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-    toast('✅ CSV 已下载');
-  } catch(e) {
-    toast('❌ 导出失败：' + (e.message||'未知错误'));
-  } finally {
-    btn.textContent = oldText;
-    btn.disabled = false;
-  }
+  const qs = new URLSearchParams({ format: 'csv', _: Date.now() });
+  if (s.type)      qs.set('type', s.type);
+  if (s.startDate) qs.set('start_date', s.startDate);
+  if (s.endDate)   qs.set('end_date',   s.endDate);
+  const token = localStorage.getItem('vcc_token') || '';
+  qs.set('token', token);
+  const path = (s.mode === 'card'
+    ? `/cards/${encodeURIComponent(s.cardId)}/transactions?`
+    : `/admin/users/${s.userId}/transactions?`) + qs.toString();
+  window.open(API_BASE + path, '_blank');
 }
 
 // 冻结/解冻账户确认弹窗

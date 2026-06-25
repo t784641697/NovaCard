@@ -582,13 +582,38 @@ router.get('/:cardId/transactions', async (req, res) => {
     ? db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(card.user_id)
     : null;
 
-  const { type, start_date, end_date, page = 1, page_size = 50 } = req.query;
+  const { type, start_date, end_date, page = 1, page_size = 50, format } = req.query;
   try {
     const params = { card_id: cardId, page: Number(page), pageSize: Number(page_size) };
     if (type) params.type = type;
     if (start_date) params.start_date = start_date;
     if (end_date) params.end_date = end_date;
     const data = await sdk.cardTransaction(params);
+
+    // CSV 导出
+    if (format === 'csv') {
+      const rows = data.list || [];
+      const TYPE_MAP = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' };
+      const STATUS_MAP = { COMPLETE: '完成', DECLINED: '失败', PENDING: '待处理' };
+      const maskCard = (n) => n && /^\d{16}$/.test(n) ? '****' + n.slice(-4) : (n || '—');
+      const header = '时间,卡号,类型,状态,授权金额,授权币种,结算金额,商家,消费记录ID\n';
+      const body = rows.map(r =>
+        [
+          r.create_time || '', maskCard(card.card_number), TYPE_MAP[r.type] || r.type || '',
+          STATUS_MAP[r.status] || r.status || '', r.auth_amount ?? '', r.auth_currency ?? '',
+          r.settle_amount ?? '', '"' + (r.merchant_name || '').replace(/"/g, '""') + '"',
+          r.auth_id || ''
+        ].join(',')
+      ).join('\n');
+      const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      const filename = `card_txn_${cardId.slice(-8)}_${ts}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Pragma', 'no-cache');
+      return res.send('\uFEFF' + header + body);
+    }
+
     res.json({
       code: 0, msg: 'ok',
       data: {
