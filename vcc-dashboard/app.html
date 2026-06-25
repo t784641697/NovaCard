@@ -3845,6 +3845,7 @@ async function exportCmCardsCSV() {
 function doCmSearch() {
   window._cmSearch.q = (document.getElementById('cmSearchInput')?.value || '').trim();
   window._cmSearch.page = 1;
+  window._cmPage = 1;
   // 日期从 _cmSearch 读取（由日历确认时写入）
   loadCmList();
 }
@@ -3855,12 +3856,14 @@ function cmSelectTab(btn, value) {
   btn.classList.add('active');
   window._cmSearch.status = value;
   window._cmSearch.page = 1;
+  window._cmPage = 1;
   loadCmList();
 }
 
 // 重置搜索
 function resetCmSearch() {
   window._cmSearch = { q: '', status: '', dateFrom: '', dateTo: '', page: 1 };
+  window._cmPage = 1;
   if (document.getElementById('cmSearchInput')) document.getElementById('cmSearchInput').value = '';
   // 重置按钮组高亮
   document.querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -4589,11 +4592,23 @@ window.showAdminCardDetail = window.showCardDetail;
 
 function renderCmList(cards) {
 
-
   // 存储当前卡片列表供详情使用
   window.currentCardList = cards;
   
-  const rows = cards.map(c => {
+  // 用户模式分页 (每页5条)
+  const isUserMode = _me?.role !== 'admin';
+  const CM_PAGE_SIZE = 5;
+  if (isUserMode) {
+    if (!window._cmPage || window._cmPageCards !== cards) {
+      window._cmPage = 1;
+      window._cmPageCards = cards;
+    }
+  }
+  const page = isUserMode ? (window._cmPage || 1) : 1;
+  const totalPages = isUserMode ? Math.max(1, Math.ceil(cards.length / CM_PAGE_SIZE)) : 1;
+  const pagedCards = isUserMode ? cards.slice((page - 1) * CM_PAGE_SIZE, page * CM_PAGE_SIZE) : cards;
+  
+  const rows = pagedCards.map(c => {
     const isActive = (c.status||'').toUpperCase() === 'ACTIVE';
     const isFrozen = (c.status||'').toUpperCase() === 'CANCELLED' || c.status === 'frozen';
     const isDeleted = (c.status||'').toLowerCase() === 'deleted';
@@ -4712,6 +4727,7 @@ function renderCmList(cards) {
               <span class="cm-sep">·</span>
               <span>有效期 ${expireDisplay}</span>
             </div>
+            <div class="cm-meta" style="opacity:0.55;font-size:12px;">开卡时间：${c.created_at ? c.created_at.replace(/-/g,'/').replace('T',' ') : '—'}</div>
             ${userInfo}
           </div>
         </div>
@@ -4731,7 +4747,23 @@ function renderCmList(cards) {
         </div>
       </div>`;
   }).join('');
-  document.getElementById('cmListWrap').innerHTML = `<div class="cm-list">${rows}</div>`;
+  
+  // 用户模式分页控件
+  let paginationHtml = '';
+  if (isUserMode && cards.length > CM_PAGE_SIZE) {
+    const start = (page - 1) * CM_PAGE_SIZE + 1;
+    const end = Math.min(page * CM_PAGE_SIZE, cards.length);
+    paginationHtml = `
+      <div class="cm-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 0;font-size:13px;color:var(--on-surface-variant,#999);">
+        <button onclick="window._cmPage=1;renderCmList(window._cmPageCards)" ${page<=1?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page<=1?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page<=1?'not-allowed':'pointer'};opacity:${page<=1?0.4:1};">«</button>
+        <button onclick="window._cmPage=Math.max(1,${page}-1);renderCmList(window._cmPageCards)" ${page<=1?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page<=1?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page<=1?'not-allowed':'pointer'};opacity:${page<=1?0.4:1};">‹</button>
+        <span style="color:var(--on-surface,#ddd);">${start}-${end} / ${cards.length}</span>
+        <button onclick="window._cmPage=Math.min(${totalPages},${page}+1);renderCmList(window._cmPageCards)" ${page>=totalPages?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page>=totalPages?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page>=totalPages?'not-allowed':'pointer'};opacity:${page>=totalPages?0.4:1};">›</button>
+        <button onclick="window._cmPage=${totalPages};renderCmList(window._cmPageCards)" ${page>=totalPages?'disabled':''} style="background:var(--surface-container,#1e1e2e);border:1px solid var(--outline,#333);color:${page>=totalPages?'var(--outline,#555)':'var(--on-surface,#fff)'};border-radius:6px;padding:4px 10px;cursor:${page>=totalPages?'not-allowed':'pointer'};opacity:${page>=totalPages?0.4:1};">»</button>
+      </div>`;
+  }
+  
+  document.getElementById('cmListWrap').innerHTML = `<div class="cm-list">${rows}</div>${paginationHtml}`;
 }
 
 // 卡片管理 — 充值弹窗
