@@ -3803,7 +3803,7 @@ async function exportCmCardsCSV() {
 
   // 生成 CSV
   var BOM = '\uFEFF';
-  var header = '卡号,卡段,状态,可用余额(USD),单笔限额,日限额,月限额,有效期,持卡人,创建时间\n';
+  var header = '卡号,卡段,状态,可用余额(USD),单笔限额,日限额,月限额,有效期,CVV,持卡人,账单地址,创建时间\n';
   var rows = filtered.map(function(c) {
     var statusMap = { active: '正常', cancelled: '已冻结', frozen: '已冻结', deleted: '已注销' };
     var st = statusMap[(c.status || '').toLowerCase()] || c.status || '—';
@@ -3811,10 +3811,11 @@ async function exportCmCardsCSV() {
     var holder = [c.first_name, c.last_name].filter(Boolean).join(' ') || c.user_name || c.label || '—';
     var cn = (c.card_number || '').replace(/\D/g, '');
     var numDisplay = cn.length >= 8 ? cn : (c.card_number || '—');
+    var addr = [c.address_line_one, c.address_line_two, c.address_city, c.address_state, c.address_country, c.address_post_code].filter(Boolean).join(', ') || '—';
     return [numDisplay, c.product_code || '—', st,
       Number(c.available_amount || 0).toFixed(2),
       c.single_limit || '—', c.day_limit || '—', c.month_limit || '—',
-      expire, holder,
+      expire, c.cvv || '—', holder, addr,
       (c.created_at || '—').replace('T', ' ')
     ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
   }).join('\n');
