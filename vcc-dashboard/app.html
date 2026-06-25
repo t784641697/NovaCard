@@ -5667,14 +5667,15 @@ async function _openTxnModalShell({ mode, headerInfo }) {
     titleText = `${u.userName || u.userEmail || '用户'} 的消费明细`;
   } else {
     const c = headerInfo;
-    const statusMap = { NORMAL: '正常', FROZEN: '已冻结', CANCELED: '已注销', PENDING: '待激活', ACTIVE: '正常', SUSPENDED: '已暂停' };
-    const statusZh = statusMap[c.status] || c.status || '-';
+    const _del = s => (s||'').toUpperCase()==='DELETED' || (s||'').toUpperCase()==='CANCELED';
+    const statusMap = { NORMAL: '正常', FROZEN: '已冻结', CANCELED: '已注销', DELETED: '已注销', PENDING: '待激活', ACTIVE: '正常', SUSPENDED: '已暂停' };
+    const statusZh = statusMap[(c.status||'').toUpperCase()] || c.status || '-';
     const brandColor = c.brand === 'Mastercard' ? '#f87171' : c.brand === 'Visa' ? '#1a73e8' : c.brand === 'UnionPay' ? '#10b981' : '#a78bfa';
     const bal = (Number(c.available_balance) || 0).toFixed(2);
     // 品牌缩写：VC102 -> V1, VISA -> V, UnionPay -> UP, 其它取首字
     const brandShort = (c.brand || 'CARD').length > 4 ? (c.brand || 'CARD').slice(0, 2).toUpperCase() : (c.brand || 'CARD');
-    const statusColor = c.status==='FROZEN' ? '#ff5f5f' : c.status==='CANCELED' ? '#9fa8ba' : c.status==='PENDING' ? '#fbbf24' : '#00c758';
-    const statusBg    = c.status==='FROZEN' ? 'rgba(255,95,95,.12)' : c.status==='CANCELED' ? 'rgba(159,168,186,.12)' : c.status==='PENDING' ? 'rgba(251,191,36,.12)' : 'rgba(0,199,88,.12)';
+    const statusColor = c.status==='FROZEN' ? '#ff5f5f' : _del(c.status) ? '#ff5f5f' : c.status==='PENDING' ? '#fbbf24' : '#00c758';
+    const statusBg    = c.status==='FROZEN' ? 'rgba(255,95,95,.12)' : _del(c.status) ? 'rgba(255,95,95,.12)' : c.status==='PENDING' ? 'rgba(251,191,36,.12)' : 'rgba(0,199,88,.12)';
     headerLeftHtml =
       `<div title="${esc2(c.brand || 'CARD')}" style="width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,${brandColor},#a78bfa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.85rem;flex-shrink:0;letter-spacing:.5px;">${esc2(brandShort)}</div>` +
       `<div style="flex:1;min-width:200px;display:flex;flex-direction:column;justify-content:center;gap:4px;">` +
