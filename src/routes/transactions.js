@@ -22,7 +22,7 @@ router.get('/', async (req, res, next) => {
     const isAdmin = req.user.role === 'admin';
 
     // 自动触发上游交易同步（10分钟内不重复同步，15秒超时）
-    const _lastSync = transactionsRoute._lastSync || 0;
+    const _lastSync = router._lastSync || 0;
     const SYNC_INTERVAL = 10 * 60 * 1000; // 10 minutes
     if (Date.now() - _lastSync > SYNC_INTERVAL) {
       try {
@@ -31,7 +31,7 @@ router.get('/', async (req, res, next) => {
           syncTransactions(),
           new Promise((_, rej) => setTimeout(() => rej(new Error('sync timeout')), 15000))
         ]);
-        transactionsRoute._lastSync = Date.now();
+        router._lastSync = Date.now();
       } catch (syncErr) {
         require('../utils/logger').warn('[transactions] sync skipped:', syncErr.message);
       }
