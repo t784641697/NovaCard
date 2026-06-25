@@ -164,6 +164,8 @@ router.get('/export.csv', (req, res) => {
     const fname = `transactions-${ts}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     res.setHeader('X-Export-Count', rows.length);
     res.send(csv);
   } catch (e) {

@@ -170,6 +170,8 @@ router.get('/export.csv', (req, res, next) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     res.setHeader('Content-Disposition', `attachment; filename="ledger-${ts}.csv"`);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     res.setHeader('X-Export-Count', rows.length);
     res.send(csv);
   } catch (err) {
