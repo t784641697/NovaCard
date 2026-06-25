@@ -1942,7 +1942,7 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
           refundAmount,
           'card_creation',
           0,
-          `开卡申请-已拒绝，退还开卡费+充值冻结`
+          `开卡申请（${app.product_code} x ${app.quantity}）被拒绝，退还开卡费+充值冻结`
         );
         // 改申请状态
         db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)

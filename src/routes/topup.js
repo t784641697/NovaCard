@@ -297,7 +297,7 @@ router.patch('/:id', requireAdmin, (req, res, next) => {
         db.prepare(`
           INSERT INTO transactions (user_id, type, amount, net_amount, fee_amount, description, created_at)
           VALUES (?, '充值', ?, ?, ?, ?, ?)
-        `).run(row.user_id, netAmount, netAmount, feeAmount, `管理员审核通过充值 $${updatedAmount} USDT，实到 $${netAmount.toFixed(2)}${feeDesc}`, nowISO);
+        `).run(row.user_id, netAmount, netAmount, feeAmount, `管理员审核通过充值 $${updatedAmount}，实到 $${netAmount.toFixed(2)}${feeDesc}`, nowISO);
       }
 
       return { code: 0, msg: status === 'approved' ? '已审批通过' : '已拒绝', data: { id, status } };
