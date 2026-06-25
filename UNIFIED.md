@@ -2767,5 +2767,73 @@ forceRefresh → 重新全量获取 → 更新 allData
 **Token 生命周期**：
 - 5 分钟过期
 - 每分钟清理过期文件
+
+---
+
+## v1.0.99.39~51 — 流水弹窗+卡片管理+账户总览优化
+
+### 流水弹窗 (v1.0.99.39)
+- 已删除卡状态标签: 绿色"deleted"→红色"已注销"(DELETED/CANCELED统一处理)
+
+### 用户卡片管理搜索+导出 (v1.0.99.40~46)
+
+#### 搜索栏
+- 卡号搜索(input)+状态标签组(全部/正常/冻结/已注销)+日期选择器(DateRangePicker)+搜索/重置/导出按钮
+- 前端本地筛选: 全量获取(pageSize=999)+本地过滤(卡号/状态/日期)
+
+#### 导出CSV
+- 导出筛选后卡片详情: 卡号/卡段/状态/余额/限额/有效期/CVV/持卡人/账单地址/创建时间
+- Safari兼容: POST /api/csv-proxy换token→window.open GET下载
+- 路径bug: `apiFetch('/api/csv-proxy')`→`apiFetch('/csv-proxy')` (API_BASE已是/api)
+
+#### 持卡人姓名 (v1.0.99.45)
+- cards表新增first_name/last_name列(自动迁移)
+- 审批开卡时写入app.first_name/app.last_name
+- 导出CSV优先取first_name+last_name(label="Virtual Card"仅作回退)
+- 回填脚本7/7成功
+
+#### 卡号显示
+- 前4位不遮挡: `5331 **** **** 1127`(formatCardNumberMasked)
+- 交易记录缩略: `5331****1127`
+
+#### 卡片容器+分页
+- 容器固定640px(flex纵向: 卡片列表flex:1可滚动, 分页器flex-shrink:0固定底部)
+- 分页: 每页5条, pill药丸样式(当前页紫色高亮, 箭头48×48px)
+- 开卡时间: `yyyy/mm/dd hh:mm:ss`(去掉.011Z后缀)
+
+### 账户总览交易记录 (v1.0.99.47~51)
+
+#### 字段重构
+| 原字段 | 新字段 | 数据来源 |
+|--------|--------|----------|
+| 卡BIN | 卡号(16位→缩略5331****1127) | card_number |
+| 卡产品-待定 | (移除) | — |
+| 交易类型 | 交易类型 | type: 预授权/结算/退款/撤销 |
+| 交易金额-待定 | 结算金额 | settle_amount, 状态: 已完成/失败/清算中 |
+| (新增) | 授权金额 | auth_amount |
+| (新增) | 授权币种 | auth_currency |
+| (新增) | 消费记录ID | auth_id |
+| 交易时间 | 交易时间 | create_time, yyyy/mm/dd hh:mm:ss |
+
+#### 列顺序
+卡号→商户名称→交易类型→授权金额→授权币种→交易状态→结算金额→消费记录ID→交易时间
+
+#### 样式
+- 金额配色: 已完成=绿/失败=红/清算中=蓝
+- 金额无+号前缀
+- 统一字号.8rem + font-family:inherit
+- 列间距padding 6px 14px
+
+#### 数据来源修复
+- **根因**: 前端过滤status=success/consume与API返回COMPLETE/Authorization格式不匹配→全部被过滤掉
+- 图表: status=COMPLETE+type=Authorization, 金额取auth_amount
+- 列表: 复用_ovTxCache全量999条, 按create_time降序取最近10条
+- 后端page_size上限200→999
+
+#### 自动同步 (v1.0.99.50)
+- 用户访问/transactions时自动触发vmcardio上游交易同步
+- 10分钟去重+15秒超时保护
+- 解决"流水弹窗有数据但账户总览没有"(前者直接调上游API,后者读本地DB)
+- 变量名bug: transactionsRoute→router导致ReferenceError
 - 使用后立即删除
 

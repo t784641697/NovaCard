@@ -2528,3 +2528,76 @@ Safari 不支持跨域 Blob URL（`WebKitBlobResource error 1`）→ 改为 `win
 
 **PM2 cluster 多 worker 问题**：首次部署用内存 Map 存储 token → POST 在 worker A 创建 token，GET 路由到 worker B 找不到 → "无效或过期的下载令牌"。修复：改用文件系统 `/tmp/vcc-csv-proxy/` 存储，两个 worker 共享磁盘。
 
+---
+
+## v1.0.99.39 ~ v1.0.99.51 (2026-06-25~26)
+
+### v1.0.99.39 — 流水弹窗已删除卡状态标签
+- 绿色 "deleted" → 红色 "已注销"
+- 统一处理 DELETED 和 CANCELED 状态
+
+### v1.0.99.40 — 普通用户卡片管理搜索+导出+卡号显示
+- 移除顶部"卡片管理 管理您的所有虚拟卡"标题和"申请新卡"按钮
+- 新增用户搜索栏(卡号搜索+状态筛选+日期选择器+搜索/重置/导出按钮)
+- 导出CSV: 关联筛选条件, Safari兼容(csv-proxy), 文件名`cards_YYYYMMDDHHmmss.csv`
+- 卡号前4位不遮挡: `5331 **** **** 1127`
+- loadCmList用户模式: 全量获取(pageSize=999)+前端本地筛选(卡号/状态/日期)
+- 后端cards.js: 新增first_name/last_name/user_name/label字段返回
+
+### v1.0.99.41 — 卡片管理开卡时间+分页
+- 有效期下方新增 `开卡时间：yyyy/mm/dd hh:mm:ss`
+- 用户模式分页: 每页5条, 底部分页控件(« ‹ 页码 › »)
+
+### v1.0.99.42 — 开卡时间格式+容器固定+分页样式
+- 开卡时间去掉.011Z后缀: `2026/06/25 06:21:48`
+- 卡片列表容器固定640px高度, 卡少不收缩, 卡多内部滚动
+- 分页改为pill药丸样式: 当前页紫色高亮+页码数字按钮+箭头
+
+### v1.0.99.43 — 分页器固定底部+箭头3倍放大
+- cmListWrap改为flex纵向布局: 卡片区flex:1可滚动, 分页器flex-shrink:0固定底部
+- 箭头按钮从32×32/13px→48×48/24px
+
+### v1.0.99.44 — 卡片导出CSV路径修复
+- `apiFetch('/api/csv-proxy')` 路径重复/api→404→fallback Blob→Safari报错
+- 改为 `apiFetch('/csv-proxy')` (API_BASE已是/api)
+
+### v1.0.99.45 — 持卡人姓名写入cards表
+- cards表新增first_name/last_name列(database.js迁移)
+- 审批开卡时写入app.first_name/app.last_name(admin.js)
+- 用户卡片API返回first_name/last_name(cards.js)
+- 导出CSV持卡人列: first_name+last_name(不再显示"Virtual Card")
+- 回填脚本: 7/7张卡全部成功
+
+### v1.0.99.46 — 导出CSV增加CVV和账单地址列
+- CVV: cards.cvv
+- 账单地址: 拼接address_line_one~address_post_code
+
+### v1.0.99.47 — 账户总览交易记录字段优化
+- 卡BIN→完整16位卡号
+- 移除"卡产品-待定"列
+- 交易类型: 预授权/结算/退款/撤销
+- 交易金额→结算金额(settle_amount), 状态: 已完成/失败/清算中
+- 新增: 授权金额(auth_amount), 授权币种(auth_currency), 消费记录ID(auth_id)
+- 交易时间: create_time, 格式yyyy/mm/dd hh:mm:ss
+
+### v1.0.99.48 — 账户总览交易记录为空修复
+- **根因**: 前端过滤status=success/consume与API返回COMPLETE/Authorization格式不匹配
+- 图表统计改为status=COMPLETE+type=Authorization, 金额取auth_amount
+- 列表复用_ovTxCache全量999条, 按create_time降序取最近10条
+- 后端page_size上限200→999
+
+### v1.0.99.49 — 交易列顺序调整
+- 卡号→商户→交易类型→授权金额→授权币种→交易状态→结算金额→消费记录ID→交易时间
+
+### v1.0.99.50 — 账户总览自动同步上游交易
+- 用户访问/transactions时自动触发vmcardio同步(10分钟去重+15秒超时)
+- 解决"流水弹窗有数据但账户总览没有"的问题(前者直接调上游API,后者读本地DB)
+- 修复变量名transactionsRoute→router导致ReferenceError
+
+### v1.0.99.51 — 交易记录样式优化
+- 授权金额/结算金额按状态配色: 已完成=绿色/失败=红色/清算中=蓝色
+- 金额去掉+号前缀
+- 卡号缩略: `5331****1127`
+- 列间距: padding 6px 14px
+- 统一字号.8rem + font-family:inherit
+
