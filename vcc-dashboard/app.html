@@ -3070,7 +3070,7 @@ function selectBin(p) {
     // v1.0.58: 适用平台与管理员备注也展示在提醒面板
     const platforms = p.applicable_platforms || p.docx_platforms || null;
     const platformStr = (platforms && platforms.length) ? platforms.join(', ') : '—';
-    const msg = p.custom_message || null;
+    const msg = p.custom_message || CP_DEFAULT_MSG;
     // v1.0.60: 卡归属地中文化 + flag emoji; type/media 中文化 (未知值回退原文)
     const localeArea = (p.issuing_area_name || p.issuing_area || '—');
     const flag = p.issuing_area_flag || '';
