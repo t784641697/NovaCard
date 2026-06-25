@@ -606,7 +606,8 @@ router.get('/:cardId/transactions', async (req, res) => {
         ].join(',')
       ).join('\n');
       const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-      const filename = `card_txn_${cardId.slice(-8)}_${ts}.csv`;
+      const cardNum = card.card_number || cardId;
+      const filename = `${cardNum}_${ts}.csv`;
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Cache-Control', 'no-store');
