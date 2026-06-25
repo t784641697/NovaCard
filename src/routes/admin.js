@@ -1899,7 +1899,7 @@ router.post('/card-applications/:id/approve', async (req, res, next) => {
             totalRefund,
             'card_creation',
             0,
-            `开卡申请 #${id} 审批失败（${lastError?.message || '未知错误'}），退还开卡费+充值冻结`
+            `开卡申请-开卡失败，退还开卡费+充值冻结`
           );
         }).immediate();
       } catch (e) {
@@ -1942,7 +1942,7 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
           refundAmount,
           'card_creation',
           0,
-          `开卡申请 #${id}（${app.product_code || app.card_bin} x ${app.quantity}）被拒绝，退还开卡费+充值冻结`
+          `开卡申请-已拒绝，退还开卡费+充值冻结`
         );
         // 改申请状态
         db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
