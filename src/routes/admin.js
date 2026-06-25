@@ -1285,7 +1285,7 @@ const STATUS_ZH  = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算
  */
 function fetchCardTransactions(cardIds, opts = {}) {
   const { type, start_date, end_date, page = 1, page_size = 50 } = opts;
-  const limit  = Math.min(parseInt(page_size) || 50, 500);
+  const limit  = Math.min(parseInt(page_size) || 50, 9999);
   const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limit;
 
   // 动态条件

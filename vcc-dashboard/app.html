@@ -5596,7 +5596,7 @@ async function renderAdminUsers() {
 // ══════════════════════════════════════════════════════════════
 //  用户消费明细弹窗（管理员 - 应对用户投诉消费金额不对）
 // ══════════════════════════════════════════════════════════════
-window._utState = { userId: null, page: 1, pageSize: 50, type: '', startDate: '', endDate: '' };
+window._utState = { userId: null, page: 1, pageSize: 50, type: '', status: '', startDate: '', endDate: '', allData: null, cardInfo: null };
 
 function esc2(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -5629,7 +5629,7 @@ async function _openTxnModalShell({ mode, headerInfo }) {
   // v1.0.99.27: 移除 admin-only 限制，普通用户可查看自己卡的流水
   if (mode === 'user' && _me?.role !== 'admin') return;
   // 状态初始化（按 mode 存不同 ID 字段）
-  const stateInit = { mode, page: 1, pageSize: 50, type: '', startDate: '', endDate: '' };
+  const stateInit = { mode, page: 1, pageSize: 50, type: '', status: '', startDate: '', endDate: '', allData: null, cardInfo: null };
   if (mode === 'user') {
     stateInit.userId = headerInfo.userId;
   } else {
@@ -5716,15 +5716,25 @@ async function _openTxnModalShell({ mode, headerInfo }) {
           `<span style="color:var(--text3);font-size:.78rem;">🏷️ 类型</span>` +
           `<select id="utType" class="ut-input" style="cursor:pointer;">` +
             `<option value="">全部类型</option>` +
-            `<option value="Authorization">预授权 (Authorization)</option>` +
-            `<option value="Settlement">结算 (Settlement)</option>` +
-            `<option value="Refund">退款 (Refund)</option>` +
-            `<option value="Reversal">撤销 (Reversal)</option>` +
+            `<option value="Authorization">预授权</option>` +
+            `<option value="Settlement">结算</option>` +
+            `<option value="Refund">退款</option>` +
+            `<option value="Reversal">撤销</option>` +
+            (mode === 'user' ? `<option value="Topup">充值</option><option value="Consume">消费</option>` : '') +
+          `</select>` +
+        `</div>` +
+        `<div style="display:flex;align-items:center;gap:6px;">` +
+          `<span style="color:var(--text3);font-size:.78rem;">📊 状态</span>` +
+          `<select id="utStatus" class="ut-input" style="cursor:pointer;">` +
+            `<option value="">全部状态</option>` +
+            `<option value="COMPLETE">已完成</option>` +
+            `<option value="DECLINED">失败</option>` +
+            `<option value="PENDING">清算中</option>` +
           `</select>` +
         `</div>` +
         `<button id="utQueryBtn" class="ut-btn-primary">🔍 查询</button>` +
         `<button id="utResetBtn" class="ut-btn-secondary">重置</button>` +
-        `<div style="margin-left:auto;color:var(--text3);font-size:.78rem;" id="utTotalText">总 0 条</div>` +
+        `<div style="margin-left:auto;color:var(--text3);font-size:.78rem;" id="utTotalText"></div>` +
       `</div>` +
       `<!-- 摘要卡片 -->` +
       `<div id="utSummary" style="padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.06);display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>` +
@@ -5785,19 +5795,20 @@ async function _openTxnModalShell({ mode, headerInfo }) {
   document.getElementById('utCloseBtn').addEventListener('click', close);
   document.getElementById('utQueryBtn').addEventListener('click', () => {
     window._utState.type      = document.getElementById('utType').value;
-    window._utState.page      = 1;
+    window._utState.status    = document.getElementById('utStatus').value;
+    window._utState.page = 1;
     loadUserTransactions();
   });
   document.getElementById('utResetBtn').addEventListener('click', () => {
-    // 重置到本月 1 日 — 今天（与打开时一致）
-    const t = new Date();
-    const f = new Date(t.getFullYear(), t.getMonth(), 1);
-    if (window._utPicker) window._utPicker.setRange(_utFmt(f), _utFmt(t));
+    // 重置所有筛选条件
+    if (window._utPicker) window._utPicker.clear();
     document.getElementById('utType').value  = '';
-    window._utState.startDate = _utFmt(f);
-    window._utState.endDate   = _utFmt(t);
+    document.getElementById('utStatus').value = '';
+    window._utState.startDate = '';
+    window._utState.endDate   = '';
     window._utState.type      = '';
-    window._utState.page      = 1;
+    window._utState.status    = '';
+    window._utState.page = 1;
     loadUserTransactions();
   });
   document.getElementById('utExportBtn').addEventListener('click', exportUserTransactionsCSV);
@@ -5821,19 +5832,15 @@ async function _openTxnModalShell({ mode, headerInfo }) {
     }
   });
   window._utPicker.init();
-  // 默认本月 1 日 — 今天（与交易监控一致，方案B）
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  window._utPicker.setRange(_utFmt(firstDay), _utFmt(today));
-  window._utState.startDate = _utFmt(firstDay);
-  window._utState.endDate   = _utFmt(today);
+  // 默认不限制日期范围（前端本地筛选，全量数据已缓存）
+  // window._utState.startDate / endDate 初始为空字符串 = 不限
 
   await loadUserTransactions();
 }
 
 
 
-async function loadUserTransactions() {
+async function loadUserTransactions(forceRefresh) {
   const s = window._utState;
   if (!s) return;
   if (s.mode === 'user' && !s.userId) return;
@@ -5845,111 +5852,143 @@ async function loadUserTransactions() {
   if (!body) return;
   body.innerHTML = '<div class="ut-empty"><div class="ut-empty-icon">🔄</div><div>加载中…</div></div>';
 
-  const qs = new URLSearchParams({
-    page: s.page, page_size: s.pageSize
-  });
-  if (s.type)       qs.set('type', s.type);
-  if (s.startDate)  qs.set('start_date', s.startDate);
-  if (s.endDate)    qs.set('end_date',   s.endDate);
-
-  // 端点（按 mode 选 user 路由 或 card 路由）
-  // 注意：apiFetch 内部已带 API_BASE (/api)，这里不能重复 /api
-  const endpoint = s.mode === 'card'
-    ? `/cards/${encodeURIComponent(s.cardId)}/transactions?` + qs.toString()
-    : `/admin/users/${s.userId}/transactions?` + qs.toString();
-  const subjectName = s.mode === 'card' ? '该卡片' : '该用户';
-
-  try {
-    const r = await apiFetch(endpoint);
-    if (!r || r.code !== 0) { body.innerHTML = '<div class="ut-empty">❌ 加载失败: ' + esc2(r?.msg||'') + '</div>'; return; }
-    const d = r.data;
-
-    // 摘要（4 张：总笔数/授权/结算/退款；"涉及卡数"已在头部"共 N 张卡"展示）
-    const sum = d.summary || {};
-    const sum4 = [
-      { label: '总笔数',   value: sum.total_count || 0,                                color: '#a78bfa' },
-      { label: '授权总额', value: '$' + parseFloat(sum.total_auth||0).toFixed(2),      color: '#00f2fe' },
-      { label: '结算总额', value: '$' + parseFloat(sum.total_settle||0).toFixed(2),    color: '#00c758' },
-      { label: '退款总额', value: '$' + parseFloat(sum.total_refund||0).toFixed(2),    color: '#ffaa00' },
-    ];
-    sumEl.innerHTML = sum4.map(x => `<div class="ut-summary-card"><div class="ut-summary-label">${x.label}</div><div class="ut-summary-value" style="color:${x.color}">${x.value}</div></div>`).join('');
-
-    // 顶部统计
-    total.textContent = `共 ${d.total} 条 · 第 ${d.page} / ${Math.max(1, Math.ceil((d.total||0)/d.pageSize))} 页`;
-
-    // 流水
-    if (!d.list || !d.list.length) {
-      body.innerHTML = '<div class="ut-empty"><div class="ut-empty-icon">📭</div><div>' + esc2(subjectName) + '在此时间范围内没有刷卡记录</div></div>';
-      pager.innerHTML = '';
+  // 首次加载全量数据并缓存（上游 API 不支持筛选参数，需前端本地过滤）
+  if (forceRefresh || !s.allData) {
+    const qs = new URLSearchParams({ page: 1, page_size: 999 });
+    const endpoint = s.mode === 'card'
+      ? `/cards/${encodeURIComponent(s.cardId)}/transactions?` + qs.toString()
+      : `/admin/users/${s.userId}/transactions?` + qs.toString();
+    try {
+      const r = await apiFetch(endpoint);
+      if (!r || r.code !== 0) { body.innerHTML = '<div class="ut-empty">❌ 加载失败: ' + esc2(r?.msg||'') + '</div>'; return; }
+      const d = r.data;
+      s.allData = (d.list || []).map(item => {
+        // card mode: card info from d.card; admin mode: each row has its own card_number/product_code/card_id
+        const cardInfo = (s.mode === 'card') ? (d.card || {}) : {};
+        item._card_number = item.card_number || cardInfo.card_number || '';
+        item._product_code = item.product_code || cardInfo.product_code || '';
+        item._card_id = item.card_id || cardInfo.card_id || '';
+        return item;
+      });
+      s.cardInfo = (s.mode === 'card') ? (d.card || {}) : { card_number: '', card_id: s.cardId || '' };
+    } catch(e) {
+      body.innerHTML = '<div class="ut-empty">❌ 加载异常: ' + esc2(e.message||'') + '</div>';
       return;
     }
-    const cardInfo = d.card || {};  // 卡片维度: d.card 有 card_number / product_code
-    const rows = d.list.map(r => {
-      // v1.0.99.8: 关联卡号 — 真实数据 fallback (16 位卡号 → 审批中 → 申请被驳回 → 卡段名 → —)
-      // card 维度流水: r 本身无 card_number, 从 d.card 取; user 维度流水: r 自带
-      const effectiveCardNumber = r.card_number || cardInfo.card_number;
-      const effectiveProductCode = r.product_code || cardInfo.product_code;
-      const effectiveCardId = r.card_id || cardInfo.card_id;
-      const isRejectedApp = effectiveCardId && /^app_rejected:\d+:[A-Z0-9]+$/.test(effectiveCardId);
-      const isPendingApp = effectiveCardId && /^app:\d+$/.test(effectiveCardId);
-      const cardNumberHtml = isRejectedApp
-        ? `<span class="ut-tag-card ledger-card-rejected" title="该笔流水对应申请未通过，无真实卡片" style="opacity:.7;">未开卡成功</span>`
-        : isPendingApp
-        ? `<span class="ut-tag-card" style="background:rgba(251,191,36,.12);color:#fbbf24;" title="开卡申请待审批中">⏳ 审批中</span>`
-        : (effectiveCardNumber
-            ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(effectiveCardId || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2(String(effectiveCardNumber).replace(/\D/g, '').slice(-4) || '—')}</span>`
-            : (effectiveProductCode
-                ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(effectiveProductCode)}</span>`
-                : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name || r.description || ''); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">—</span>'; })()));
-      const t = r.type || '';
-      const st = r.status || '';
-      const typeClass = { Authorization: 'ut-amount-auth', Settlement: 'ut-amount-settle', Refund: 'ut-amount-refund', Reversal: 'ut-amount-reversal' }[t] || 'ut-amount-settle';
-      const tagClass = { Authorization: 'ut-tag-Auth', Settlement: 'ut-tag-Settle', Refund: 'ut-tag-Refund', Reversal: 'ut-tag-Reversal' }[t] || '';
-      const stClass  = { COMPLETE: 'ut-tag-COMPLETE', DECLINED: 'ut-tag-DECLINED', PENDING: 'ut-tag-PENDING' }[st] || '';
-      const typeLabel = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销' }[t] || t || '—';
-      const statusLabel = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' }[st] || st || '—';
-      const a = parseFloat(r.auth_amount   || 0);
-      const b = parseFloat(r.settle_amount || 0);
-      return `<tr>
-        <td style="white-space:nowrap;color:var(--text2);font-size:.74rem;">${esc2((r.create_time||'').slice(0,19).replace('T',' '))}</td>
-        <td>${cardNumberHtml}</td>
-        <td><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
-        <td><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
-        <td class="${typeClass}" style="text-align:right;">${a ? a.toFixed(2) : '—'}</td>
-        <td style="color:var(--text2);text-align:center;">${esc2(r.auth_currency || '—')}</td>
-        <td class="${typeClass}" style="text-align:right;">${b ? b.toFixed(2) : '—'}</td>
-        <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.merchant_name||'')}">${esc2(r.merchant_name || '—')}</td>
-        <td style="color:var(--text3);font-family:Menlo,Monaco,monospace;font-size:.7rem;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.auth_id||'')}">${esc2(r.auth_id || '—')}</td>
-      </tr>`;
-    }).join('');
-
-    body.innerHTML = `<table class="ut-table">
-      <thead><tr>
-        <th>时间</th><th>卡号</th><th>类型</th><th>状态</th>
-        <th style="text-align:right;">授权金额</th><th>授权币种</th><th style="text-align:right;">结算金额</th>
-        <th>商家</th><th>消费记录ID</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-
-    // 分页
-    const totalPages = Math.max(1, Math.ceil((d.total||0)/d.pageSize));
-    pager.innerHTML = `
-      <div style="color:var(--text3);font-size:.78rem;">共 ${d.total} 条 · 每页 ${d.pageSize} 条</div>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <button class="ut-pager-btn" id="utPrev" ${d.page<=1?'disabled':''}>‹ 上一页</button>
-        <span style="color:var(--text2);font-size:.78rem;padding:0 8px;">${d.page} / ${totalPages}</span>
-        <button class="ut-pager-btn" id="utNext" ${d.page>=totalPages?'disabled':''}>下一页 ›</button>
-      </div>
-    `;
-    const prev = document.getElementById('utPrev');
-    const next = document.getElementById('utNext');
-    if (prev) prev.onclick = () => { if (s.page>1) { s.page--; loadUserTransactions(); } };
-    if (next) next.onclick = () => { if (s.page<totalPages) { s.page++; loadUserTransactions(); } };
-
-  } catch(e) {
-    body.innerHTML = '<div class="ut-empty">❌ 加载异常: ' + esc2(e.message||'') + '</div>';
   }
+
+  // 前端本地筛选
+  const filtered = (s.allData || []).filter(r => {
+    if (s.type && (r.type || '') !== s.type) return false;
+    if (s.status && (r.status || '') !== s.status) return false;
+    if (s.startDate) {
+      const d = (r.create_time || '').slice(0, 10);
+      if (d < s.startDate) return false;
+    }
+    if (s.endDate) {
+      const d = (r.create_time || '').slice(0, 10);
+      if (d > s.endDate) return false;
+    }
+    return true;
+  });
+
+  // 摘要统计（基于筛选后数据）
+  let sumAuth = 0, sumSettle = 0, sumRefund = 0, sumTopup = 0, sumConsume = 0;
+  filtered.forEach(r => {
+    const t = r.type || '';
+    if (t === 'Authorization' || t === 'Settlement') sumAuth += parseFloat(r.auth_amount || 0);
+    if (t === 'Settlement') sumSettle += parseFloat(r.settle_amount || 0);
+    if (t === 'Refund' || t === 'Reversal') sumRefund += parseFloat(r.settle_amount || 0);
+    if (t === 'Topup') sumTopup += parseFloat(r.auth_amount || 0);
+    if (t === 'Consume') sumConsume += parseFloat(r.auth_amount || 0);
+  });
+  const isCardMode = s.mode === 'card';
+  const sumItems = isCardMode ? [
+    { label: '总笔数',   value: filtered.length,                                color: '#a78bfa' },
+    { label: '授权总额', value: '$' + sumAuth.toFixed(2),      color: '#00f2fe' },
+    { label: '结算总额', value: '$' + sumSettle.toFixed(2),    color: '#00c758' },
+    { label: '退款总额', value: '$' + sumRefund.toFixed(2),    color: '#ffaa00' },
+  ] : [
+    { label: '总笔数',   value: filtered.length,                                color: '#a78bfa' },
+    { label: '充值总额', value: '$' + sumTopup.toFixed(2),     color: '#00c758' },
+    { label: '消费总额', value: '$' + sumConsume.toFixed(2),   color: '#00f2fe' },
+    { label: '退款总额', value: '$' + sumRefund.toFixed(2),    color: '#ffaa00' },
+  ];
+  sumEl.innerHTML = sumItems.map(x => `<div class="ut-summary-card"><div class="ut-summary-label">${x.label}</div><div class="ut-summary-value" style="color:${x.color}">${x.value}</div></div>`).join('');
+
+  total.textContent = '';
+
+  if (!filtered.length) {
+    body.innerHTML = '<div class="ut-empty"><div class="ut-empty-icon">📭</div><div>没有符合条件的刷卡记录</div></div>';
+    pager.innerHTML = '';
+    return;
+  }
+
+  // 分页（基于筛选后数据）
+  const pageSize = s.pageSize || 50;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if (s.page > totalPages) s.page = totalPages;
+  const start = (s.page - 1) * pageSize;
+  const pageData = filtered.slice(start, start + pageSize);
+
+  const rows = pageData.map(r => {
+    const effectiveCardNumber = r._card_number;
+    const effectiveProductCode = r._product_code;
+    const effectiveCardId = r._card_id;
+    const isRejectedApp = effectiveCardId && /^app_rejected:\d+:[A-Z0-9]+$/.test(effectiveCardId);
+    const isPendingApp = effectiveCardId && /^app:\d+$/.test(effectiveCardId);
+    const cardNumberHtml = isRejectedApp
+      ? `<span class="ut-tag-card ledger-card-rejected" title="该笔流水对应申请未通过，无真实卡片" style="opacity:.7;">未开卡成功</span>`
+      : isPendingApp
+      ? `<span class="ut-tag-card" style="background:rgba(251,191,36,.12);color:#fbbf24;" title="开卡申请待审批中">⏳ 审批中</span>`
+      : (effectiveCardNumber
+          ? `<span class="ut-tag-card copyable" onclick="ledgerGoCard('${esc2(effectiveCardId || '')}')" title="点击查看卡详情" style="cursor:pointer;">${esc2(String(effectiveCardNumber).replace(/\D/g, '').slice(-4) || '—')}</span>`
+          : (effectiveProductCode
+              ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(effectiveProductCode)}</span>`
+              : (function(){ const c = _extractProductCodeFromDescription(r.merchant_name || r.description || ''); return c ? `<span class="ut-tag-card" title="无完整卡号关联（仅卡段）" style="opacity:.7;">🏷 ${esc2(c)}</span>` : '<span class="ut-tag-card" style="opacity:.4;">—</span>'; })()));
+    const t = r.type || '';
+    const st = r.status || '';
+    const typeClass = { Authorization: 'ut-amount-auth', Settlement: 'ut-amount-settle', Refund: 'ut-amount-refund', Reversal: 'ut-amount-reversal', Topup: 'ut-amount-refund', Consume: 'ut-amount-auth' }[t] || 'ut-amount-settle';
+    const tagClass = { Authorization: 'ut-tag-Auth', Settlement: 'ut-tag-Settle', Refund: 'ut-tag-Refund', Reversal: 'ut-tag-Reversal', Topup: 'ut-tag-Refund', Consume: 'ut-tag-Auth' }[t] || '';
+    const stClass  = { COMPLETE: 'ut-tag-COMPLETE', DECLINED: 'ut-tag-DECLINED', PENDING: 'ut-tag-PENDING' }[st] || '';
+    const typeLabel = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销', Topup: '充值', Consume: '消费' }[t] || t || '—';
+    const statusLabel = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' }[st] || st || '—';
+    const a = parseFloat(r.auth_amount   || 0);
+    const b = parseFloat(r.settle_amount || 0);
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--text2);font-size:.74rem;">${esc2((r.create_time||'').slice(0,19).replace('T',' '))}</td>
+      <td>${cardNumberHtml}</td>
+      <td><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
+      <td><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
+      <td class="${typeClass}" style="text-align:right;">${a ? a.toFixed(2) : '—'}</td>
+      <td style="color:var(--text2);text-align:center;">${esc2(r.auth_currency || '—')}</td>
+      <td class="${typeClass}" style="text-align:right;">${b ? b.toFixed(2) : '—'}</td>
+      <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.merchant_name||'')}">${esc2(r.merchant_name || '—')}</td>
+      <td style="color:var(--text3);font-family:Menlo,Monaco,monospace;font-size:.7rem;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.auth_id||'')}">${esc2(r.auth_id || '—')}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `<table class="ut-table">
+    <thead><tr>
+      <th>时间</th><th>卡号</th><th>类型</th><th>状态</th>
+      <th style="text-align:right;">授权金额</th><th>授权币种</th><th style="text-align:right;">结算金额</th>
+      <th>商家</th><th>消费记录ID</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  pager.innerHTML = `
+    <div style="color:var(--text3);font-size:.78rem;">共 ${filtered.length} 条 · 每页 ${pageSize} 条</div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="ut-pager-btn" id="utPrev" ${s.page<=1?'disabled':''}>‹ 上一页</button>
+      <span style="color:var(--text2);font-size:.78rem;padding:0 8px;">${s.page} / ${totalPages}</span>
+      <button class="ut-pager-btn" id="utNext" ${s.page>=totalPages?'disabled':''}>下一页 ›</button>
+    </div>
+  `;
+  const prev = document.getElementById('utPrev');
+  const next = document.getElementById('utNext');
+  if (prev) prev.onclick = () => { if (s.page>1) { s.page--; loadUserTransactions(); } };
+  if (next) next.onclick = () => { if (s.page<totalPages) { s.page++; loadUserTransactions(); } };
 }
 
 async function exportUserTransactionsCSV() {
@@ -5957,17 +5996,49 @@ async function exportUserTransactionsCSV() {
   if (!s) return;
   if (s.mode === 'user' && !s.userId) return;
   if (s.mode === 'card' && !s.cardId) return;
-  const qs = new URLSearchParams({ format: 'csv', _: Date.now() });
-  if (s.type)      qs.set('type', s.type);
-  if (s.startDate) qs.set('start_date', s.startDate);
-  if (s.endDate)   qs.set('end_date',   s.endDate);
-  const token = localStorage.getItem('vcc_token') || '';
-  qs.set('token', token);
-  const path = (s.mode === 'card'
-    ? `/cards/${encodeURIComponent(s.cardId)}/transactions?`
-    : `/admin/users/${s.userId}/transactions?`) + qs.toString();
-  window.open(API_BASE + path, '_blank');
+  if (!s.allData || !s.allData.length) { toast('❌ 暂无数据可导出'); return; }
+
+  // 前端本地筛选（与渲染一致）
+  const filtered = s.allData.filter(r => {
+    if (s.type && (r.type || '') !== s.type) return false;
+    if (s.status && (r.status || '') !== s.status) return false;
+    if (s.startDate) { if ((r.create_time||'').slice(0,10) < s.startDate) return false; }
+    if (s.endDate) { if ((r.create_time||'').slice(0,10) > s.endDate) return false; }
+    return true;
+  });
+  if (!filtered.length) { toast('❌ 筛选后无数据可导出'); return; }
+
+  const typeMap = { Authorization: '预授权', Settlement: '结算', Refund: '退款', Reversal: '撤销', Topup: '充值', Consume: '消费' };
+  const statusMap = { COMPLETE: '已完成', DECLINED: '失败', PENDING: '清算中' };
+  const header = ['时间','卡号','类型','状态','授权金额','授权币种','结算金额','商家','消费记录ID'];
+  const rows = filtered.map(r => [
+    (r.create_time||'').slice(0,19).replace('T',' '),
+    r._card_number || r._product_code || '',
+    typeMap[r.type] || r.type || '',
+    statusMap[r.status] || r.status || '',
+    r.auth_amount || '',
+    r.auth_currency || '',
+    r.settle_amount || '',
+    r.merchant_name || '',
+    r.auth_id || ''
+  ]);
+  const csvContent = [header, ...rows].map(row => row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const cardNum = s.cardInfo?.card_number || s.cardId || 'unknown';
+  const now = new Date();
+  const ts = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
+  a.href = url;
+  a.download = cardNum + '_' + ts + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  toast('✅ CSV 已下载');
 }
+
 
 // 冻结/解冻账户确认弹窗
 function confirmFreezeOrUnfreeze(userId, targetStatus, userName) {
