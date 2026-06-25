@@ -9747,7 +9747,7 @@ function openCardProductEdit(pc) {
 
       <div style="margin-bottom:18px">
         <label style="display:block;font-size:.85rem;color:var(--text-secondary);margin-bottom:6px">管理员备注<span style="color:var(--text-muted);font-weight:400;font-size:.8rem;margin-left:4px">（展示在用户-申请开卡-管理员备注处）</span></label>
-        <textarea id="cp-edit-msg" rows="2" maxlength="500" style="width:100%;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:inherit;font-size:.875rem;resize:vertical" placeholder="例如:本卡段仅供AI/Agent付费使用">${p.custom_message || ''}</textarea>
+        <textarea id="cp-edit-msg" rows="5" maxlength="500" style="width:100%;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:inherit;font-size:.875rem;resize:vertical" placeholder="例如:本卡段仅供AI/Agent付费使用">${p.custom_message || '1.本卡段禁止大量消费失败（拒付）\n2.本卡段禁止大量小额消费（平均订单金额低于$0.5）\n3.本卡段禁止高授权撤销&消费退款业务场景\n4.本卡段禁止高风险商户消费'}</textarea>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end">
