@@ -5335,7 +5335,7 @@ function cardTxReset() {
   loadCardTxList();
 }
 
-function cardTxExport() {
+async function cardTxExport() {
   const filtered = window._cardTxFiltered || [];
   if (!filtered.length) { showToast('当前无数据可导出'); return; }
   const txTypeMap={Authorization:'预授权',Settlement:'结算',Refund:'退款',Reversal:'撤销'};
@@ -5354,12 +5354,26 @@ function cardTxExport() {
     return [cardNum, t.merchant_name||'—', typeCn, authAmt, authCurr, statusCn, settleAmt, authId, dt];
   });
   const csvContent = '\uFEFF' + [header, ...rows].map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const now = new Date();
+  const ts = now.getFullYear()+''+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0');
+  const fname = 'card_transactions_'+ts+'.csv';
+  // 使用 csv-proxy 解决 Safari WebKitBlobResource error 1
+  try {
+    const postRes = await apiFetch('/csv-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv: csvContent, filename: fname })
+    });
+    if (postRes.code === 0 && postRes.data && postRes.data.token) {
+      window.open('/api/csv-proxy?token=' + postRes.data.token);
+      return;
+    }
+  } catch(e) { /* fallback */ }
+  // fallback: blob download
   const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const now = new Date();
-  const ts = now.getFullYear()+''+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0');
-  a.href = url; a.download = 'card_transactions_'+ts+'.csv';
+  a.href = url; a.download = fname;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
