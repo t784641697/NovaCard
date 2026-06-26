@@ -4696,12 +4696,12 @@ function renderCmList(cards) {
       deleteBtn = '<button class="cm-btn cm-btn-delete" onclick="window.cmDeleteCard(\'' + c.card_id + '\', \'' + (c.card_number||'') + '\', \'' + (c.user_name||c.label||'') + '\', this)" title="删除卡片（不可恢复）">🗑 删卡</button>';
     }
 
-    // 处理有效期显示
+    // 处理有效期显示 — 用*隐藏，显示 **/**
     let expireDisplay = '—';
     if (c.expire) {
-      expireDisplay = c.expire;
+      expireDisplay = '**/**';
     } else if (c.expiry_month && c.expiry_year) {
-      expireDisplay = `${String(c.expiry_month).padStart(2, '0')}/${String(c.expiry_year).slice(-2)}`;
+      expireDisplay = '**/**';
     }
     
     // 处理持卡人姓名显示
