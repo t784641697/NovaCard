@@ -5326,7 +5326,7 @@ async function loadCardTxList() {
   if (!wrap) return;
   wrap.innerHTML = `<div class="skeleton" style="height:300px;border-radius:12px;"></div>`;
   const s = window._cardTxSearch || {};
-  const qs = new URLSearchParams({ page_size: '50' });
+  const qs = new URLSearchParams({ page_size: '999' });
   if (s.dateFrom) qs.set('start_time', s.dateFrom + ' 00:00:00');
   if (s.dateTo)   qs.set('end_time',   s.dateTo   + ' 23:59:59');
   if (s.type)     qs.set('transaction_type', s.type);
@@ -5337,47 +5337,69 @@ async function loadCardTxList() {
       return;
     }
     const items = r.data?.list || [];
+
+    // 表头（与账户总览最近交易记录同格式）
+    const TABLE_HEAD = `
+    <div class="ov-tx-head">
+      <div>卡号</div>
+      <div>商户名称</div>
+      <div>交易类型</div>
+      <div>授权金额</div>
+      <div>授权币种</div>
+      <div>交易状态</div>
+      <div>结算金额</div>
+      <div>消费记录ID</div>
+      <div>交易时间</div>
+    </div>`;
+
     if (!items.length) {
-      wrap.innerHTML = `<div class="empty-state"><div class="empty-text">暂无交易记录</div></div>`;
+      wrap.innerHTML = TABLE_HEAD +
+        '<div style="text-align:center;padding:28px 0;color:var(--text3);font-size:.85rem">暂无交易记录</div>';
       return;
     }
-    const txTypeMap = { Authorization: '消费授权', Settlement: '清算', Refund: '退款', Reversal: '撤销' };
-    const txStatusMap = { PENDING: '清算中', DECLINED: '失败', COMPLETE: '完成' };
-    // 兼容 SQLite 时间格式 "YYYY-MM-DD HH:MM:SS" → ISO "T" 分隔
-    const parseDate = s => s ? new Date(s.includes('T') ? s : s.replace(' ', 'T')) : null;
-    const fmtDate = s => { const d = parseDate(s); return d && !isNaN(d) ? d.toLocaleString('zh-CN', {hour12:false}) : '—'; };
-    const header = `
-      <div style="padding:10px 12px;border-bottom:2px solid var(--border);display:grid;grid-template-columns:1fr 1.2fr 100px 1fr;gap:12px;align-items:center;font-size:.75rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">
-        <div>卡号</div>
-        <div>商户 / 类型</div>
-        <div>状态</div>
-        <div style="text-align:right;">金额 / 时间</div>
-      </div>`;
-    const html = items.map(item => {
-      const typeName = txTypeMap[item.type] || item.type || '—';
-      const statusName = txStatusMap[item.status] || item.status || '—';
-      const tagCls = item.status === 'COMPLETE' ? 'tag-green' : item.status === 'PENDING' ? 'tag-yellow' : 'tag-red';
-      // 按"卡"语义配色：消费/清算(支出)红，退款/撤销(入账)绿
-      const isOut = item.type === 'Authorization' || item.type === 'Settlement';
+    const txTypeMap = {
+      Authorization: '预授权',
+      Settlement: '结算',
+      Refund: '退款',
+      Reversal: '撤销',
+    };
+    const txStatusMap = {
+      PENDING: { cls: 'tag-yellow', label: '清算中' },
+      DECLINED: { cls: 'tag-red', label: '失败' },
+      COMPLETE: { cls: 'tag-green', label: '已完成' },
+    };
+    const rows = items.map(t => {
+      const typeRaw = (t.type || '').toString();
+      const typeCn = txTypeMap[typeRaw] || typeRaw || '—';
+      const stRaw = (t.status || '').toUpperCase();
+      const statusInfo = txStatusMap[stRaw] || { cls: 'tag-purple', label: stRaw || '—' };
+      const rawCard = t.card_number || '';
+      const cardNum = rawCard.length >= 16 ? rawCard.slice(0,4) + '********' + rawCard.slice(-4) : rawCard || '—';
+      const merchant = t.merchant_name || '—';
+      const settleAmt = t.settle_amount !== undefined && t.settle_amount !== null ? Number(t.settle_amount) : null;
+      const authAmt = t.auth_amount !== undefined && t.auth_amount !== null ? Number(t.auth_amount) : null;
+      const authCurr = t.auth_currency || '—';
+      const authId = t.auth_id || '—';
+      // 金额配色: 已完成=绿, 失败=红, 清算中=蓝
+      const amtColor = stRaw === 'COMPLETE' ? 'var(--green)' : stRaw === 'DECLINED' ? 'var(--red)' : stRaw === 'PENDING' ? '#60a5fa' : 'var(--text2)';
+      const dt = t.create_time
+        ? (() => { const d = new Date(t.create_time.replace(/-/g,'/')); return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); })()
+        : '—';
+      const amtStyle = `color:${amtColor};font-weight:600;font-size:.8rem;font-family:inherit`;
       return `
-      <div style="padding:12px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1.2fr 100px 1fr;gap:12px;align-items:center;font-size:.85rem;">
-        <div>
-          <div style="font-weight:600;color:var(--text1);font-family:Menlo,Monaco,monospace;letter-spacing:.3px;">${item.card_number ? (item.card_number.length >= 16 ? item.card_number.slice(0,4) + '********' + item.card_number.slice(-4) : (item.card_number.length >= 8 ? item.card_number.slice(0,4) + '****' + item.card_number.slice(-4) : item.card_number)) : (item.card_id?.slice(0,6) || '—')}</div>
-        </div>
-        <div>
-          <div style="color:var(--text2);">${item.merchant_name || '—'}</div>
-          <div style="color:var(--text3);margin-top:2px;">${typeName}</div>
-        </div>
-        <div>
-          <span class="tag ${tagCls}" style="font-size:.7rem;">${statusName}</span>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-weight:700;color:${isOut ? 'var(--red)' : 'var(--green)'};">$${Math.abs(item.amount||0).toFixed(2)}</div>
-          <div style="color:var(--text3);margin-top:2px;font-size:.75rem;">${fmtDate(item.create_time)}</div>
-        </div>
+      <div class="ov-tx-row">
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:Menlo,Monaco,monospace;letter-spacing:.3px">${cardNum}</div>
+        <div class="ov-tx-cell ov-tx-merchant" style="font-size:.8rem;font-family:inherit">${merchant}</div>
+        <div class="ov-tx-cell"><span class="tag tag-blue" style="font-size:.75rem">${typeCn}</span></div>
+        <div class="ov-tx-cell" style="${amtStyle}">${authAmt !== null ? authAmt.toFixed(2) : '—'}</div>
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authCurr}</div>
+        <div class="ov-tx-cell"><span class="tag ${statusInfo.cls}" style="font-size:.75rem">${statusInfo.label}</span></div>
+        <div class="ov-tx-cell" style="${amtStyle}">${settleAmt !== null ? settleAmt.toFixed(2) : '—'}</div>
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authId}</div>
+        <div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${dt}</div>
       </div>`;
     }).join('');
-    wrap.innerHTML = header + html;
+    wrap.innerHTML = TABLE_HEAD + `<div class="ov-tx-body">${rows}</div>`;
   } catch(e) {
     if (e.message !== 'Unauthorized') {
       wrap.innerHTML = `<div class="empty-state"><div class="empty-text">加载失败</div></div>`;
