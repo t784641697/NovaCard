@@ -2296,7 +2296,7 @@ const PAGE_META = {
   apply: { title:'申请开卡', sub:'选择卡段，提交开卡申请' },
   topup: { title:'充值', sub:'充值到账户余额，支持 USDT 等方式' },
   ledger: { title:'账户流水', sub:'账户资金进出记录' },
-  'card-tx': { title:'卡交易记录', sub:'所有虚拟卡的交易明细' },
+  'card-tx': { title:'', sub:'' },
   'card-settle': { title:'卡结算记录', sub:'虚拟卡的结算对账记录' },
   'admin-fee-config': { title:'费用设置', sub:'配置全局费率，可为指定用户设置自定义费率' },
   'card-mgmt': { title:'卡片管理', sub:'查看和操作所有用户卡片' },
@@ -5241,9 +5241,6 @@ function ledgerGoCard(cardId) {
 async function renderCardTx() {
   const area = document.getElementById('contentArea');
   area.innerHTML = `
-    <div class="page-header">
-      <div><h2>卡交易记录</h2><p class="text-muted mt-1">所有虚拟卡的交易明细</p></div>
-    </div>
     <div class="panel" style="margin-bottom:16px;">
       <div class="cm-search-section" style="padding:12px 20px;">
         <div class="cm-search-row">
@@ -5351,7 +5348,7 @@ async function loadCardTxList() {
     const fmtDate = s => { const d = parseDate(s); return d && !isNaN(d) ? d.toLocaleString('zh-CN', {hour12:false}) : '—'; };
     const header = `
       <div style="padding:10px 12px;border-bottom:2px solid var(--border);display:grid;grid-template-columns:1fr 1.2fr 100px 1fr;gap:12px;align-items:center;font-size:.75rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">
-        <div>卡片</div>
+        <div>卡号</div>
         <div>商户 / 类型</div>
         <div>状态</div>
         <div style="text-align:right;">金额 / 时间</div>
@@ -5365,8 +5362,7 @@ async function loadCardTxList() {
       return `
       <div style="padding:12px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1.2fr 100px 1fr;gap:12px;align-items:center;font-size:.85rem;">
         <div>
-          <div style="font-weight:600;color:var(--text1);">${item.card_id?.slice(0,6) || '—'}</div>
-          <div style="color:var(--text3);margin-top:2px;font-size:.7rem;">${item.card_number ? '****' + item.card_number.slice(-4) : '—'}</div>
+          <div style="font-weight:600;color:var(--text1);font-family:Menlo,Monaco,monospace;letter-spacing:.3px;">${item.card_number ? (item.card_number.length >= 16 ? item.card_number.slice(0,4) + '********' + item.card_number.slice(-4) : (item.card_number.length >= 8 ? item.card_number.slice(0,4) + '****' + item.card_number.slice(-4) : item.card_number)) : (item.card_id?.slice(0,6) || '—')}</div>
         </div>
         <div>
           <div style="color:var(--text2);">${item.merchant_name || '—'}</div>
