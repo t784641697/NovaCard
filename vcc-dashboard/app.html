@@ -5406,7 +5406,7 @@ async function loadCardTxList() {
       const stRaw = (t.status || '').toUpperCase();
       const statusInfo = txStatusMap[stRaw] || { cls: 'tag-purple', label: stRaw || '—' };
       const rawCard = t.card_number || '';
-      const cardNum = rawCard.length >= 16 ? rawCard.slice(0,4) + '********' + rawCard.slice(-4) : rawCard || '—';
+      const cardNum = rawCard.length >= 16 ? rawCard.slice(0,4) + '***' + rawCard.slice(-4) : rawCard || '—';
       const merchant = t.merchant_name || '—';
       const settleAmt = t.settle_amount !== undefined && t.settle_amount !== null ? Number(t.settle_amount) : null;
       const authAmt = t.auth_amount !== undefined && t.auth_amount !== null ? Number(t.auth_amount) : null;
