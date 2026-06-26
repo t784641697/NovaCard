@@ -5090,6 +5090,7 @@ function ledgerExport() {
   if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
   if (s.dateTo)   qs.set('dateTo',   s.dateTo);
   if (s.type)     qs.set('type',     s.type);
+  if (s.status)   qs.set('status',  s.status);
   qs.set('limit', '50000');
   qs.set('_', Date.now()); // 防 Cloudflare 缓存
   window.open('/api/ledger/export.csv?' + qs.toString());
@@ -5251,7 +5252,12 @@ async function renderCardTx() {
             <button class="cm-status-tab" onclick="cardTxSelectType(this,'Refund')">退款</button>
             <button class="cm-status-tab" onclick="cardTxSelectType(this,'Reversal')">撤销</button>
           </div>
-          <span class="cm-date-label">交易时间</span>
+          <div class="cm-tabs-group">
+            <button class="cm-status-tab active" onclick="cardTxSelectStatus(this,'')">全部</button>
+            <button class="cm-status-tab" onclick="cardTxSelectStatus(this,'COMPLETE')">清算完成</button>
+            <button class="cm-status-tab" onclick="cardTxSelectStatus(this,'PENDING')">清算中</button>
+            <button class="cm-status-tab" onclick="cardTxSelectStatus(this,'DECLINED')">交易失败</button>
+          </div>
           <span id="cardTxDateWrap"></span>
           <div class="cm-search-actions">
             <button class="cm-btn-search" onclick="cardTxSearch()">🔍 搜索</button>
@@ -5288,22 +5294,29 @@ async function renderCardTx() {
   await loadCardTxList();
 }
 
-window._cardTxSearch = { type: '', dateFrom: '', dateTo: '' };
+window._cardTxSearch = { type: '', status: '', dateFrom: '', dateTo: '' };
 
 function cardTxSelectType(btn, value) {
   btn.closest('.cm-tabs-group').querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
   btn.classList.add('active');
   window._cardTxSearch.type = value;
-  // 用户点"搜索"才查
+}
+
+function cardTxSelectStatus(btn, value) {
+  btn.closest('.cm-tabs-group').querySelectorAll('.cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  window._cardTxSearch.status = value;
 }
 
 function cardTxSearch() { loadCardTxList(); }
 
 function cardTxReset() {
-  window._cardTxSearch = { type: '', dateFrom: '', dateTo: '' };
+  window._cardTxSearch = { type: '', status: '', dateFrom: '', dateTo: '' };
   document.querySelectorAll('#contentArea .cm-status-tab').forEach(function(t) { t.classList.remove('active'); });
-  var first = document.querySelector('#contentArea .cm-status-tab');
-  if (first) first.classList.add('active');
+  document.querySelectorAll('#contentArea .cm-tabs-group').forEach(function(g) {
+    var first = g.querySelector('.cm-status-tab');
+    if (first) first.classList.add('active');
+  });
   if (window._cardTxDrPicker) window._cardTxDrPicker.clear();
   loadCardTxList();
 }
@@ -5330,6 +5343,7 @@ async function loadCardTxList() {
   if (s.dateFrom) qs.set('start_time', s.dateFrom + ' 00:00:00');
   if (s.dateTo)   qs.set('end_time',   s.dateTo   + ' 23:59:59');
   if (s.type)     qs.set('transaction_type', s.type);
+  if (s.status)   qs.set('status', s.status);
   try {
     const r = await apiFetch('/transactions?' + qs.toString());
     if (r.code !== 0) {
