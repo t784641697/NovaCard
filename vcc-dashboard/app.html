@@ -95,10 +95,6 @@ input,select,button,textarea{font-family:inherit;}
 .cm-filter-select:hover{border-color:rgba(167,139,250,.5);}
 .cm-filter-select:focus{outline:none;border-color:rgba(167,139,250,.6);box-shadow:0 0 0 3px rgba(167,139,250,.12);}
 .cm-filter-select option{background:#1e1b2e;color:var(--text1);}
-.cm-filter-input{height:38px;padding:0 12px;border-radius:9px;border:1px solid rgba(167,139,250,.25);background:rgba(0,0,0,.3);color:var(--text1);font-size:.85rem;font-weight:500;outline:none;flex-shrink:0;width:140px;font-family:inherit;transition:border-color .15s;}
-.cm-filter-input::placeholder{color:var(--text3);opacity:.6;}
-.cm-filter-input:hover{border-color:rgba(167,139,250,.5);}
-.cm-filter-input:focus{border-color:rgba(167,139,250,.6);box-shadow:0 0 0 3px rgba(167,139,250,.12);}
 .cm-date-label{font-size:.85rem;font-weight:500;color:var(--text3);white-space:nowrap;flex-shrink:0;}
 .cm-btn-search{height:38px;padding:0 18px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(167,139,250,.25);}
 .cm-btn-search:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 16px rgba(167,139,250,.3);}
@@ -5258,7 +5254,10 @@ async function renderCardTx() {
     <div class="panel" style="margin-bottom:16px;">
       <div class="cm-search-section" style="padding:12px 20px;">
         <div class="cm-search-row">
-          <input class="cm-filter-input" id="cardTxCardInput" type="text" placeholder="搜索卡号" oninput="window._cardTxSearch.cardNumber=this.value.trim()">
+          <div class="cm-search-input-wrap">
+            <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="cardTxCardInput" type="text" placeholder="卡号搜索..." onkeydown="if(event.key==='Enter'){cardTxSearch();}">
+          </div>
           <select class="cm-filter-select" id="cardTxTypeSelect" onchange="cardTxSelectType(this.value)">
             <option value="">全部类型</option>
             <option value="Authorization">消费授权</option>
@@ -5318,7 +5317,10 @@ function cardTxSelectStatus(value) {
   window._cardTxSearch.status = value;
 }
 
-function cardTxSearch() { loadCardTxList(); }
+function cardTxSearch() {
+  window._cardTxSearch.cardNumber = (document.getElementById('cardTxCardInput')?.value || '').trim();
+  loadCardTxList();
+}
 
 function cardTxReset() {
   window._cardTxSearch = { cardNumber: '', type: '', status: '', dateFrom: '', dateTo: '' };
