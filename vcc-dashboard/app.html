@@ -5336,16 +5336,32 @@ function cardTxReset() {
 }
 
 function cardTxExport() {
-  const s = window._cardTxSearch || {};
-  const qs = new URLSearchParams();
-  const token = localStorage.getItem('vcc_token') || '';
-  qs.set('token', token);
-  if (s.dateFrom) qs.set('dateFrom', s.dateFrom);
-  if (s.dateTo)   qs.set('dateTo',   s.dateTo);
-  if (s.type)     qs.set('type',     s.type);
-  qs.set('limit', '50000');
-  qs.set('_', Date.now()); // 防 Cloudflare 缓存
-  window.open('/api/transactions/export.csv?' + qs.toString());
+  const filtered = window._cardTxFiltered || [];
+  if (!filtered.length) { showToast('当前无数据可导出'); return; }
+  const txTypeMap={Authorization:'预授权',Settlement:'结算',Refund:'退款',Reversal:'撤销'};
+  const txStatusMap={PENDING:'清算中',DECLINED:'失败',COMPLETE:'已完成'};
+  const header = ['卡号','商户名称','交易类型','授权金额','授权币种','交易状态','结算金额','消费记录ID','交易时间'];
+  const rows = filtered.map(t => {
+    const rawCard = t.card_number || '';
+    const cardNum = rawCard.length >= 16 ? rawCard.slice(0,4) + '***' + rawCard.slice(-4) : rawCard || '—';
+    const typeCn = txTypeMap[t.type] || t.type || '—';
+    const statusCn = txStatusMap[(t.status||'').toUpperCase()] || t.status || '—';
+    const authAmt = t.auth_amount != null ? Number(t.auth_amount).toFixed(2) : '—';
+    const authCurr = t.auth_currency || '—';
+    const settleAmt = t.settle_amount != null ? Number(t.settle_amount).toFixed(2) : '—';
+    const authId = t.auth_id || '—';
+    const dt = t.create_time || '—';
+    return [cardNum, t.merchant_name||'—', typeCn, authAmt, authCurr, statusCn, settleAmt, authId, dt];
+  });
+  const csvContent = '\uFEFF' + [header, ...rows].map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const ts = now.getFullYear()+''+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0');
+  a.href = url; a.download = 'card_transactions_'+ts+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 async function _renderCardTxPage() {
