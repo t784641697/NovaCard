@@ -5364,6 +5364,11 @@ async function loadCardTxList() {
       return;
     }
     const items = r.data?.list || [];
+    // 卡号搜索前端本地筛选
+    const cardKeyword = (s.cardNumber || '').trim();
+    const filtered = cardKeyword
+      ? items.filter(t => (t.card_number || '').includes(cardKeyword) || (t.card_id || '').includes(cardKeyword))
+      : items;
 
     // 表头（与账户总览最近交易记录同格式）
     const TABLE_HEAD = `
