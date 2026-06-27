@@ -5816,18 +5816,18 @@ async function renderAdminUsers() {
   const area = document.getElementById('contentArea');
   area.innerHTML = `
     <div class="cm-search-section">
-      <div class="cm-search-row">
-        <div class="cm-search-input-wrap">
+      <div class="cm-search-row" style="flex-wrap:wrap;gap:12px 16px;">
+        <div class="cm-search-input-wrap" style="flex:1;min-width:220px;max-width:320px;">
           <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="auSearchInput" placeholder="用户ID / 邮箱 / 用户名" onkeydown="if(event.key==='Enter')doAuSearch()">
         </div>
         <span id="auDateWrap" style="min-width:200px;display:inline-block;"></span>
-        <select id="auStatusSelect" class="cm-filter-select">
+        <select id="auStatusSelect" class="cm-filter-select" style="min-width:120px;">
           <option value="">全部状态</option>
           <option value="active">正常</option>
           <option value="disabled">已冻结</option>
         </select>
-        <div class="cm-search-actions" style="margin-left:auto;">
+        <div class="cm-search-actions">
           <button class="cm-btn-search" onclick="doAuSearch()">🔍 搜索</button>
           <button class="cm-btn-reset" onclick="doAuReset()">重置</button>
         </div>
