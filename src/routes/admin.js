@@ -2563,7 +2563,7 @@ function safeJsonArray(s) {
 }
 
 // 解锁被锁定的用户（多次密码错误）
-router.put('/users/:id/unlock', auth, requireAdmin, (req, res) => {
+router.put('/users/:id/unlock', authenticate, requireAdmin, (req, res) => {
   try {
     const db = require('../db');
     const user = db.prepare('SELECT id, status FROM users WHERE id = ?').get(req.params.id);
