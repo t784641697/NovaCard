@@ -5815,28 +5815,58 @@ async function renderAdminUsers() {
   if (_me?.role !== 'admin') return gotoPage('cards');
   const area = document.getElementById('contentArea');
   area.innerHTML = `
-    <div class="panel">
-      <div class="cm-search-row" style="flex-wrap:wrap;gap:8px;">
-        <div class="cm-search-input-wrap" style="flex:1;min-width:160px;">
-          <svg style="width:14px;height:14px;flex-shrink:0;opacity:.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" id="auSearchInput" placeholder="用户ID / 邮箱 / 用户名" style="border:none;background:transparent;outline:none;color:var(--text1);font-size:.8rem;width:100%;" onkeydown="if(event.key==='Enter')doAuSearch()">
+    <div class="cm-search-section">
+      <div class="cm-search-row">
+        <div class="cm-search-input-wrap">
+          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="auSearchInput" placeholder="用户ID / 邮箱 / 用户名" onkeydown="if(event.key==='Enter')doAuSearch()">
         </div>
-        <select id="auStatusSelect" class="cm-filter-select" style="min-width:110px;">
+        <span id="auDateWrap"></span>
+        <select id="auStatusSelect" class="cm-filter-select">
           <option value="">全部状态</option>
           <option value="active">正常</option>
           <option value="disabled">已冻结</option>
           <option value="locked">已锁定</option>
         </select>
-        <input type="date" id="auDateFrom" class="cm-filter-select" style="min-width:130px;" title="注册开始日期">
-        <span style="color:var(--text3);font-size:.8rem;line-height:34px;">—</span>
-        <input type="date" id="auDateTo" class="cm-filter-select" style="min-width:130px;" title="注册结束日期">
-        <button class="cm-btn-search" onclick="doAuSearch()" style="padding:6px 16px;border-radius:8px;font-size:.8rem;">搜索</button>
-        <button class="cm-btn-reset" onclick="doAuReset()" style="padding:6px 16px;border-radius:8px;font-size:.8rem;">重置</button>
+        <div class="cm-search-actions">
+          <button class="cm-btn-search" onclick="doAuSearch()">🔍 搜索</button>
+          <button class="cm-btn-reset" onclick="doAuReset()">重置</button>
+        </div>
       </div>
+    </div>
+    <div class="panel">
       <div id="adminUserListWrap" style="min-height:400px;"><div class="skeleton" style="height:200px;"></div></div>
     </div>`;
   window._auState = { page: 1, pageSize: 20, search: '', status: '', dateFrom: '', dateTo: '' };
+  initAuDatePicker();
   loadAdminUsers();
+}
+
+function initAuDatePicker() {
+  if (window._auDrPicker) {
+    var oldTrigger = document.getElementById('auDr_trigger');
+    if (oldTrigger) oldTrigger.remove();
+    var oldPanel = document.getElementById('auDr_panel');
+    if (oldPanel) oldPanel.remove();
+    delete window._drpInstances['auDr'];
+    window._auDrPicker = null;
+  }
+  window._auDrPicker = new DateRangePicker({
+    id: 'auDr',
+    container: '#auDateWrap',
+    placeholder: '注册时间范围',
+    onConfirm: function(start, end) {
+      window._auState.dateFrom = start;
+      window._auState.dateTo = end;
+      doAuSearch();
+    },
+    onClear: function() {
+      window._auState.dateFrom = '';
+      window._auState.dateTo = '';
+      doAuSearch();
+    }
+  });
+  window._auDrPicker.init();
 }
 
 async function loadAdminUsers() {
@@ -5900,8 +5930,6 @@ function doAuSearch() {
   const st = window._auState || {};
   st.search = document.getElementById('auSearchInput')?.value?.trim() || '';
   st.status = document.getElementById('auStatusSelect')?.value || '';
-  st.dateFrom = document.getElementById('auDateFrom')?.value || '';
-  st.dateTo = document.getElementById('auDateTo')?.value || '';
   st.page = 1;
   window._auState = st;
   loadAdminUsers();
@@ -5911,8 +5939,7 @@ function doAuReset() {
   const el = (id) => document.getElementById(id);
   if (el('auSearchInput')) el('auSearchInput').value = '';
   if (el('auStatusSelect')) el('auStatusSelect').value = '';
-  if (el('auDateFrom')) el('auDateFrom').value = '';
-  if (el('auDateTo')) el('auDateTo').value = '';
+  if (window._auDrPicker) window._auDrPicker.clear();
   window._auState = { page: 1, pageSize: 20, search: '', status: '', dateFrom: '', dateTo: '' };
   loadAdminUsers();
 }
