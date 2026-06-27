@@ -5903,11 +5903,9 @@ async function loadAdminUsers() {
               <button class="au-btn" style="background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.3);" onclick="openUserTransactionsModal(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${String(u.email||'').replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${u.card_count||0})">🔍 查看消费</button>
               <button class="au-btn" style="background:rgba(0,242,254,.1);color:#00f2fe;border:1px solid rgba(0,242,254,.25);" onclick="openTopupModal(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}',${parseFloat(u.balance||0).toFixed(2)})">💰 充值</button>
               <button class="au-btn" style="background:rgba(255,95,95,.1);color:#ff7b7b;border:1px solid rgba(255,95,95,.25);" onclick="openDeductModal(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}',${parseFloat(u.balance||0).toFixed(2)})">💸 扣款</button>
-              ${u.status === 'disabled'
-                ? `<button class="au-btn au-btn-enable" onclick="confirmFreezeOrUnfreeze(${u.id},'active','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔓 解冻</button>`
-                : `<button class="au-btn au-btn-disable" onclick="confirmFreezeOrUnfreeze(${u.id},'disabled','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔒 冻结</button>`
-              }
-              <button class="au-btn" style="background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3);" onclick="confirmUnlockUser(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔑 解锁</button>
+              <button class="au-btn au-btn-disable" ${u.status==='disabled'?'disabled style="opacity:.4;cursor:not-allowed;"':''}  onclick="confirmFreezeOrUnfreeze(${u.id},'disabled','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔒 冻结</button>
+              <button class="au-btn au-btn-enable" ${u.status!=='disabled'?'disabled style="opacity:.4;cursor:not-allowed;"':''}  onclick="confirmFreezeOrUnfreeze(${u.id},'active','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔓 解冻</button>
+              <button class="au-btn" style="background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3);${u.status!=='locked'?'opacity:.4;cursor:not-allowed;':''}" ${u.status!=='locked'?'disabled':''}  onclick="confirmUnlockUser(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔑 解锁</button>
             </div>
           ` : '<span style="color:var(--text3);font-size:.75rem">—</span>'}
         </td>
