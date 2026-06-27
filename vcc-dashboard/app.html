@@ -110,7 +110,7 @@ input,select,button,textarea{font-family:inherit;}
 .spin{display:inline-block;animation:spin-anim .8s linear infinite;}
 
 /* 日期范围选择器 */
-.dr-trigger{position:relative;display:inline-flex;align-items:center;gap:8px;padding:0 14px;height:38px;border-radius:9px;border:1px solid rgba(167,139,250,.5);background:rgba(0,0,0,.35);color:var(--text3);font-size:.86rem;cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.dr-trigger{position:relative;display:inline-flex;align-items:center;gap:8px;padding:0 14px;height:38px;border-radius:9px;border:1px solid rgba(167,139,250,.5);background:rgba(0,0,0,.35);color:var(--text3);font-size:.86rem;cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.2);min-width:170px;justify-content:center;}
 .dr-trigger:hover,.dr-trigger.open{border-color:rgba(167,139,250,.7);background:rgba(0,0,0,.45);}
 .dr-trigger.has-val{color:var(--text1);}
 .dr-trigger .cal-ico{opacity:.5;font-size:.9rem;flex-shrink:0;}
@@ -5821,7 +5821,7 @@ async function renderAdminUsers() {
           <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="auSearchInput" placeholder="用户ID / 邮箱 / 用户名" onkeydown="if(event.key==='Enter')doAuSearch()">
         </div>
-        <span id="auDateWrap"></span>
+        <span id="auDateWrap" style="min-width:200px;display:inline-block;"></span>
         <select id="auStatusSelect" class="cm-filter-select">
           <option value="">全部状态</option>
           <option value="active">正常</option>
@@ -5854,7 +5854,7 @@ function initAuDatePicker() {
   window._auDrPicker = new DateRangePicker({
     id: 'auDr',
     container: '#auDateWrap',
-    placeholder: '注册时间范围',
+    placeholder: '开始日期 - 结束日期',
     onConfirm: function(start, end) {
       window._auState.dateFrom = start;
       window._auState.dateTo = end;
