@@ -5815,16 +5815,42 @@ async function renderAdminUsers() {
   if (_me?.role !== 'admin') return gotoPage('cards');
   const area = document.getElementById('contentArea');
   area.innerHTML = `
-    <div class="page-header">
-      <div><h2>用户管理</h2><p class="text-muted mt-1">查看所有用户，充值/冻结/解冻账号</p></div>
-    </div>
     <div class="panel">
-      <div id="adminUserListWrap"><div class="skeleton" style="height:200px;"></div></div>
+      <div class="cm-search-row" style="flex-wrap:wrap;gap:8px;">
+        <div class="cm-search-input-wrap" style="flex:1;min-width:160px;">
+          <svg style="width:14px;height:14px;flex-shrink:0;opacity:.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="auSearchInput" placeholder="用户ID / 邮箱 / 用户名" style="border:none;background:transparent;outline:none;color:var(--text1);font-size:.8rem;width:100%;" onkeydown="if(event.key==='Enter')doAuSearch()">
+        </div>
+        <select id="auStatusSelect" class="cm-filter-select" style="min-width:110px;">
+          <option value="">全部状态</option>
+          <option value="active">正常</option>
+          <option value="disabled">已冻结</option>
+          <option value="locked">已锁定</option>
+        </select>
+        <input type="date" id="auDateFrom" class="cm-filter-select" style="min-width:130px;" title="注册开始日期">
+        <span style="color:var(--text3);font-size:.8rem;line-height:34px;">—</span>
+        <input type="date" id="auDateTo" class="cm-filter-select" style="min-width:130px;" title="注册结束日期">
+        <button class="cm-btn-search" onclick="doAuSearch()" style="padding:6px 16px;border-radius:8px;font-size:.8rem;">搜索</button>
+        <button class="cm-btn-reset" onclick="doAuReset()" style="padding:6px 16px;border-radius:8px;font-size:.8rem;">重置</button>
+      </div>
+      <div id="adminUserListWrap" style="min-height:400px;"><div class="skeleton" style="height:200px;"></div></div>
     </div>`;
+  window._auState = { page: 1, pageSize: 20, search: '', status: '', dateFrom: '', dateTo: '' };
+  loadAdminUsers();
+}
+
+async function loadAdminUsers() {
+  const st = window._auState || {};
   try {
-    const res = await apiFetch('/admin/users');
+    const params = new URLSearchParams({ page: st.page || 1, pageSize: st.pageSize || 20 });
+    if (st.search) params.set('search', st.search);
+    if (st.status) params.set('status', st.status);
+    if (st.dateFrom) params.set('dateFrom', st.dateFrom);
+    if (st.dateTo) params.set('dateTo', st.dateTo);
+    const res = await apiFetch('/admin/users?' + params.toString());
     if (res.code !== 0) { toast('❌ 加载失败'); return; }
     const users = Array.isArray(res.data) ? res.data : res.data.list || [];
+    const total = res.data.total || users.length;
     if (!users.length) {
       document.getElementById('adminUserListWrap').innerHTML = '<div style="color:var(--text3);font-size:.85rem;text-align:center;padding:32px">暂无用户</div>';
       return;
@@ -5850,9 +5876,9 @@ async function renderAdminUsers() {
               <button class="au-btn" style="background:rgba(255,95,95,.1);color:#ff7b7b;border:1px solid rgba(255,95,95,.25);" onclick="openDeductModal(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}',${parseFloat(u.balance||0).toFixed(2)})">💸 扣款</button>
               ${u.status === 'disabled'
                 ? `<button class="au-btn au-btn-enable" onclick="confirmFreezeOrUnfreeze(${u.id},'active','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔓 解冻</button>
-                   <button class="au-btn au-btn-disabled" disabled>🔒 冻结</button>`
+                     <button class="au-btn au-btn-disabled" disabled>🔒 冻结</button>`
                 : `<button class="au-btn au-btn-disable" onclick="confirmFreezeOrUnfreeze(${u.id},'disabled','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔒 冻结</button>
-                   <button class="au-btn au-btn-disabled" disabled>🔓 解冻</button>`
+                     <button class="au-btn au-btn-disabled" disabled>🔓 解冻</button>`
               }
             </div>
           ` : '<span style="color:var(--text3);font-size:.75rem">—</span>'}
@@ -5868,6 +5894,27 @@ async function renderAdminUsers() {
   } catch(e) {
     if (e.message !== 'Unauthorized') toast('❌ 加载失败');
   }
+}
+
+function doAuSearch() {
+  const st = window._auState || {};
+  st.search = document.getElementById('auSearchInput')?.value?.trim() || '';
+  st.status = document.getElementById('auStatusSelect')?.value || '';
+  st.dateFrom = document.getElementById('auDateFrom')?.value || '';
+  st.dateTo = document.getElementById('auDateTo')?.value || '';
+  st.page = 1;
+  window._auState = st;
+  loadAdminUsers();
+}
+
+function doAuReset() {
+  const el = (id) => document.getElementById(id);
+  if (el('auSearchInput')) el('auSearchInput').value = '';
+  if (el('auStatusSelect')) el('auStatusSelect').value = '';
+  if (el('auDateFrom')) el('auDateFrom').value = '';
+  if (el('auDateTo')) el('auDateTo').value = '';
+  window._auState = { page: 1, pageSize: 20, search: '', status: '', dateFrom: '', dateTo: '' };
+  loadAdminUsers();
 }
 
 // ══════════════════════════════════════════════════════════════

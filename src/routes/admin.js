@@ -1239,20 +1239,34 @@ router.get('/cards/:cardId/detail', async (req, res, next) => {
 
 // ── 管理员查询所有用户 ──────────────────────────────────────────────────────
 router.get('/users', (req, res) => {
-  const { page = 1, pageSize = 20, search } = req.query;
+  const { page = 1, pageSize = 20, search, status, dateFrom, dateTo } = req.query;
   const offset = (page - 1) * pageSize;
-  let where = '';
-  let params = [];
+  const conds = [];
+  const params = [];
 
   if (search) {
-    where = 'WHERE (u.name LIKE ? OR u.email LIKE ?)';
+    conds.push('(u.name LIKE ? OR u.email LIKE ? OR CAST(u.id AS TEXT) LIKE ?)');
     const term = `%${search}%`;
-    params.push(term, term);
+    params.push(term, term, term);
   }
+  if (status) {
+    conds.push('u.status = ?');
+    params.push(status);
+  }
+  if (dateFrom) {
+    conds.push("date(u.created_at) >= date(?)");
+    params.push(dateFrom);
+  }
+  if (dateTo) {
+    conds.push("date(u.created_at) <= date(?)");
+    params.push(dateTo);
+  }
+
+  const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
 
   const users = db.prepare(`
     SELECT 
-      u.id, u.email, u.name, u.role, u.balance, u.created_at,
+      u.id, u.email, u.name, u.role, u.balance, u.status, u.created_at,
       (SELECT COUNT(*) FROM cards c WHERE c.user_id = u.id) as card_count
     FROM users u
     ${where}
