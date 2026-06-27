@@ -2562,6 +2562,22 @@ function safeJsonArray(s) {
   } catch { return []; }
 }
 
+// 解锁被锁定的用户（多次密码错误）
+router.put('/users/:id/unlock', auth, requireAdmin, (req, res) => {
+  try {
+    const db = require('../db');
+    const user = db.prepare('SELECT id, status FROM users WHERE id = ?').get(req.params.id);
+    if (!user) return res.status(404).json({ code: 404, msg: '用户不存在' });
+    if (user.status !== 'locked') return res.status(400).json({ code: 400, msg: '该用户未被锁定，无需解锁' });
+    db.prepare("UPDATE users SET status = 'active', login_fail_count = 0, locked_until = NULL WHERE id = ?").run(req.params.id);
+    logger.info(`管理员 ${req.user.email} 解锁用户 id=${req.params.id}`);
+    res.json({ code: 0, msg: '解锁成功' });
+  } catch (e) {
+    logger.error('解锁用户失败:', e);
+    res.status(500).json({ code: 500, msg: e.message });
+  }
+});
+
 module.exports = router;
 // ── 异常消费告警 ─────────────────────────────────────────────────────────
 /**

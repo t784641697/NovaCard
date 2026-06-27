@@ -5906,6 +5906,9 @@ async function loadAdminUsers() {
               ${u.status === 'disabled'
                 ? `<button class="au-btn au-btn-enable" onclick="confirmFreezeOrUnfreeze(${u.id},'active','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔓 解冻</button>
                      <button class="au-btn au-btn-disabled" disabled>🔒 冻结</button>`
+                : u.status === 'locked'
+                ? `<button class="au-btn au-btn-disable" onclick="confirmFreezeOrUnfreeze(${u.id},'disabled','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔒 冻结</button>
+                     <button class="au-btn" style="background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3);" onclick="confirmUnlockUser(${u.id},'${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔑 解锁</button>`
                 : `<button class="au-btn au-btn-disable" onclick="confirmFreezeOrUnfreeze(${u.id},'disabled','${String(u.name||u.email||'该用户').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🔒 冻结</button>
                      <button class="au-btn au-btn-disabled" disabled>🔓 解冻</button>`
               }
@@ -6501,6 +6504,60 @@ async function setUserStatus(userId, status) {
   } catch(e) {
     if (e.message !== 'Unauthorized') toast('❌ 操作失败');
   }
+}
+
+// ── 解锁被锁定用户 ──
+function confirmUnlockUser(userId, userName) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:linear-gradient(145deg,#1a1f2e,#141824);border-radius:16px;padding:28px 32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5);border:1px solid rgba(251,191,36,.2);';
+
+  modal.innerHTML = '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">' +
+    '<div style="font-size:28px;line-height:1;">🔑</div>' +
+    '<h3 style="margin:0;color:#fbbf24;font-size:17px;font-weight:700;">解锁用户</h3>' +
+    '</div>' +
+    '<p style="margin:0 0 24px;color:var(--text2);font-size:.88rem;line-height:1.6;">确定要解锁用户 <strong style="color:var(--text1);">' + userName + '</strong> 吗？<br>解锁后该用户可以正常登录系统。</p>' +
+    '<div style="display:flex;gap:12px;justify-content:flex-end;">' +
+    '<button id="unlockCancelBtn" style="padding:10px 22px;border-radius:10px;border:none;background:linear-gradient(135deg, #2d3746 0%, #1a2332 100%);color:#9fa8ba;cursor:pointer;font-weight:700;font-size:.9rem;transition:all .2s ease;box-shadow:0 3px 10px rgba(0,0,0,.2);letter-spacing:0.5px;">取消</button>' +
+    '<button id="unlockConfirmBtn" style="padding:10px 22px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;cursor:pointer;font-weight:700;font-size:.9rem;transition:all .2s ease;box-shadow:0 4px 15px rgba(245,158,11,.3);letter-spacing:0.5px;">🔑 确认解锁</button>' +
+    '</div>';
+
+  const cancelBtn = modal.querySelector('#unlockCancelBtn');
+  const confirmBtn = modal.querySelector('#unlockConfirmBtn');
+
+  cancelBtn.addEventListener('click', function() { overlay.remove(); });
+  cancelBtn.addEventListener('mouseenter', function() {
+    this.style.transform = 'translateY(-2px)';
+  });
+  cancelBtn.addEventListener('mouseleave', function() {
+    this.style.transform = 'translateY(0)';
+  });
+
+  confirmBtn.addEventListener('click', async function() {
+    try {
+      const res = await apiFetch('/admin/users/' + userId + '/unlock', { method: 'POST' });
+      if (res.code !== 0) { toast('❌ ' + (res.msg || '解锁失败')); return; }
+      toast('✅ 已解锁该用户');
+      overlay.remove();
+      renderAdminUsers();
+    } catch (e) {
+      if (e.message !== 'Unauthorized') toast('❌ 解锁失败');
+    }
+  });
+  confirmBtn.addEventListener('mouseenter', function() {
+    this.style.transform = 'translateY(-2px)';
+  });
+  confirmBtn.addEventListener('mouseleave', function() {
+    this.style.transform = 'translateY(0)';
+  });
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) this.remove();
+  });
 }
 
 // ── 拉取用户最新余额（打开充/扣弹窗前调用，确保显示的是数据库实时值） ──
