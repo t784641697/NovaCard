@@ -1254,11 +1254,11 @@ router.get('/users', (req, res) => {
     params.push(status);
   }
   if (dateFrom) {
-    conds.push("date(u.created_at) >= date(?)");
+    conds.push("date(u.created_at, '+8 hours') >= date(?)");
     params.push(dateFrom);
   }
   if (dateTo) {
-    conds.push("date(u.created_at) <= date(?)");
+    conds.push("date(u.created_at, '+8 hours') <= date(?)");
     params.push(dateTo);
   }
 
