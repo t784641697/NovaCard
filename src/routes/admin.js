@@ -2578,6 +2578,26 @@ router.put('/users/:id/unlock', authenticate, requireAdmin, (req, res) => {
   }
 });
 
+// PATCH /api/admin/users/:id/status - 冻结/解冻用户
+router.patch('/users/:id/status', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!['active', 'disabled'].includes(status)) {
+      return res.status(400).json({ code: 400, msg: '无效状态值，仅支持 active/disabled' });
+    }
+    const user = db.prepare('SELECT id, role FROM users WHERE id = ?').get(id);
+    if (!user) return res.status(404).json({ code: 404, msg: '用户不存在' });
+    if (user.role === 'admin') return res.status(403).json({ code: 403, msg: '不能冻结管理员账号' });
+    db.prepare('UPDATE users SET status = ? WHERE id = ?').run(status, id);
+    logger.info(`Admin ${req.user.id} set user ${id} status to ${status}`);
+    res.json({ code: 0, msg: 'ok', data: { id, status } });
+  } catch (e) {
+    logger.error('Set user status error:', e);
+    res.status(500).json({ code: 500, msg: e.message });
+  }
+});
+
 module.exports = router;
 // ── 异常消费告警 ─────────────────────────────────────────────────────────
 /**
