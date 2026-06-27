@@ -2879,3 +2879,32 @@ forceRefresh → 重新全量获取 → 更新 allData
 - `.user-chip` 背景色: `rgba(126,184,247,.06)` / hover `.12`
 - 侧边栏用户区分隔线(border-top)移除
 
+### 管理员用户管理优化 (v1.0.99.71~79)
+
+#### 标题
+- 移除"用户管理 查看所有用户，充值/冻结/解冻账号"标题
+
+#### 筛选功能
+- 独立div(`cm-search-section`)，与用户列表分离
+- 搜索框: `cm-search-input-wrap`(带搜索图标)，placeholder "用户ID / 邮箱 / 用户名"
+- 日期选择器: `DateRangePicker`(与卡片管理同款)，placeholder "开始日期 - 结束日期"
+- 状态下拉: 全部状态 / 正常 / 已冻结(locked是系统自动状态，不列为可选项)
+- 布局: `gap:12px 16px` + 弹性宽度 + 自动换行，搜索按钮右对齐防位移
+- 日期筛选UTC+8时区修正: `datetime(created_at, '+8 hours')` 对齐前端北京时间显示
+- 后端: `keyword`(id/email/name模糊) + `dateFrom/dateTo`(北京时间) + `status`
+
+#### 操作按钮(6个全部显示)
+| 按钮 | 颜色 | 置灰条件 |
+|------|------|---------|
+| 🔍 查看消费 | 紫色 | — |
+| 💰 充值 | 青色 | — |
+| ➖ 扣款 | 深红 | — |
+| 🔒 冻结 | 红色 | 已冻结(disabled)时置灰 |
+| 🔓 解冻 | 绿色 | 未冻结(active)时置灰 |
+| 🔑 解锁 | 金色 | 未锁定(非locked)时置灰 |
+
+#### 后端API
+- `PATCH /api/admin/users/:id/status` body `{status:'disabled'/'active'}` 冻结/解冻
+- `POST /api/admin/users/:id/unlock` 解锁(locked→active + 清零login_attempts + 重置locked_until)
+- 管理员账号不可冻结(403校验)
+
