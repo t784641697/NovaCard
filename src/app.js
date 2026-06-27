@@ -194,6 +194,13 @@ if (fs.existsSync(frontendPath)) {
   logger.warn('⚠️  前端文件未找到：' + frontendPath);
 }
 
+// ── 备份文件下载服务 ────────────────────────────────────────────────────────
+const backupDir = path.join(__dirname, '..', 'vcc-dashboard', 'backups');
+if (fs.existsSync(backupDir)) {
+  app.use('/backups', express.static(backupDir));
+  logger.info('📦 备份文件下载服务已启用：/backups → ' + backupDir);
+}
+
 // ── 404 处理 ──────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ code: 404, msg: `接口不存在：${req.method} ${req.path}` });
