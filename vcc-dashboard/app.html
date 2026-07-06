@@ -7403,7 +7403,7 @@ function renderFeeConfigPage() {
       <button class="btn btn-primary" onclick="_feePageState.q='';_feePageState.page=1;document.getElementById('feeUserSearch').value='';loadFeeUserList();">✨ 点击搜索</button>
     </div>
 
-    <div class="card">
+    <div class="card" style="overflow:hidden;">
       <div id="feeUserListWrap">
         <div class="loading" style="text-align:center;padding:60px;">加载中...</div>
       </div>
@@ -7532,7 +7532,7 @@ async function loadFeeUserList() {
           pointer-events: none;
         }
       </style>
-      <div id="feeTableWrap" style="overflow-x:auto;max-width:100%;">
+      <div id="feeTableWrap" style="overflow-x:auto;width:100%;">
         <table class="table" style="min-width:1100px;width:100%;">
           <thead>
             <tr style="height:52px;vertical-align:middle;">
