@@ -7439,7 +7439,7 @@ async function loadFeeUserList() {
 
     // 表头：基础列 + 各费用类型列
     const feeCols = fee_types.map(ft =>
-      `<th style="text-align:center;line-height:1.4;min-width:100px;">${ft.description}</th>`
+      `<th style="text-align:center;line-height:1.4;min-width:82px;padding:8px 4px;">${ft.description}</th>`
     ).join('');
 
     // 表行
@@ -7469,8 +7469,8 @@ async function loadFeeUserList() {
           : '<span style="color:' + labelColor + ';font-size:.7rem;">固定</span> <span style="color:var(--text3);font-size:.85rem;">默认</span>';
         var outBg = bgC, outBd = bdC, outTx = txC;
         var cellId = 'fee_' + u.id + '_' + ft.fee_type;
-        return '<td style="text-align:center;">'
-          + '<span id="' + cellId + '" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:6px 12px;border-radius:8px;cursor:pointer;transition:all .2s;' + tagStyle + 'min-width:80px;"'
+        return '<td style="text-align:center;padding:6px 4px;">'
+          + '<span id="' + cellId + '" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:5px 8px;border-radius:8px;cursor:pointer;transition:all .2s;' + tagStyle + 'min-width:72px;"'
           + ' onmouseover="this.style.borderColor=\'#00f2fe\';this.style.color=\'#00f2fe\';this.style.background=\'rgba(0,242,254,.08)\';"'
           + ' onmouseout="this.style.borderColor=\'' + outBd + '\';this.style.color=\'' + outTx + '\';this.style.background=\'' + outBg + '\';"'
           + ' onclick="openEditFeeModal(' + u.id + ', \'' + safeName + '\', \'' + ft.fee_type + '\', \'' + ftDesc + '\', ' + (f ? (f.fee_rate != null ? f.fee_rate : 'null') : 'null') + ', ' + (f ? (f.fee_fixed != null ? f.fee_fixed : 'null') : 'null') + ')"'
@@ -7489,9 +7489,9 @@ async function loadFeeUserList() {
         <tr>
           <td class="frozen fz0" style="font-size:.85rem;padding-left:12px;text-align:left;">#${u.id}</td>
           <td class="frozen fz1" style="font-size:.85rem;padding:0 8px 0 16px;text-align:left;">${u.name || '—'}</td>
-          <td class="frozen fz2" style="font-size:.85rem;padding:0 16px;text-align:center;">${u.email}</td>
-          <td class="frozen fz3" style="font-size:.85rem;padding:0 16px;text-align:center;">${u.phone || '<span style="color:var(--text3);">—</span>'}</td>
-          <td class="frozen fz4" style="text-align:center;padding-right:16px;">${statusTag}</td>
+          <td class="frozen fz2" style="font-size:.85rem;padding:0 12px;text-align:center;">${u.email}</td>
+          <td class="frozen fz3" style="font-size:.85rem;padding:0 12px;text-align:center;">${u.phone || '<span style="color:var(--text3);">—</span>'}</td>
+          <td class="frozen fz4" style="text-align:center;padding-right:12px;">${statusTag}</td>
           ${feeCells}
         </tr>`;
     }).join('');
@@ -7519,10 +7519,10 @@ async function loadFeeUserList() {
         #feeTableWrap th.frozen { z-index: 3; }
         #feeTableWrap td.frozen { background: #0f1628; }
         #feeTableWrap .fz0 { left: 0; }
-        #feeTableWrap .fz1 { left: 70px; }
-        #feeTableWrap .fz2 { left: 170px; }
-        #feeTableWrap .fz3 { left: 350px; }
-        #feeTableWrap .fz4 { left: 480px; }
+        #feeTableWrap .fz1 { left: 60px; }
+        #feeTableWrap .fz2 { left: 150px; }
+        #feeTableWrap .fz3 { left: 300px; }
+        #feeTableWrap .fz4 { left: 390px; }
         /* 冻结列右侧阴影分割线 */
         #feeTableWrap .fz4::after {
           content: '';
@@ -7533,14 +7533,14 @@ async function loadFeeUserList() {
         }
       </style>
       <div id="feeTableWrap" style="overflow-x:auto;max-width:100%;">
-        <table class="table" style="min-width:1300px;width:100%;">
+        <table class="table" style="min-width:1100px;width:100%;">
           <thead>
             <tr style="height:52px;vertical-align:middle;">
-              <th class="frozen fz0" style="white-space:nowrap;padding-left:12px;min-width:70px;text-align:left;">ID</th>
-              <th class="frozen fz1" style="white-space:nowrap;padding:0 8px 0 16px;min-width:100px;text-align:left;">用户名</th>
-              <th class="frozen fz2" style="white-space:nowrap;padding:0 16px;min-width:180px;text-align:center;">邮箱</th>
-              <th class="frozen fz3" style="white-space:nowrap;padding:0 16px;min-width:130px;text-align:center;">手机号</th>
-              <th class="frozen fz4" style="text-align:center;white-space:nowrap;padding-right:16px;min-width:80px;">状态</th>
+              <th class="frozen fz0" style="white-space:nowrap;padding-left:12px;min-width:60px;text-align:left;">ID</th>
+              <th class="frozen fz1" style="white-space:nowrap;padding:0 8px 0 16px;min-width:90px;text-align:left;">用户名</th>
+              <th class="frozen fz2" style="white-space:nowrap;padding:0 12px;min-width:150px;text-align:center;">邮箱</th>
+              <th class="frozen fz3" style="white-space:nowrap;padding:0 12px;min-width:90px;text-align:center;">手机号</th>
+              <th class="frozen fz4" style="text-align:center;white-space:nowrap;padding-right:12px;min-width:70px;">状态</th>
               ${feeCols}
             </tr>
           </thead>
