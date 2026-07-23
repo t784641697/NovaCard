@@ -337,3 +337,5 @@ openssl rsa -pubout -in config/merchant_private.pem -out config/merchant_public.
 | v1.0.99.78 | 2026-06-28 | 管理员用户管理-解锁按钮始终显示(独立于冻结/解冻) |
 | v1.0.99.79 | 2026-06-28 | 管理员用户管理-6按钮全部显示+按状态置灰(冻结/解冻/解锁) |
 | v1.0.99.80 | 2026-06-28 | fix: 补后端PATCH /users/:id/status冻结解冻接口+unlock接口auth→authenticate修复 |
+| v1.0.99.81 | 2026-07-06 | **费用设置表格列截断修复**：content-area 加 min-width:0+overflow:hidden（flex 子元素被表格撑开）；表格列压缩+费用单元格改为单行显示（`3%+$0.30`）；搜索框 flex:1→240px |
+| v1.0.99.82 | 2026-07-20 | **资金安全修复：重复退款+缺失退款**：(1) `BalanceService.recordRefund` 加幂等检查（同 ref_id+type='退款' 不重复写入）；(2) admin.js reject 路由删除重复 UPDATE；(3) 生产数据修复：删除3笔重复退款(#30/#34/#46)+补录4笔缺失退款(app_rejected:7/10/16+已删卡2069793)+用户#3余额-$9.20→$74.80 |
