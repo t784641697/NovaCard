@@ -1977,9 +1977,6 @@ router.post('/card-applications/:id/reject', (req, res, next) => {
         db.prepare("UPDATE transactions SET ref_id = ? WHERE ref_id = ? AND user_id = ?")
           .run(`app_rejected:${id}:${app.product_code}`, 'app:' + id, app.user_id);
         refundResult = r;
-        db.prepare(`UPDATE card_applications SET status = 'rejected', reject_reason = ?, updated_at = nowiso() WHERE id = ?`)
-          .run(reason || '管理员拒绝了申请', id);
-        refundResult = r;
       }).immediate();  // 并发安全
       result = { transaction_id: refundResult && refundResult.transaction_id };
     } catch (e) {

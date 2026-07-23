@@ -147,8 +147,19 @@ class BalanceService {
    */
   static recordRefund(userId, amount, feeType, feeAmount, description, refId = '') {
     const netReturn = amount - feeAmount; // 净返还 = 退款金额 - 手续费
-    
+
     return db.transaction(() => {
+      // v1.0.100: 幂等性检查 — 同 ref_id + type='退款' 不重复写入，防止重复退款
+      if (refId) {
+        const existing = db.prepare(
+          "SELECT id FROM transactions WHERE user_id = ? AND ref_id = ? AND type = '退款'"
+        ).get(userId, refId);
+        if (existing) {
+          logger.warn(`[BalanceService] recordRefund 跳过重复退款: user_id=${userId}, ref_id=${refId}, 已有流水 id=${existing.id}`);
+          return { success: false, skipped: true, reason: 'duplicate_refund', existing_id: existing.id };
+        }
+      }
+
       const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(userId);
       const newBalance = parseFloat((user.balance + netReturn).toFixed(2));
       
