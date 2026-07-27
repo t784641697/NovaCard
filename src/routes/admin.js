@@ -1408,7 +1408,7 @@ function buildTransactionsCSV(rows) {
  *     page_size   默认 50，最大 500
  *     format=csv  直接返回 CSV 下载
  */
-router.get('/users/:id/transactions', (req, res) => {
+router.get('/users/:id/transactions', async (req, res) => {
   const userId = parseInt(req.params.id);
   if (!userId) return res.status(400).json({ code: 400, msg: '无效的用户ID' });
 
@@ -1419,6 +1419,25 @@ router.get('/users/:id/transactions', (req, res) => {
   // v1.0.94 修复：补 cardIds + userCards 定义（v1.0.92 改造时漏了）
   const userCards = db.prepare('SELECT card_id, card_number, product_code, label, status FROM cards WHERE user_id = ?').all(userId);
   const cardIds = userCards.map(c => c.card_id);
+
+  // 自动触发上游交易同步（10分钟内不重复同步，15秒超时）
+  // v1.0.99.84: 管理员查看用户消费时也自动同步，确保能看到最新交易
+  if (cardIds.length > 0) {
+    const _lastSync = router._lastSync || 0;
+    const SYNC_INTERVAL = 10 * 60 * 1000;
+    if (Date.now() - _lastSync > SYNC_INTERVAL) {
+      try {
+        const { syncTransactions } = require('../services/transactionSyncService');
+        await Promise.race([
+          syncTransactions(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('sync timeout')), 15000))
+        ]);
+        router._lastSync = Date.now();
+      } catch (syncErr) {
+        require('../utils/logger').warn('[admin/user-tx] sync skipped:', syncErr.message);
+      }
+    }
+  }
 
   const { type, start_date, end_date, page = 1, page_size = 50, format } = req.query;
   const limit  = Math.min(parseInt(page_size) || 50, 500);
