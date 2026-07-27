@@ -457,8 +457,9 @@ router.get('/finance-summary', async (req, res, next) => {
     // 2. 用户总余额 & 分布（排除管理员）
     const allUsers = db.prepare(`
       SELECT id, email, balance,
-        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='充值') as topup_total,
-        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='消费') as total_spend,
+        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type IN ('充值','管理员充值')) as topup_total,
+        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type IN ('消费','管理员扣款')) as total_spend,
+        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='退款') as total_refund,
         (SELECT COALESCE(SUM(fee_amount),0) FROM transactions WHERE user_id=u.id AND fee_amount>0) as total_fees
       FROM users u WHERE u.role != 'admin' ORDER BY balance DESC
     `).all();
@@ -505,6 +506,7 @@ router.get('/finance-summary', async (req, res, next) => {
           balance: parseFloat(u.balance || 0),
           topup_total: parseFloat(u.topup_total || 0),
           total_spend: parseFloat(u.total_spend || 0),
+          total_refund: parseFloat(u.total_refund || 0),
           total_fees: parseFloat(u.total_fees || 0),
         })),
         total_topup: parseFloat(topupApproved.total || 0),

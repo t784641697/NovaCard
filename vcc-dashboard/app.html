@@ -581,7 +581,8 @@ select.form-control option{background:var(--bg3);}
 .fin-u-table .fin-u-td-bal{color:#00f2fe;font-weight:700;}
 .fin-u-table .fin-u-td-top{color:#00c758;font-weight:600;}
 .fin-u-table .fin-u-td-spd{color:#ff5f5f;font-weight:600;}
-.fin-u-table .fin-u-td-fee{color:#ffb347;font-weight:600;}
+.fin-u-table .fin-u-td-fee{color:#ffb347;font-weight:600}
+.fin-u-table .fin-u-td-ref{color:#4ade80;font-weight:600}
 .fin-u-table .fin-u-td-idx{color:var(--text3);font-size:.65rem;width:32px;text-align:center;}
 @media(max-width:600px){
   .fin-u-table,.fin-u-table thead,.fin-u-table tbody,.fin-u-table tr,.fin-u-table td,.fin-u-table th{display:block}
@@ -10791,11 +10792,12 @@ async function renderAdminFinance() {
     if (d.users_balance.length === 0) {
       html += '<div class="empty-state"><div class="empty-text">暂无用户数据</div></div>';
     } else {
-      html += '<table class="fin-u-table"><thead><tr><th style="width:32px">#</th><th>用户</th><th style="width:80px">余额</th><th style="width:80px">充值</th><th style="width:80px">消费</th><th style="width:80px">费用</th></tr></thead><tbody>';
+      html += '<table class="fin-u-table"><thead><tr><th style="width:32px">#</th><th>用户</th><th style="width:80px">余额</th><th style="width:80px">充值</th><th style="width:80px">消费</th><th style="width:80px">退款</th><th style="width:80px">费用</th></tr></thead><tbody>';
       d.users_balance.forEach((u, i) => {
         const bal = (u.balance || 0).toFixed(2);
         const top = (u.topup_total || 0).toFixed(2);
         const spd = (u.total_spend || 0).toFixed(2);
+        const ref = (u.total_refund || 0).toFixed(2);
         const fee = (u.total_fees || 0).toFixed(2);
         html += '<tr>';
         html += '<td class="fin-u-td-idx">' + (i + 1) + '</td>';
@@ -10803,6 +10805,7 @@ async function renderAdminFinance() {
         html += '<td class="fin-u-td-bal">$' + bal + '</td>';
         html += '<td class="fin-u-td-top">$' + top + '</td>';
         html += '<td class="fin-u-td-spd">$' + spd + '</td>';
+        html += '<td class="fin-u-td-ref">$' + ref + '</td>';
         html += '<td class="fin-u-td-fee">$' + fee + '</td>';
         html += '</tr>';
       });
