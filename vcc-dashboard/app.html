@@ -7395,24 +7395,32 @@ var _feePageState = { q: '', page: 1 };
 
 function renderFeeConfigPage() {
   const content = `
-    <div style="margin-bottom:20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <div style="flex:0 0 240px;min-width:180px;max-width:280px;position:relative;">
-        <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="feeUserSearch" type="text" placeholder="搜索用户名 / 邮箱 / 手机号..."
-          style="width:100%;padding:10px 14px 10px 36px;border-radius:9px;border:1px solid rgba(0,242,254,.2);background:rgba(0,0,0,.25);color:var(--text1);font-size:.88rem;outline:none;box-sizing:border-box;"
-          oninput="clearTimeout(window._feeSearchTimer);window._feeSearchTimer=setTimeout(()=>{_feePageState.q=this.value.trim();_feePageState.page=1;loadFeeUserList();},320)">
+    <div class="cm-search-section">
+      <div class="cm-search-row" style="flex-wrap:wrap;gap:12px 16px;">
+        <div class="cm-search-input-wrap" style="flex:1;min-width:220px;max-width:320px;">
+          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.45;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="feeUserSearch" type="text" placeholder="用户名 / 邮箱 / 手机号"
+            onkeydown="if(event.key==='Enter')doFeeSearch()">
+        </div>
+        <select id="feeStatusSelect" class="cm-filter-select" style="min-width:120px;">
+          <option value="">全部状态</option>
+          <option value="active">正常</option>
+          <option value="disabled">已冻结</option>
+        </select>
+        <div class="cm-search-actions">
+          <button class="cm-btn-search" onclick="doFeeSearch()">🔍 搜索</button>
+          <button class="cm-btn-reset" onclick="doFeeReset()">重置</button>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="_feePageState.q='';_feePageState.page=1;document.getElementById('feeUserSearch').value='';loadFeeUserList();">✨ 点击搜索</button>
     </div>
-
-    <div class="card" style="overflow:hidden;">
+    <div class="panel">
       <div id="feeUserListWrap">
-        <div class="loading" style="text-align:center;padding:60px;">加载中...</div>
+        <div class="skeleton" style="height:200px;"></div>
       </div>
     </div>
   `;
   document.getElementById('contentArea').innerHTML = content;
-  _feePageState = { q: '', page: 1 };
+  _feePageState = { q: '', status: '', page: 1 };
   loadFeeUserList();
 }
 
@@ -7420,136 +7428,130 @@ function renderFeeConfigPage() {
 async function loadFeeUserList() {
   const wrap = document.getElementById('feeUserListWrap');
   if (!wrap) return;
-  wrap.innerHTML = '<div class="loading" style="text-align:center;padding:60px;">加载中...</div>';
+  wrap.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text3);">加载中...</div>';
 
   try {
-    const { q, page } = _feePageState;
-    const res = await apiFetch(`/admin/fee-configs/users?q=${encodeURIComponent(q)}&page=${page}&limit=20`);
+    const { q, status, page } = _feePageState;
+    const params = new URLSearchParams({ q, page, limit: 20 });
+    if (status) params.set('status', status);
+    const res = await apiFetch('/admin/fee-configs/users?' + params.toString());
     if (res.code !== 0) throw new Error(res.msg);
 
     const { users, fee_types, total, limit } = res.data;
     const totalPages = Math.ceil(total / limit) || 1;
 
     if (!users.length) {
-      wrap.innerHTML = `
-        <div style="text-align:center;padding:60px;">
-          <div style="font-size:40px;opacity:.35;">👤</div>
-          <div style="margin-top:16px;color:var(--text2);">没有找到匹配的用户</div>
-        </div>`;
+      wrap.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text3);">暂无用户数据</div>';
       return;
     }
 
-    // 表头：基础列 + 各费用类型列
-    const feeCols = fee_types.map(ft =>
-      `<th style="text-align:center;line-height:1.4;min-width:62px;padding:8px 2px;font-size:.78rem;">${ft.description}</th>`
+    // 表头
+    const feeThs = fee_types.map(ft =>
+      `<th style="text-align:center;white-space:nowrap;padding:12px 8px;font-size:.78rem;color:var(--text2);">${ft.description}</th>`
     ).join('');
 
     // 表行
     const rows = users.map(u => {
-      // 预处理安全字符串，避免在模板字符串内做转义
-      var safeName = (u.name || u.email || '').replace(/'/g, "\\'");
+      const safeName = (u.name || u.email || '').replace(/'/g, "\\'");
+      const statusTag = u.status === 'active'
+        ? '<span class="tag tag-green" style="font-size:.72rem;">正常</span>'
+        : '<span class="tag" style="background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25);font-size:.72rem;">已冻结</span>';
 
       const feeCells = fee_types.map(ft => {
         const f = u.fees[ft.fee_type];
         const isCustom = f && f.is_custom;
         const rate = f && f.fee_rate != null ? (f.fee_rate * 100).toFixed(1) : null;
         const fixed = f && f.fee_fixed != null ? parseFloat(f.fee_fixed).toFixed(2) : null;
-        var ftDesc = (ft.description || '').replace(/'/g, "\\'");
-        var bgC = isCustom ? 'rgba(0,140,255,.12)' : 'rgba(255,255,255,.04)';
-        var bdC = isCustom ? 'rgba(0,140,255,.25)' : 'rgba(255,255,255,.1)';
-        var txC = isCustom ? '#6ab4ff' : 'var(--text2)';
-        var tagStyle = 'background:' + bgC + ';color:' + txC + ';border:1px solid ' + bdC + ';';
-        var valColor = isCustom ? '#6ab4ff' : 'var(--text1)';
-        var outBg = bgC, outBd = bdC, outTx = txC;
-        var cellId = 'fee_' + u.id + '_' + ft.fee_type;
-        // 紧凑单行显示：3% +$0.30
-        var rateStr = rate !== null ? rate + '%' : '默认';
-        var fixedStr = fixed !== null ? '$' + fixed : '默认';
-        var compactLine = '<span style="color:' + valColor + ';font-weight:600;font-size:.8rem;">' + rateStr + '</span>'
-          + '<span style="color:' + (isCustom ? 'rgba(106,180,255,.5)' : 'var(--text3)') + ';font-size:.72rem;margin:0 2px;">+</span>'
-          + '<span style="color:' + valColor + ';font-weight:600;font-size:.8rem;">' + fixedStr + '</span>';
-        return '<td style="text-align:center;padding:6px 2px;">'
-          + '<span id="' + cellId + '" style="display:inline-flex;align-items:center;gap:1px;padding:5px 6px;border-radius:7px;cursor:pointer;transition:all .2s;' + tagStyle + 'min-width:52px;"'
-          + ' onmouseover="this.style.borderColor=\'#00f2fe\';this.style.color=\'#00f2fe\';this.style.background=\'rgba(0,242,254,.08)\';"'
-          + ' onmouseout="this.style.borderColor=\'' + outBd + '\';this.style.color=\'' + outTx + '\';this.style.background=\'' + outBg + '\';"'
-          + ' onclick="openEditFeeModal(' + u.id + ', \'' + safeName + '\', \'' + ft.fee_type + '\', \'' + ftDesc + '\', ' + (f ? (f.fee_rate != null ? f.fee_rate : 'null') : 'null') + ', ' + (f ? (f.fee_fixed != null ? f.fee_fixed : 'null') : 'null') + ')"'
-          + ' title="点击修改"'
-          + '>' + compactLine + '</span></td>';
+        const ftDesc = (ft.description || '').replace(/'/g, "\\'");
+        const rateStr = rate !== null ? rate + '%' : '默认';
+        const fixedStr = fixed !== null ? '$' + fixed : '默认';
+        const cellId = 'fee_' + u.id + '_' + ft.fee_type;
+        const cls = isCustom ? 'fee-cell fee-cell-custom' : 'fee-cell fee-cell-default';
+        return `<td style="text-align:center;padding:8px 6px;">
+          <span id="${cellId}" class="${cls}"
+            onclick="openEditFeeModal(${u.id},'${safeName}','${ft.fee_type}','${ftDesc}',${f ? (f.fee_rate != null ? f.fee_rate : 'null') : 'null'},${f ? (f.fee_fixed != null ? f.fee_fixed : 'null') : 'null'})"
+            title="点击修改">
+            <span class="fee-rate">${rateStr}</span><span class="fee-plus">+</span><span class="fee-fixed">${fixedStr}</span>
+          </span></td>`;
       }).join('');
 
-      const statusTag = u.status === 'active'
-        ? '<span class="tag tag-green" style="font-size:.75rem;">正常</span>'
-        : '<span class="tag tag-red" style="font-size:.75rem;">冻结</span>';
-
-      return `
-        <tr>
-          <td class="frozen fz0" style="font-size:.85rem;padding-left:12px;text-align:left;">#${u.id}</td>
-          <td class="frozen fz1" style="font-size:.85rem;padding:0 8px 0 16px;text-align:left;">${u.name || '—'}</td>
-          <td class="frozen fz2" style="font-size:.85rem;padding:0 8px;text-align:center;">${u.email}</td>
-          <td class="frozen fz3" style="font-size:.85rem;padding:0 8px;text-align:center;">${u.phone || '<span style="color:var(--text3);">—</span>'}</td>
-          <td class="frozen fz4" style="text-align:center;padding-right:12px;">${statusTag}</td>
-          ${feeCells}
-        </tr>`;
+      return `<tr>
+        <td style="font-weight:600;font-size:.85rem;padding:12px 14px;white-space:nowrap;">
+          <div>${u.name || '—'}</div>
+          <div style="font-size:.72rem;color:var(--text3);margin-top:2px;">${u.email}</div>
+        </td>
+        <td style="text-align:center;padding:12px 8px;">${statusTag}</td>
+        ${feeCells}
+      </tr>`;
     }).join('');
 
-    // 分页
+    // 分页 (pill样式)
     const pagination = totalPages > 1 ? `
-      <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:16px 20px;border-top:1px solid rgba(255,255,255,.06);">
-        <span style="color:var(--text3);font-size:.82rem;">共 ${total} 人 · 第 ${page}/${totalPages} 页</span>
-        <button class="btn-secondary" style="padding:5px 14px;font-size:.82rem;" ${page <= 1 ? 'disabled' : ''}
-          onclick="_feePageState.page=${page - 1};loadFeeUserList();">上一页</button>
-        <button class="btn-secondary" style="padding:5px 14px;font-size:.82rem;" ${page >= totalPages ? 'disabled' : ''}
-          onclick="_feePageState.page=${page + 1};loadFeeUserList();">下一页</button>
+      <div class="cm-pagination" style="margin-top:16px;">
+        <span style="color:var(--text3);font-size:.82rem;margin-right:auto;">共 ${total} 人</span>
+        <button class="cm-page-btn" ${page <= 1 ? 'disabled' : ''} onclick="_feePageState.page=${page-1};loadFeeUserList();">‹</button>
+        <span style="color:var(--text2);font-size:.85rem;">${page} / ${totalPages}</span>
+        <button class="cm-page-btn" ${page >= totalPages ? 'disabled' : ''} onclick="_feePageState.page=${page+1};loadFeeUserList();">›</button>
       </div>` : '';
 
     wrap.innerHTML = `
       <style>
-        /* 费用设置表格：冻结前5列 */
-        #feeTableWrap table { border-collapse: separate; border-spacing: 0; }
-        #feeTableWrap th.frozen,
-        #feeTableWrap td.frozen {
-          position: sticky;
-          z-index: 2;
-          background: #0d1322;
+        .fee-cell {
+          display: inline-flex; align-items: center; gap: 1px;
+          padding: 5px 8px; border-radius: 7px; cursor: pointer;
+          transition: all .2s; min-width: 56px; font-size: .8rem;
         }
-        #feeTableWrap th.frozen { z-index: 3; }
-        #feeTableWrap td.frozen { background: #0f1628; }
-        #feeTableWrap .fz0 { left: 0; }
-        #feeTableWrap .fz1 { left: 50px; }
-        #feeTableWrap .fz2 { left: 140px; }
-        #feeTableWrap .fz3 { left: 270px; }
-        #feeTableWrap .fz4 { left: 350px; }
-        /* 冻结列右侧阴影分割线 */
-        #feeTableWrap .fz4::after {
-          content: '';
-          position: absolute;
-          top: 0; right: -8px; bottom: 0; width: 8px;
-          background: linear-gradient(90deg, rgba(0,0,0,.35), transparent);
-          pointer-events: none;
+        .fee-cell-custom {
+          background: rgba(0,140,255,.1); color: #6ab4ff; border: 1px solid rgba(0,140,255,.2);
         }
+        .fee-cell-custom:hover {
+          background: rgba(0,242,254,.08); border-color: #00f2fe; color: #00f2fe;
+        }
+        .fee-cell-default {
+          background: rgba(255,255,255,.03); color: var(--text2); border: 1px solid rgba(255,255,255,.08);
+        }
+        .fee-cell-default:hover {
+          background: rgba(0,242,254,.06); border-color: rgba(0,242,254,.3); color: #00f2fe;
+        }
+        .fee-rate, .fee-fixed { font-weight: 600; }
+        .fee-plus { margin: 0 1px; opacity: .5; font-size: .72rem; }
+        .fee-cell-custom .fee-plus { color: rgba(106,180,255,.5); }
+        .fee-cell-default .fee-plus { color: var(--text3); }
       </style>
-      <div id="feeTableWrap" style="overflow-x:auto;width:100%;">
-        <table class="table" style="min-width:920px;width:100%;">
-          <thead>
-            <tr style="height:52px;vertical-align:middle;">
-              <th class="frozen fz0" style="white-space:nowrap;padding-left:12px;min-width:50px;text-align:left;">ID</th>
-              <th class="frozen fz1" style="white-space:nowrap;padding:0 8px 0 16px;min-width:90px;text-align:left;">用户名</th>
-              <th class="frozen fz2" style="white-space:nowrap;padding:0 8px;min-width:130px;text-align:center;">邮箱</th>
-              <th class="frozen fz3" style="white-space:nowrap;padding:0 8px;min-width:80px;text-align:center;">手机号</th>
-              <th class="frozen fz4" style="text-align:center;white-space:nowrap;padding-right:12px;min-width:60px;">状态</th>
-              ${feeCols}
-            </tr>
-          </thead>
-          <tbody style="vertical-align:middle;">${rows}</tbody>
+      <div style="overflow-x:auto;width:100%;">
+        <table class="au-table" style="min-width:780px;width:100%;">
+          <thead><tr>
+            <th style="text-align:left;padding:12px 14px;white-space:nowrap;">用户</th>
+            <th style="text-align:center;padding:12px 8px;white-space:nowrap;">状态</th>
+            ${feeThs}
+          </tr></thead>
+          <tbody>${rows}</tbody>
         </table>
       </div>
       ${pagination}
-      <div style="padding:10px 20px 14px;color:var(--text3);font-size:.78rem;">
-        💡 蓝色标签为自定义费率，灰色为全局默认。点击费率单元格可直接编辑。
+      <div style="padding:10px 0 0;color:var(--text3);font-size:.76rem;">
+        💡 蓝色为自定义费率，灰色为全局默认。点击费率单元格可编辑。
       </div>`;
   } catch(err) {
     wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#ff5f5f;">加载失败: ${err.message}</div>`;
   }
+}
+
+function doFeeSearch() {
+  const st = _feePageState || {};
+  st.q = document.getElementById('feeUserSearch')?.value?.trim() || '';
+  st.status = document.getElementById('feeStatusSelect')?.value || '';
+  st.page = 1;
+  _feePageState = st;
+  loadFeeUserList();
+}
+
+function doFeeReset() {
+  const el = id => document.getElementById(id);
+  if (el('feeUserSearch')) el('feeUserSearch').value = '';
+  if (el('feeStatusSelect')) el('feeStatusSelect').value = '';
+  _feePageState = { q: '', status: '', page: 1 };
+  loadFeeUserList();
 }
 
 // 内联编辑单项费率弹窗

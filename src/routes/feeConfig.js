@@ -20,26 +20,30 @@ router.use((req, res, next) => {
 // GET /admin/fee-configs/users?q=keyword&page=1&limit=20
 router.get('/users', (req, res, next) => {
   try {
-    const { q = '', page = 1, limit = 20 } = req.query;
+    const { q = '', page = 1, limit = 20, status = '' } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * Math.max(1, parseInt(limit));
     const pageSize = Math.min(100, Math.max(1, parseInt(limit)));
 
     // 搜索条件：用户名 / 邮箱 / 手机号
     const keyword = `%${q.trim()}%`;
+    const statusFilter = status ? ` AND status = ?` : '';
+    const statusParams = status ? [status] : [];
     const users = db.prepare(`
       SELECT id, name, email, phone, status, balance, created_at
       FROM users
       WHERE role = 'user'
         AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)
+        ${statusFilter}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `).all(keyword, keyword, keyword, pageSize, offset);
+    `).all(keyword, keyword, keyword, ...statusParams, pageSize, offset);
 
     const total = db.prepare(`
       SELECT COUNT(*) as cnt FROM users
       WHERE role = 'user'
         AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)
-    `).get(keyword, keyword, keyword).cnt;
+        ${statusFilter}
+    `).get(keyword, keyword, keyword, ...statusParams).cnt;
 
     // 获取所有费用类型
     const feeTypes = db.prepare(`
