@@ -7477,11 +7477,11 @@ async function loadFeeUserList() {
       }).join('');
 
       return `<tr>
-        <td style="font-weight:600;font-size:.85rem;padding:12px 14px;white-space:nowrap;">
+        <td class="fee-sticky-0" style="font-weight:600;font-size:.85rem;padding:12px 14px;white-space:nowrap;">
           <div>${u.name || '—'}</div>
           <div style="font-size:.72rem;color:var(--text3);margin-top:2px;">${u.email}</div>
         </td>
-        <td style="text-align:center;padding:12px 8px;">${statusTag}</td>
+        <td class="fee-sticky-1" style="text-align:center;padding:12px 8px;">${statusTag}</td>
         ${feeCells}
       </tr>`;
     }).join('');
@@ -7526,12 +7526,36 @@ async function loadFeeUserList() {
         .fee-plus { margin: 0 1px; opacity: .5; font-size: .72rem; }
         .fee-cell-custom .fee-plus { color: rgba(106,180,255,.5); }
         .fee-cell-default .fee-plus { color: var(--text3); }
+        /* 冻结前两列 */
+        #feeTableWrap table { border-collapse: separate; border-spacing: 0; }
+        #feeTableWrap th.fee-sticky-0,
+        #feeTableWrap td.fee-sticky-0 {
+          position: sticky; left: 0; z-index: 2;
+          background: #0d1322;
+        }
+        #feeTableWrap th.fee-sticky-1,
+        #feeTableWrap td.fee-sticky-1 {
+          position: sticky; z-index: 2;
+          background: #0d1322;
+        }
+        #feeTableWrap th.fee-sticky-0 { z-index: 3; }
+        #feeTableWrap th.fee-sticky-1 { z-index: 3; left: 160px; }
+        #feeTableWrap td.fee-sticky-0 { background: #0f1628; }
+        #feeTableWrap td.fee-sticky-1 { background: #0f1628; left: 160px; }
+        /* 状态列右侧阴影分割线 */
+        #feeTableWrap .fee-sticky-1::after {
+          content: '';
+          position: absolute;
+          top: 0; right: -8px; bottom: 0; width: 8px;
+          background: linear-gradient(90deg, rgba(0,0,0,.35), transparent);
+          pointer-events: none;
+        }
       </style>
-      <div style="overflow-x:auto;width:100%;">
+      <div id="feeTableWrap" style="overflow-x:auto;width:100%;">
         <table class="au-table" style="min-width:780px;width:100%;">
           <thead><tr>
-            <th style="text-align:left;padding:12px 14px;white-space:nowrap;">用户</th>
-            <th style="text-align:center;padding:12px 8px;white-space:nowrap;">状态</th>
+            <th class="fee-sticky-0" style="text-align:left;padding:12px 14px;white-space:nowrap;min-width:160px;">用户</th>
+            <th class="fee-sticky-1" style="text-align:center;padding:12px 8px;white-space:nowrap;min-width:60px;">状态</th>
             ${feeThs}
           </tr></thead>
           <tbody>${rows}</tbody>
