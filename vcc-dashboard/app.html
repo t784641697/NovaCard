@@ -5837,8 +5837,9 @@ async function renderAdminUsers() {
     <div class="panel">
       <div id="adminUserListWrap" style="min-height:400px;"><div class="skeleton" style="height:200px;"></div></div>
     </div>`;
-  window._auState = { page: 1, pageSize: 20, search: '', status: '', dateFrom: '', dateTo: '' };
+  window._auState = { page: 1, pageSize: 20, search: '', status: 'active', dateFrom: '', dateTo: '' };
   initAuDatePicker();
+  document.getElementById('auStatusSelect').value = 'active';
   loadAdminUsers();
 }
 
@@ -5935,9 +5936,9 @@ function doAuSearch() {
 function doAuReset() {
   const el = (id) => document.getElementById(id);
   if (el('auSearchInput')) el('auSearchInput').value = '';
-  if (el('auStatusSelect')) el('auStatusSelect').value = '';
+  if (el('auStatusSelect')) el('auStatusSelect').value = 'active';
   if (window._auDrPicker) window._auDrPicker.clear();
-  window._auState = { page: 1, pageSize: 20, search: '', status: '', dateFrom: '', dateTo: '' };
+  window._auState = { page: 1, pageSize: 20, search: '', status: 'active', dateFrom: '', dateTo: '' };
   loadAdminUsers();
 }
 
