@@ -6226,7 +6226,7 @@ async function loadUserTransactions(forceRefresh) {
     }
   }
 
-  // 前端本地筛选
+  // 前端本地筛选 + 时间倒序排序
   const filtered = (s.allData || []).filter(r => {
     if (s.type && (r.type || '') !== s.type) return false;
     if (s.status && (r.status || '') !== s.status) return false;
@@ -6239,7 +6239,7 @@ async function loadUserTransactions(forceRefresh) {
       if (d > s.endDate) return false;
     }
     return true;
-  });
+  }).sort((a, b) => (b.create_time || '').localeCompare(a.create_time || ''));
 
   // 摘要统计（基于筛选后数据）
   let sumAuth = 0, sumSettle = 0, sumRefund = 0, sumTopup = 0, sumConsume = 0;
@@ -6311,9 +6311,9 @@ async function loadUserTransactions(forceRefresh) {
     const b = parseFloat(r.settle_amount || 0);
     return `<tr>
       <td style="white-space:nowrap;color:var(--text2);font-size:.74rem;">${esc2((r.create_time||'').slice(0,19).replace('T',' '))}</td>
-      <td>${cardNumberHtml}</td>
-      <td><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
-      <td><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
+      <td style="white-space:nowrap;">${cardNumberHtml}</td>
+      <td style="white-space:nowrap;"><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
+      <td style="white-space:nowrap;"><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
       <td class="${typeClass}" style="text-align:right;">${a ? a.toFixed(2) : '—'}</td>
       <td style="color:var(--text2);text-align:center;">${esc2(r.auth_currency || '—')}</td>
       <td class="${typeClass}" style="text-align:right;">${b ? b.toFixed(2) : '—'}</td>
