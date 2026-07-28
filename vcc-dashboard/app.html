@@ -6239,7 +6239,12 @@ async function loadUserTransactions(forceRefresh) {
       if (d > s.endDate) return false;
     }
     return true;
-  }).sort((a, b) => (b.create_time || '').localeCompare(a.create_time || ''));
+  }).sort((a, b) => {
+    // 统一时间格式后再排序（ISO "2026-07-27T15:01:48.203Z" vs "2026-07-27 15:01:48"）
+    const ta = (a.create_time || '').replace('T', ' ').replace(/\.\d+Z$/, '').slice(0, 19);
+    const tb = (b.create_time || '').replace('T', ' ').replace(/\.\d+Z$/, '').slice(0, 19);
+    return tb.localeCompare(ta);
+  });
 
   // 摘要统计（基于筛选后数据）
   let sumAuth = 0, sumSettle = 0, sumRefund = 0, sumTopup = 0, sumConsume = 0;
