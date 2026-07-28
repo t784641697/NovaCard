@@ -7420,7 +7420,8 @@ function renderFeeConfigPage() {
     </div>
   `;
   document.getElementById('contentArea').innerHTML = content;
-  _feePageState = { q: '', status: '', page: 1 };
+  _feePageState = { q: '', status: 'active', page: 1 };
+  document.getElementById('feeStatusSelect').value = 'active';
   loadFeeUserList();
 }
 
@@ -7485,14 +7486,22 @@ async function loadFeeUserList() {
       </tr>`;
     }).join('');
 
-    // 分页 (pill样式)
+    // 分页 (与卡段管理同款)
+    const feePagerBtn = (label, pg, dis, active) =>
+      `<button onclick="_feePageState.page=${pg};loadFeeUserList();"
+               style="background:${active ? 'rgba(99,102,241,.25)' : 'rgba(255,255,255,.05)'};border:1px solid ${active ? 'rgba(99,102,241,.5)' : 'var(--border)'};color:${active ? '#a5b4fc' : 'var(--text-primary)'};border-radius:6px;padding:4px 10px;cursor:${dis ? 'not-allowed' : 'pointer'};opacity:${dis ? .4 : 1};font-size:.82rem;"
+               ${dis ? 'disabled' : ''}>${label}</button>`;
     const pagination = totalPages > 1 ? `
-      <div class="cm-pagination" style="margin-top:16px;">
-        <span style="color:var(--text3);font-size:.82rem;margin-right:auto;">共 ${total} 人</span>
-        <button class="cm-page-btn" ${page <= 1 ? 'disabled' : ''} onclick="_feePageState.page=${page-1};loadFeeUserList();">‹</button>
-        <span style="color:var(--text2);font-size:.85rem;">${page} / ${totalPages}</span>
-        <button class="cm-page-btn" ${page >= totalPages ? 'disabled' : ''} onclick="_feePageState.page=${page+1};loadFeeUserList();">›</button>
-      </div>` : '';
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:.8rem;">
+        <span style="color:var(--text3);">共 ${total} 人</span>
+        <div style="display:flex;gap:4px;align-items:center;">
+          ${feePagerBtn('« 首页', 1, page === 1, false)}
+          ${feePagerBtn('‹ 上一页', page - 1, page === 1, false)}
+          <span style="margin:0 8px;padding:4px 8px;color:var(--text2);">第 ${page} / ${totalPages} 页</span>
+          ${feePagerBtn('下一页 ›', page + 1, page === totalPages, false)}
+          ${feePagerBtn('末页 »', totalPages, page === totalPages, false)}
+        </div>
+      </div>` : '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:.8rem;"><span style="color:var(--text3);">共 ' + total + ' 人</span></div>';
 
     wrap.innerHTML = `
       <style>
@@ -7549,8 +7558,8 @@ function doFeeSearch() {
 function doFeeReset() {
   const el = id => document.getElementById(id);
   if (el('feeUserSearch')) el('feeUserSearch').value = '';
-  if (el('feeStatusSelect')) el('feeStatusSelect').value = '';
-  _feePageState = { q: '', status: '', page: 1 };
+  if (el('feeStatusSelect')) el('feeStatusSelect').value = 'active';
+  _feePageState = { q: '', status: 'active', page: 1 };
   loadFeeUserList();
 }
 
