@@ -189,6 +189,12 @@ if (fs.existsSync(frontendPath)) {
   }
   // 提供其他静态资源（CSS、JS等）也禁用缓存
   app.use('/static', noCache, express.static(frontendDir));
+  // favicon 直接在根路径提供（浏览器默认请求 /favicon.png 或 /favicon.ico）
+  const faviconPath = path.join(frontendDir, 'favicon.png');
+  if (fs.existsSync(faviconPath)) {
+    app.get('/favicon.png', noCache, (req, res) => res.sendFile(faviconPath));
+    app.get('/favicon.ico', noCache, (req, res) => res.sendFile(faviconPath));
+  }
   logger.info('📁 前端静态文件服务已启用：' + frontendDir);
 } else {
   logger.warn('⚠️  前端文件未找到：' + frontendPath);
