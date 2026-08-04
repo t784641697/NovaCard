@@ -2645,9 +2645,9 @@ function show2FALogin(tempToken) {
       </div>
       <div style="text-align:center;">
         <div style="font-size:.85rem;color:#94a3b8;margin-bottom:14px;">请输入 Authenticator 上的 6 位验证码</div>
-        <input id="tfaLoginCode" type="text" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" style="width:180px;padding:12px 16px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:1.6rem;text-align:center;letter-spacing:8px;outline:none;box-sizing:border-box;margin-bottom:14px;" onfocus="this.style.borderColor='rgba(74,222,128,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'" onkeydown="if(event.key==='Enter')submit2FALogin()">
+        <input id="tfaLoginCode" type="text" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" style="width:180px;padding:12px 16px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:1.6rem;text-align:center;letter-spacing:8px;outline:none;box-sizing:border-box;margin-bottom:14px;" onfocus="this.style.borderColor='rgba(74,222,128,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'" onkeydown="if(event.key==='Enter')submit2FALoginAlt()">
         <div id="tfaLoginErr" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;margin-bottom:10px;"></div>
-        <button onclick="submit2FALogin()" id="tfaLoginBtn" style="padding:12px 40px;background:linear-gradient(135deg,#4ade80,#22d3ee);color:#111;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;">验证</button>
+        <button onclick="submit2FALoginAlt()" id="tfaLoginBtn" style="padding:12px 40px;background:linear-gradient(135deg,#4ade80,#22d3ee);color:#111;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;">验证</button>
       </div>
     </div>
   `;
@@ -2655,8 +2655,7 @@ function show2FALogin(tempToken) {
   setTimeout(() => document.getElementById('tfaLoginCode')?.focus(), 100);
 }
 
-async function submit2FALogin() {
-  const code = document.getElementById('tfaLoginCode').value.trim();
+async function submit2FALoginAlt() {
   const errEl = document.getElementById('tfaLoginErr');
   const btn = document.getElementById('tfaLoginBtn');
   if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
