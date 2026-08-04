@@ -22,6 +22,7 @@
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const logger   = require('../utils/logger');
 
 const db            = require('../db/database');
 const { authenticate } = require('../middleware/auth');
