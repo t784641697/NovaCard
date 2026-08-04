@@ -2416,7 +2416,7 @@ async function show2FASetup() {
       // 未启用 - 显示绑定流程
       const setup = await apiFetch('/auth/2fa/setup');
       if (setup.code !== 0) { content.innerHTML = `<p style="color:#f87171">${esc2(setup.msg)}</p>`; return; }
-      const { secret, qrUrl } = setup.data;
+      const { secret, otpauthUrl } = setup.data;
       content.innerHTML = `
         <div style="margin-bottom:16px;">
           <p style="color:#94a3b8;font-size:.85rem;margin-bottom:12px;">1. 使用身份验证器 App 扫描二维码</p>
@@ -2437,7 +2437,7 @@ async function show2FASetup() {
       `;
       // 渲染 QR 码
       if (typeof QRCode !== 'undefined') {
-        new QRCode(document.getElementById('twoFAQrCode'), { text: qrUrl, width: 180, height: 180, colorDark: '#1e1e2e', colorLight: '#ffffff' });
+        new QRCode(document.getElementById('twoFAQrCode'), { text: otpauthUrl, width: 180, height: 180, colorDark: '#1e1e2e', colorLight: '#ffffff' });
       }
     }
   } catch(e) {
