@@ -5401,7 +5401,8 @@ async function _renderCardTxPage() {
     const amtColor=stRaw==='COMPLETE'?'var(--green)':stRaw==='DECLINED'?'var(--red)':stRaw==='PENDING'?'#60a5fa':'var(--text2)';
     const dt=t.create_time?(()=>{const d=new Date(t.create_time.replace(/-/g,'/'));return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');})():'—';
     const amtStyle=`color:${amtColor};font-weight:600;font-size:.8rem;font-family:inherit`;
-    return `<div class="ov-tx-row"><div class="ov-tx-cell" style="font-size:.8rem;font-family:Menlo,Monaco,monospace;letter-spacing:.3px">${cardNum}</div><div class="ov-tx-cell ov-tx-merchant" style="font-size:.8rem;font-family:inherit">${merchant}</div><div class="ov-tx-cell"><span class="tag tag-blue" style="font-size:.75rem">${typeCn}</span></div><div class="ov-tx-cell" style="${amtStyle}">${authAmt!==null?authAmt.toFixed(2):'—'}</div><div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authCurr}</div><div class="ov-tx-cell"><span class="tag ${statusInfo.cls}" style="font-size:.75rem">${statusInfo.label}</span></div><div class="ov-tx-cell" style="${amtStyle}">${settleAmt!==null?settleAmt.toFixed(2):'—'}</div><div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authId}</div><div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${dt}</div></div>`;
+    const descHtml = stRaw==='DECLINED' && t.description ? `<div style="font-size:.65rem;color:#f87171;margin-top:2px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.description.replace(/"/g,'&quot;')}">${t.description.replace(/^Card-/i,'')}</div>` : '';
+    return `<div class="ov-tx-row"><div class="ov-tx-cell" style="font-size:.8rem;font-family:Menlo,Monaco,monospace;letter-spacing:.3px">${cardNum}</div><div class="ov-tx-cell ov-tx-merchant" style="font-size:.8rem;font-family:inherit">${merchant}</div><div class="ov-tx-cell"><span class="tag tag-blue" style="font-size:.75rem">${typeCn}</span></div><div class="ov-tx-cell" style="${amtStyle}">${authAmt!==null?authAmt.toFixed(2):'—'}</div><div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authCurr}</div><div class="ov-tx-cell"><span class="tag ${statusInfo.cls}" style="font-size:.75rem">${statusInfo.label}</span>${descHtml}</div><div class="ov-tx-cell" style="${amtStyle}">${settleAmt!==null?settleAmt.toFixed(2):'—'}</div><div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${authId}</div><div class="ov-tx-cell" style="font-size:.8rem;font-family:inherit">${dt}</div></div>`;
   }).join('');
   wrap.innerHTML=TABLE_HEAD+`<div class="ov-tx-body">${rows}</div>`;
   if(pagi){
@@ -5582,7 +5583,7 @@ async function loadCardSettleList() {
         </div>
         <div style="font-weight:700;color:${isOut ? 'var(--red)' : 'var(--green)'};">${amount}</div>
         <div style="color:var(--text3);font-size:.8rem;">${item.auth_id?.slice(0,12) || '—'}</div>
-        <div><span class="status-tag status-${(item.status||'').toLowerCase()}">${statusName}</span></div>
+        <div><span class="status-tag status-${(item.status||'').toLowerCase()}">${statusName}</span>${item.status==='DECLINED' && item.description ? `<div style="font-size:.68rem;color:#f87171;margin-top:3px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.description.replace(/"/g,'&quot;')}">${item.description.replace(/^Card-/i,'')}</div>` : ''}</div>
         <div style="text-align:right;color:var(--text1);">${fmtDate(item.create_time)}</div>
       </div>
     `;
@@ -6319,7 +6320,7 @@ async function loadUserTransactions(forceRefresh) {
       <td style="white-space:nowrap;color:var(--text2);font-size:.74rem;">${esc2((r.create_time||'').slice(0,19).replace('T',' '))}</td>
       <td style="white-space:nowrap;">${cardNumberHtml}</td>
       <td style="white-space:nowrap;"><span class="ut-tag ${tagClass}">${esc2(typeLabel)}</span></td>
-      <td style="white-space:nowrap;"><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span></td>
+      <td style="white-space:nowrap;"><span class="ut-tag ${stClass}">${esc2(statusLabel)}</span>${st==='DECLINED' && r.description ? `<div style="font-size:.68rem;color:#f87171;margin-top:3px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc2(r.description)}">${esc2(r.description.replace(/^Card-/i,''))}</div>` : ''}</td>
       <td class="${typeClass}" style="text-align:right;">${a ? a.toFixed(2) : '—'}</td>
       <td style="color:var(--text2);text-align:center;">${esc2(r.auth_currency || '—')}</td>
       <td class="${typeClass}" style="text-align:right;">${b ? b.toFixed(2) : '—'}</td>

@@ -1317,7 +1317,7 @@ function fetchCardTransactions(cardIds, opts = {}) {
   const rows = db.prepare(`
     SELECT ct.id, ct.auth_id, ct.card_id, ct.type, ct.status,
            ct.auth_amount, ct.settle_amount, ct.auth_currency, ct.settle_currency,
-           ct.merchant_name, ct.create_time, ct.auth_time, ct.sync_time,
+           ct.merchant_name, ct.description, ct.create_time, ct.auth_time, ct.sync_time,
            c.card_number, c.product_code, c.label
     FROM card_transactions ct
     JOIN cards c ON c.card_id = ct.card_id

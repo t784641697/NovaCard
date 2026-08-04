@@ -36,12 +36,12 @@ async function syncTransactions(opts = {}) {
       for (const tx of list) {
         const existing = db.prepare('SELECT id FROM card_transactions WHERE auth_id = ?').get(tx.auth_id);
         if (existing) {
-          db.prepare(`UPDATE card_transactions SET status=?, settle_amount=?, sync_time=nowiso() WHERE auth_id=?`)
-            .run(tx.status || '', tx.settle_amount || 0, tx.auth_id);
+          db.prepare(`UPDATE card_transactions SET status=?, settle_amount=?, description=?, sync_time=nowiso() WHERE auth_id=?`)
+            .run(tx.status || '', tx.settle_amount || 0, tx.description || '', tx.auth_id);
         } else {
           db.prepare(`INSERT INTO card_transactions
-            (auth_id, card_id, type, status, auth_amount, settle_amount, auth_currency, settle_currency, merchant_name, create_time, auth_time, sync_time)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,nowiso())`)
+            (auth_id, card_id, type, status, auth_amount, settle_amount, auth_currency, settle_currency, merchant_name, description, create_time, auth_time, sync_time)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,nowiso())`)
             .run(
               tx.auth_id || '',
               tx.card_id || '',
@@ -52,6 +52,7 @@ async function syncTransactions(opts = {}) {
               tx.auth_currency || 'USD',
               tx.settle_currency || 'USD',
               tx.merchant_name || '',
+              tx.description || '',
               tx.create_time || '',
               tx.auth_time || ''
             );

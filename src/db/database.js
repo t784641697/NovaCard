@@ -183,6 +183,7 @@ db.exec(`
     auth_currency TEXT    DEFAULT 'USD',
     settle_currency TEXT   DEFAULT 'USD',
     merchant_name TEXT,
+    description   TEXT,                        -- 上游返回的失败原因等描述
     create_time   TEXT,
     auth_time     TEXT,
     sync_time     TEXT    DEFAULT (nowiso())
