@@ -2293,7 +2293,7 @@ async function submitChangePassword() {
 
 /* ============ 2FA 登录验证弹窗 ============ */
 function show2FADialog(tempToken) {
-  window._tempToken = tempToken;
+  _tempToken = tempToken;
   let overlay = document.getElementById('twoFAOverlay');
   if (overlay) overlay.remove();
   overlay = document.createElement('div');
@@ -2347,15 +2347,15 @@ async function submit2FALogin() {
     const r = await fetch('/api/auth/2fa/verify-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tempToken: window._tempToken, code })
+      body: JSON.stringify({ tempToken: _tempToken, code })
     }).then(r => r.json());
     if (r.code === 0) {
+      _token = r.data.token;
+      _me = r.data.user;
       localStorage.setItem('vcc_token', r.data.token);
       localStorage.setItem('vcc_me', JSON.stringify(r.data.user));
-      window._token = r.data.token;
-      window._me = r.data.user;
       document.getElementById('twoFAOverlay').remove();
-      window._tempToken = null;
+      _tempToken = null;
       toast('登录成功', 'success');
       enterDash();
     } else {
@@ -2631,7 +2631,7 @@ async function _disable2FA() {
 
 // 登录 2FA 验证弹窗
 function show2FALogin(tempToken) {
-  window._tempToken = tempToken;
+  _tempToken = tempToken;
   const overlay = document.createElement('div');
   overlay.id = 'tfaLoginOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);';
@@ -2656,18 +2656,20 @@ function show2FALogin(tempToken) {
 }
 
 async function submit2FALoginAlt() {
+  const code = document.getElementById('tfaLoginCode').value.trim();
   const errEl = document.getElementById('tfaLoginErr');
   const btn = document.getElementById('tfaLoginBtn');
   if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = '验证中...';
   try {
-    const r = await apiFetch('/auth/2fa/verify-login', { method: 'POST', body: { tempToken: window._tempToken, code } });
+    const r = await apiFetch('/auth/2fa/verify-login', { method: 'POST', body: { tempToken: _tempToken, code } });
     if (r.code === 0) {
+      _token = r.data.token;
+      _me = r.data.user;
       localStorage.setItem('vcc_token', r.data.token);
       localStorage.setItem('vcc_me', JSON.stringify(r.data.user));
       document.getElementById('tfaLoginOverlay').remove();
-      window._token = r.data.token;
-      window._me = r.data.user;
+      _tempToken = null;
       enterDash();
     } else {
       errEl.textContent = r.msg || '验证码错误';
