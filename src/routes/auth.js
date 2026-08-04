@@ -248,7 +248,7 @@ router.post('/login', loginRateLimiter, replayProtection, async (req, res) => {
   `).run(ip, user.id);
 
   // 2FA 检查：已启用则返回临时 token，要求输入 TOTP 码
-  if (user.two_fa_enabled && user.two_fa_secret) {
+  if (user.two_factor_enabled && user.two_factor_secret) {
     const tempToken = jwt.sign(
       { id: user.id, email: user.email, role: user.role, twoFaPending: true },
       JWT_SECRET,
@@ -423,9 +423,9 @@ router.post('/change-password', authenticate, async (req, res) => {
 // 1. 生成 2FA 密钥 + QR 码 (需登录)
 router.post('/2fa/setup', authenticate, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, email, two_fa_enabled, two_fa_secret FROM users WHERE id=?').get(req.userId);
+    const user = db.prepare('SELECT id, email, two_factor_enabled, two_factor_secret FROM users WHERE id=?').get(req.userId);
     if (!user) return res.status(401).json({ code: 401, msg: '用户不存在' });
-    if (user.two_fa_enabled) return res.status(400).json({ code: 400, msg: '2FA 已启用，如需重新绑定请先禁用' });
+    if (user.two_factor_enabled) return res.status(400).json({ code: 400, msg: '2FA 已启用，如需重新绑定请先禁用' });
 
     const { TOTP, Secret } = require('otpauth');
     const secret = new Secret({ size: 20 });
@@ -438,7 +438,7 @@ router.post('/2fa/setup', authenticate, (req, res) => {
     });
 
     // 临时存储到 DB (未启用状态)
-    db.prepare('UPDATE users SET two_fa_secret=? WHERE id=?').run(secret.base32, user.id);
+    db.prepare('UPDATE users SET two_factor_secret=? WHERE id=?').run(secret.base32, user.id);
 
     res.json({
       code: 0,
@@ -460,16 +460,16 @@ router.post('/2fa/enable', authenticate, (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ code: 400, msg: '请输入验证码' });
 
-    const user = db.prepare('SELECT id, two_fa_secret, two_fa_enabled FROM users WHERE id=?').get(req.userId);
+    const user = db.prepare('SELECT id, two_factor_secret, two_factor_enabled FROM users WHERE id=?').get(req.userId);
     if (!user) return res.status(401).json({ code: 401, msg: '用户不存在' });
-    if (user.two_fa_enabled) return res.status(400).json({ code: 400, msg: '2FA 已启用' });
-    if (!user.two_fa_secret) return res.status(400).json({ code: 400, msg: '请先生成2FA密钥' });
+    if (user.two_factor_enabled) return res.status(400).json({ code: 400, msg: '2FA 已启用' });
+    if (!user.two_factor_secret) return res.status(400).json({ code: 400, msg: '请先生成2FA密钥' });
 
     const { TOTP, Secret } = require('otpauth');
     const totp = new TOTP({
       issuer: 'NovaCard',
       label: '',
-      secret: Secret.fromBase32(user.two_fa_secret),
+      secret: Secret.fromBase32(user.two_factor_secret),
       digits: 6,
       period: 30,
     });
@@ -479,7 +479,7 @@ router.post('/2fa/enable', authenticate, (req, res) => {
       return res.status(400).json({ code: 400, msg: '验证码错误，请重试' });
     }
 
-    db.prepare('UPDATE users SET two_fa_enabled=1 WHERE id=?').run(user.id);
+    db.prepare('UPDATE users SET two_factor_enabled=1 WHERE id=?').run(user.id);
     logger.info('2FA enabled for user ' + user.id);
 
     res.json({ code: 0, msg: '2FA 已启用' });
@@ -504,8 +504,8 @@ router.post('/2fa/verify-login', (req, res) => {
     }
     if (!payload.twoFaPending) return res.status(400).json({ code: 400, msg: '无效的临时令牌' });
 
-    const user = db.prepare('SELECT id, email, name, role, balance, two_fa_secret, two_fa_enabled FROM users WHERE id=?').get(payload.id);
-    if (!user || !user.two_fa_enabled || !user.two_fa_secret) {
+    const user = db.prepare('SELECT id, email, name, role, balance, two_factor_secret, two_factor_enabled FROM users WHERE id=?').get(payload.id);
+    if (!user || !user.two_factor_enabled || !user.two_factor_secret) {
       return res.status(400).json({ code: 400, msg: '2FA 未启用' });
     }
 
@@ -513,7 +513,7 @@ router.post('/2fa/verify-login', (req, res) => {
     const totp = new TOTP({
       issuer: 'NovaCard',
       label: '',
-      secret: Secret.fromBase32(user.two_fa_secret),
+      secret: Secret.fromBase32(user.two_factor_secret),
       digits: 6,
       period: 30,
     });
@@ -557,14 +557,14 @@ router.post('/2fa/disable', authenticate, (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ code: 400, msg: '请输入验证码' });
 
-    const user = db.prepare('SELECT id, two_fa_secret, two_fa_enabled FROM users WHERE id=?').get(req.userId);
-    if (!user || !user.two_fa_enabled) return res.status(400).json({ code: 400, msg: '2FA 未启用' });
+    const user = db.prepare('SELECT id, two_factor_secret, two_factor_enabled FROM users WHERE id=?').get(req.userId);
+    if (!user || !user.two_factor_enabled) return res.status(400).json({ code: 400, msg: '2FA 未启用' });
 
     const { TOTP, Secret } = require('otpauth');
     const totp = new TOTP({
       issuer: 'NovaCard',
       label: '',
-      secret: Secret.fromBase32(user.two_fa_secret),
+      secret: Secret.fromBase32(user.two_factor_secret),
       digits: 6,
       period: 30,
     });
@@ -574,7 +574,7 @@ router.post('/2fa/disable', authenticate, (req, res) => {
       return res.status(400).json({ code: 400, msg: '验证码错误，请重试' });
     }
 
-    db.prepare('UPDATE users SET two_fa_enabled=0, two_fa_secret=NULL WHERE id=?').run(user.id);
+    db.prepare('UPDATE users SET two_factor_enabled=0, two_factor_secret=NULL WHERE id=?').run(user.id);
     logger.info('2FA disabled for user ' + user.id);
 
     res.json({ code: 0, msg: '2FA 已禁用' });
@@ -587,9 +587,9 @@ router.post('/2fa/disable', authenticate, (req, res) => {
 // 5. 查询 2FA 状态
 router.get('/2fa/status', authenticate, (req, res) => {
   try {
-    const user = db.prepare('SELECT two_fa_enabled FROM users WHERE id=?').get(req.userId);
+    const user = db.prepare('SELECT two_factor_enabled FROM users WHERE id=?').get(req.userId);
     if (!user) return res.status(401).json({ code: 401, msg: '用户不存在' });
-    res.json({ code: 0, data: { enabled: !!user.two_fa_enabled } });
+    res.json({ code: 0, data: { enabled: !!user.two_factor_enabled } });
   } catch (err) {
     res.status(500).json({ code: 500, msg: '查询失败' });
   }
