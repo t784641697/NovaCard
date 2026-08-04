@@ -37,6 +37,8 @@ db.exec(`
     locked_until    TEXT    NOT NULL DEFAULT '',       -- 锁定到期时间（ISO 字符串）
     last_login_at   TEXT    NOT NULL DEFAULT '',
     last_login_ip   TEXT    NOT NULL DEFAULT '',
+    two_factor_secret TEXT    NOT NULL DEFAULT '',  -- TOTP 密钥(base32)
+    two_factor_enabled INTEGER NOT NULL DEFAULT 0, -- 0=未启用 1=已启用
     created_at      TEXT    NOT NULL DEFAULT (nowiso()),
     updated_at      TEXT    NOT NULL DEFAULT (nowiso())
   );

@@ -1667,6 +1667,7 @@ const API_BASE = (window.location.hostname==='localhost'||window.location.hostna
 
 let _token = localStorage.getItem('vcc_token') || null;
 let _me    = JSON.parse(localStorage.getItem('vcc_me') || 'null');
+let _tempToken = null; // 2FA 临时 token
 
 
 // 诊断函数 - 用于测试管理员按钮显示
@@ -2021,6 +2022,11 @@ async function doLogin() {
       return;
     }
 
+    // 2FA 检查：管理员启用了2FA时，需要输入验证码
+    if (data.data.require2FA) {
+      show2FADialog(data.data.tempToken);
+      return;
+    }
 
     _token = data.data.token; _me = data.data.user;
     localStorage.setItem('vcc_token', _token);
@@ -2203,6 +2209,7 @@ function showAccountInfo() {
         <div style="display:flex;gap:10px;">
           ${!companyName && !isAdmin ? `<button onclick="document.getElementById('accountInfoOverlay').remove();gotoPage('kyc');" style="flex:1;padding:11px;background:${accent};color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;box-shadow:0 4px 12px rgba(126,184,247,.25);">立即去认证</button>` : '<div></div>'}
           <button onclick="document.getElementById('accountInfoOverlay').remove();showChangePassword();" style="flex:1;padding:11px;background:transparent;color:#a78bfa;border:1px solid rgba(167,139,250,.3);border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;">修改密码</button>
+          <button onclick="document.getElementById('accountInfoOverlay').remove();show2FASettings();" style="flex:1;padding:11px;background:transparent;color:#4ade80;border:1px solid rgba(74,222,128,.3);border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;">安全设置</button>
           <button onclick="document.getElementById('accountInfoOverlay').remove();doLogout();" style="flex:1;padding:11px;background:var(--grad);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;box-shadow:0 4px 12px rgba(167,139,250,.25);">退出登录</button>
         </div>
       </div>
@@ -2282,6 +2289,394 @@ async function submitChangePassword() {
     errEl.style.display = 'block';
   }
   btn.disabled = false; btn.textContent = '确认修改';
+}
+
+/* ============ 2FA 登录验证弹窗 ============ */
+function show2FADialog(tempToken) {
+  window._tempToken = tempToken;
+  let overlay = document.getElementById('twoFAOverlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'twoFAOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);';
+  overlay.innerHTML = `
+    <div style="background:#1e1e2e;border-radius:16px;padding:28px 24px;width:380px;max-width:92vw;box-shadow:0 24px 48px rgba(0,0,0,.4);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <span style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">两步验证</span>
+      </div>
+      <p style="font-size:.85rem;color:#94a3b8;margin-bottom:16px;">请输入身份验证器中的6位验证码</p>
+      <div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;" id="twoFAInputs">
+        ${Array(6).fill(0).map((_,i) => `<input maxlength="1" data-idx="${i}" style="width:42px;height:48px;text-align:center;font-size:1.3rem;font-weight:700;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;outline:none;" onfocus="this.style.borderColor='rgba(167,139,250,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'" oninput="twoFAInput(this)" onkeydown="twoFAKeydown(event,this)">`).join('')}
+      </div>
+      <div id="twoFAError" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;margin-bottom:12px;"></div>
+      <button id="twoFASubmitBtn" onclick="submit2FALogin()" style="width:100%;padding:12px;background:var(--grad);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;box-shadow:0 4px 12px rgba(167,139,250,.25);">验证</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.querySelector('input[data-idx="0"]').focus(), 100);
+}
+function twoFAInput(el) {
+  const idx = parseInt(el.dataset.idx);
+  if (el.value.length === 1 && idx < 5) {
+    const next = el.parentElement.querySelector(`input[data-idx="${idx+1}"]`);
+    if (next) next.focus();
+  }
+  // 自动提交
+  const inputs = el.parentElement.querySelectorAll('input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  if (code.length === 6) submit2FALogin();
+}
+function twoFAKeydown(e, el) {
+  const idx = parseInt(el.dataset.idx);
+  if (e.key === 'Backspace' && !el.value && idx > 0) {
+    const prev = el.parentElement.querySelector(`input[data-idx="${idx-1}"]`);
+    if (prev) { prev.focus(); prev.value = ''; }
+  }
+}
+async function submit2FALogin() {
+  const inputs = document.querySelectorAll('#twoFAInputs input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  const errEl = document.getElementById('twoFAError');
+  const btn = document.getElementById('twoFASubmitBtn');
+  if (code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = '验证中...';
+  try {
+    const r = await fetch('/api/auth/2fa/verify-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': window._tempToken },
+      body: JSON.stringify({ code })
+    }).then(r => r.json());
+    if (r.code === 0) {
+      localStorage.setItem('token', r.data.token);
+      window._token = r.data.token;
+      document.getElementById('twoFAOverlay').remove();
+      window._tempToken = null;
+      toast('登录成功', 'success');
+      if (typeof initApp === 'function') initApp();
+    } else {
+      errEl.textContent = r.msg || '验证码错误';
+      errEl.style.display = 'block';
+      // 清空输入
+      inputs.forEach(i => i.value = '');
+      inputs[0].focus();
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误，请重试';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '验证';
+}
+
+/* ============ 2FA 安全设置 ============ */
+async function show2FASetup() {
+  const overlay = document.createElement('div');
+  overlay.id = 'twoFASetupOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);';
+  overlay.innerHTML = `
+    <div style="background:#1e1e2e;border-radius:16px;padding:28px 24px;width:400px;max-width:92vw;box-shadow:0 24px 48px rgba(0,0,0,.4);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <span style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">安全设置</span>
+        <span onclick="document.getElementById('twoFASetupOverlay').remove()" style="margin-left:auto;cursor:pointer;color:#64748b;font-size:1.2rem;line-height:1;">✕</span>
+      </div>
+      <div id="twoFASetupContent" style="text-align:center;color:#94a3b8;font-size:.85rem;">加载中...</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  try {
+    const r = await apiFetch('/api/auth/2fa/status');
+    const content = document.getElementById('twoFASetupContent');
+    if (r.data && r.data.enabled) {
+      // 已启用 - 显示禁用选项
+      content.innerHTML = `
+        <div style="margin-bottom:20px;">
+          <div style="width:56px;height:56px;border-radius:50%;background:rgba(74,222,128,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <p style="color:#4ade80;font-weight:600;font-size:1rem;margin-bottom:4px;">两步验证已启用</p>
+          <p style="color:#94a3b8;font-size:.82rem;">登录时需要输入验证码</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+          <p style="color:#94a3b8;font-size:.82rem;">输入当前验证码以禁用</p>
+          <div style="display:flex;justify-content:center;gap:6px;" id="disable2FAInputs">
+            ${Array(6).fill(0).map((_,i) => `<input maxlength="1" data-idx="${i}" style="width:42px;height:48px;text-align:center;font-size:1.3rem;font-weight:700;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;outline:none;" onfocus="this.style.borderColor='rgba(167,139,250,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'" oninput="twoFAInput(this)" onkeydown="twoFAKeydown(event,this)">`).join('')}
+          </div>
+          <div id="disable2FAError" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;"></div>
+          <button onclick="submitDisable2FA()" style="padding:12px;background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25);border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;">禁用两步验证</button>
+        </div>
+      `;
+    } else {
+      // 未启用 - 显示绑定流程
+      const setup = await apiFetch('/api/auth/2fa/setup');
+      if (setup.code !== 0) { content.innerHTML = `<p style="color:#f87171">${esc2(setup.msg)}</p>`; return; }
+      const { secret, qrUrl } = setup.data;
+      content.innerHTML = `
+        <div style="margin-bottom:16px;">
+          <p style="color:#94a3b8;font-size:.85rem;margin-bottom:12px;">1. 使用身份验证器 App 扫描二维码</p>
+          <div style="background:#fff;border-radius:12px;padding:12px;display:inline-block;margin-bottom:12px;">
+            <div id="twoFAQrCode"></div>
+          </div>
+          <p style="color:#64748b;font-size:.75rem;margin-bottom:8px;">无法扫码？手动输入密钥：</p>
+          <div style="background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.12);border-radius:8px;padding:8px 12px;font-family:monospace;font-size:.82rem;color:#7eb8f7;word-break:break-all;user-select:all;">${esc2(secret)}</div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <p style="color:#94a3b8;font-size:.85rem;margin-bottom:8px;">2. 输入验证码确认绑定</p>
+          <div style="display:flex;justify-content:center;gap:6px;" id="enable2FAInputs">
+            ${Array(6).fill(0).map((_,i) => `<input maxlength="1" data-idx="${i}" style="width:42px;height:48px;text-align:center;font-size:1.3rem;font-weight:700;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;outline:none;" onfocus="this.style.borderColor='rgba(167,139,250,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'" oninput="twoFAInput(this)" onkeydown="twoFAKeydown(event,this)">`).join('')}
+          </div>
+          <div id="enable2FAError" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;margin-top:8px;"></div>
+        </div>
+        <button onclick="submitEnable2FA()" style="width:100%;padding:12px;background:var(--grad);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;box-shadow:0 4px 12px rgba(167,139,250,.25);">确认绑定</button>
+      `;
+      // 渲染 QR 码
+      if (typeof QRCode !== 'undefined') {
+        new QRCode(document.getElementById('twoFAQrCode'), { text: qrUrl, width: 180, height: 180, colorDark: '#1e1e2e', colorLight: '#ffffff' });
+      }
+    }
+  } catch(e) {
+    document.getElementById('twoFASetupContent').innerHTML = `<p style="color:#f87171">加载失败: ${esc2(e.message)}</p>`;
+  }
+}
+async function submitEnable2FA() {
+  const inputs = document.querySelectorAll('#enable2FAInputs input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  const errEl = document.getElementById('enable2FAError');
+  if (code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
+  try {
+    const r = await apiFetch('/api/auth/2fa/enable', { method: 'POST', body: { code } });
+    if (r.code === 0) {
+      toast('两步验证已启用', 'success');
+      document.getElementById('twoFASetupOverlay').remove();
+    } else {
+      errEl.textContent = r.msg || '验证码错误';
+      errEl.style.display = 'block';
+      inputs.forEach(i => i.value = '');
+      inputs[0].focus();
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误';
+    errEl.style.display = 'block';
+  }
+}
+async function submitDisable2FA() {
+  const inputs = document.querySelectorAll('#disable2FAInputs input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  const errEl = document.getElementById('disable2FAError');
+  if (code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
+  try {
+    const r = await apiFetch('/api/auth/2fa/disable', { method: 'POST', body: { code } });
+    if (r.code === 0) {
+      toast('两步验证已禁用', 'success');
+      document.getElementById('twoFASetupOverlay').remove();
+    } else {
+      errEl.textContent = r.msg || '验证码错误';
+      errEl.style.display = 'block';
+      inputs.forEach(i => i.value = '');
+      inputs[0].focus();
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误';
+    errEl.style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  2FA (TOTP) 安全设置
+// ══════════════════════════════════════════════
+async function show2FASettings() {
+  const overlay = document.createElement('div');
+  overlay.id = 'tfaOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);';
+  overlay.innerHTML = `
+    <div style="background:#1e1e2e;border-radius:16px;padding:28px 24px;width:400px;max-width:92vw;box-shadow:0 24px 48px rgba(0,0,0,.4);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4ade80,#22d3ee);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <span style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">安全设置</span>
+        <span onclick="document.getElementById('tfaOverlay').remove()" style="margin-left:auto;cursor:pointer;color:#64748b;font-size:1.2rem;line-height:1;">✕</span>
+      </div>
+      <div id="tfaContent" style="text-align:center;padding:20px 0;color:#94a3b8;">加载中...</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // 查询当前 2FA 状态
+  try {
+    const r = await apiFetch('/api/auth/2fa/status');
+    if (r.code === 0 && r.data.enabled) {
+      _render2FAEnabled(r.data);
+    } else {
+      _render2FADisabled();
+    }
+  } catch(e) {
+    document.getElementById('tfaContent').innerHTML = '<div style="color:#f87171;">加载失败</div>';
+  }
+}
+
+function _render2FADisabled() {
+  const c = document.getElementById('tfaContent');
+  c.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:rgba(248,113,113,.1);display:flex;align-items:center;justify-content:center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div style="font-size:.95rem;font-weight:600;color:#f87171;margin-bottom:4px;">两步验证未启用</div>
+      <div style="font-size:.8rem;color:#94a3b8;">启用后登录需额外输入验证码，大幅提升账户安全</div>
+    </div>
+    <button onclick="_start2FASetup()" style="padding:12px 32px;background:linear-gradient(135deg,#4ade80,#22d3ee);color:#111;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;">启用两步验证</button>
+  `;
+}
+
+async function _start2FASetup() {
+  const c = document.getElementById('tfaContent');
+  c.innerHTML = '<div style="color:#94a3b8;">正在生成密钥...</div>';
+  try {
+    const r = await apiFetch('/api/auth/2fa/setup', { method: 'POST' });
+    if (r.code !== 0) { c.innerHTML = '<div style="color:#f87171;">' + esc2(r.msg) + '</div>'; return; }
+    const d = r.data;
+    c.innerHTML = `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.95rem;font-weight:600;color:#4ade80;margin-bottom:8px;">第一步：扫码绑定</div>
+        <div style="font-size:.78rem;color:#94a3b8;margin-bottom:12px;">使用 Google Authenticator / Microsoft Authenticator 扫描下方二维码</div>
+        <div style="background:#fff;border-radius:12px;padding:12px;display:inline-block;margin-bottom:12px;">
+          <div id="tfaQrCode"></div>
+        </div>
+        <div style="font-size:.72rem;color:#64748b;word-break:break-all;background:rgba(0,0,0,.2);padding:8px 10px;border-radius:6px;margin-top:4px;">密钥：${esc2(d.secret)}</div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.95rem;font-weight:600;color:#4ade80;margin-bottom:8px;">第二步：输入验证码确认</div>
+        <div style="font-size:.78rem;color:#94a3b8;margin-bottom:8px;">输入 Authenticator 上显示的 6 位数字</div>
+        <input id="tfaSetupCode" type="text" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" style="width:160px;padding:10px 14px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:1.4rem;text-align:center;letter-spacing:6px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(74,222,128,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'">
+      </div>
+      <div id="tfaSetupErr" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;margin-bottom:10px;"></div>
+      <button onclick="_confirm2FASetup()" style="padding:12px 32px;background:linear-gradient(135deg,#4ade80,#22d3ee);color:#111;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;">确认启用</button>
+    `;
+    // 渲染 QR 码
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(document.getElementById('tfaQrCode'), { text: d.otpauth_url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+    }
+  } catch(e) {
+    c.innerHTML = '<div style="color:#f87171;">生成失败，请重试</div>';
+  }
+}
+
+async function _confirm2FASetup() {
+  const code = document.getElementById('tfaSetupCode').value.trim();
+  const errEl = document.getElementById('tfaSetupErr');
+  if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
+  try {
+    const r = await apiFetch('/api/auth/2fa/enable', { method: 'POST', body: { code } });
+    if (r.code === 0) {
+      document.getElementById('tfaOverlay').remove();
+      toast('两步验证已启用', 'success');
+    } else {
+      errEl.textContent = r.msg || '验证码错误';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误';
+    errEl.style.display = 'block';
+  }
+}
+
+function _render2FAEnabled(data) {
+  const c = document.getElementById('tfaContent');
+  c.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:rgba(74,222,128,.1);display:flex;align-items:center;justify-content:center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+      </div>
+      <div style="font-size:.95rem;font-weight:600;color:#4ade80;margin-bottom:4px;">两步验证已启用</div>
+      <div style="font-size:.8rem;color:#94a3b8;">绑定时间：${esc2(data.enabled_at || '未知')}</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:.88rem;font-weight:600;color:#e2e8f0;margin-bottom:8px;">禁用两步验证</div>
+      <div style="font-size:.78rem;color:#94a3b8;margin-bottom:8px;">输入当前验证码确认禁用</div>
+      <input id="tfaDisableCode" type="text" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" style="width:160px;padding:10px 14px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:1.4rem;text-align:center;letter-spacing:6px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(248,113,113,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'">
+    </div>
+    <div id="tfaDisableErr" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;margin-bottom:10px;"></div>
+    <button onclick="_disable2FA()" style="padding:12px 32px;background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;">禁用两步验证</button>
+  `;
+}
+
+async function _disable2FA() {
+  const code = document.getElementById('tfaDisableCode').value.trim();
+  const errEl = document.getElementById('tfaDisableErr');
+  if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
+  try {
+    const r = await apiFetch('/api/auth/2fa/disable', { method: 'POST', body: { code } });
+    if (r.code === 0) {
+      document.getElementById('tfaOverlay').remove();
+      toast('两步验证已禁用', 'success');
+    } else {
+      errEl.textContent = r.msg || '验证码错误';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误';
+    errEl.style.display = 'block';
+  }
+}
+
+// 登录 2FA 验证弹窗
+function show2FALogin(tempToken) {
+  window._tempToken = tempToken;
+  const overlay = document.createElement('div');
+  overlay.id = 'tfaLoginOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);';
+  overlay.innerHTML = `
+    <div style="background:#1e1e2e;border-radius:16px;padding:28px 24px;width:380px;max-width:92vw;box-shadow:0 24px 48px rgba(0,0,0,.4);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4ade80,#22d3ee);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <span style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">两步验证</span>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:.85rem;color:#94a3b8;margin-bottom:14px;">请输入 Authenticator 上的 6 位验证码</div>
+        <input id="tfaLoginCode" type="text" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" style="width:180px;padding:12px 16px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:1.6rem;text-align:center;letter-spacing:8px;outline:none;box-sizing:border-box;margin-bottom:14px;" onfocus="this.style.borderColor='rgba(74,222,128,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'" onkeydown="if(event.key==='Enter')submit2FALogin()">
+        <div id="tfaLoginErr" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;margin-bottom:10px;"></div>
+        <button onclick="submit2FALogin()" id="tfaLoginBtn" style="padding:12px 40px;background:linear-gradient(135deg,#4ade80,#22d3ee);color:#111;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;">验证</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('tfaLoginCode')?.focus(), 100);
+}
+
+async function submit2FALogin() {
+  const code = document.getElementById('tfaLoginCode').value.trim();
+  const errEl = document.getElementById('tfaLoginErr');
+  const btn = document.getElementById('tfaLoginBtn');
+  if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = '验证中...';
+  try {
+    const r = await apiFetch('/api/auth/2fa/verify-login', { method: 'POST', body: { temp_token: window._tempToken, code } });
+    if (r.code === 0) {
+      localStorage.setItem('token', r.data.token);
+      localStorage.setItem('user', JSON.stringify(r.data.user));
+      document.getElementById('tfaLoginOverlay').remove();
+      window._token = r.data.token;
+      window._user = r.data.user;
+      if (typeof initApp === 'function') initApp();
+    } else {
+      errEl.textContent = r.msg || '验证码错误';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '验证';
 }
 
 // ══════════════════════════════════════════════
