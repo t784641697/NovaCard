@@ -532,7 +532,7 @@ router.post('/2fa/verify-login', (req, res) => {
 
     // 更新登录信息
     const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
-    db.prepare('UPDATE users SET login_fail_cnt=0, last_login_at=datetime("now"), last_login_ip=? WHERE id=?').run(ip, user.id);
+    db.prepare("UPDATE users SET login_fail_cnt=0, last_login_at=datetime('now'), last_login_ip=? WHERE id=?").run(ip, user.id);
     writeLog({ userId: user.id, action: 'login_2fa_ok', ip, ua: req.headers['user-agent'] || '', detail: {} });
 
     const kycApp = db.prepare("SELECT company_name FROM kyc_applications WHERE user_id = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1").get(user.id);
