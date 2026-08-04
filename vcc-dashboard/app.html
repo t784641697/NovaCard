@@ -2201,6 +2201,7 @@ function showAccountInfo() {
 
         <div style="display:flex;gap:10px;">
           ${!companyName && !isAdmin ? `<button onclick="document.getElementById('accountInfoOverlay').remove();gotoPage('kyc');" style="flex:1;padding:11px;background:${accent};color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;box-shadow:0 4px 12px rgba(126,184,247,.25);">立即去认证</button>` : '<div></div>'}
+          <button onclick="document.getElementById('accountInfoOverlay').remove();showChangePassword();" style="flex:1;padding:11px;background:transparent;color:#a78bfa;border:1px solid rgba(167,139,250,.3);border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;">修改密码</button>
           <button onclick="document.getElementById('accountInfoOverlay').remove();doLogout();" style="flex:1;padding:11px;background:var(--grad);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.88rem;transition:all .15s;box-shadow:0 4px 12px rgba(167,139,250,.25);">退出登录</button>
         </div>
       </div>
@@ -2215,6 +2216,71 @@ function doLogout() {
   localStorage.removeItem('vcc_token');
   localStorage.removeItem('vcc_me');
   showAuth();
+}
+
+function showChangePassword() {
+  const overlay = document.createElement('div');
+  overlay.id = 'changePwOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);';
+  overlay.innerHTML = `
+    <div style="background:#1e1e2e;border-radius:16px;padding:28px 24px;width:380px;max-width:92vw;box-shadow:0 24px 48px rgba(0,0,0,.4);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <span style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">修改密码</span>
+        <span onclick="document.getElementById('changePwOverlay').remove()" style="margin-left:auto;cursor:pointer;color:#64748b;font-size:1.2rem;line-height:1;">✕</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="font-size:.78rem;color:#94a3b8;margin-bottom:4px;display:block;">当前密码</label>
+          <input id="cpOldPw" type="password" placeholder="输入当前密码" style="width:100%;padding:10px 12px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:.88rem;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(167,139,250,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'">
+        </div>
+        <div>
+          <label style="font-size:.78rem;color:#94a3b8;margin-bottom:4px;display:block;">新密码</label>
+          <input id="cpNewPw" type="password" placeholder="至少6位" style="width:100%;padding:10px 12px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:.88rem;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(167,139,250,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'">
+        </div>
+        <div>
+          <label style="font-size:.78rem;color:#94a3b8;margin-bottom:4px;display:block;">确认新密码</label>
+          <input id="cpConfirmPw" type="password" placeholder="再次输入新密码" style="width:100%;padding:10px 12px;background:rgba(126,184,247,.06);border:1px solid rgba(126,184,247,.15);border-radius:8px;color:#e2e8f0;font-size:.88rem;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(167,139,250,.5)'" onblur="this.style.borderColor='rgba(126,184,247,.15)'">
+        </div>
+        <div id="cpError" style="display:none;font-size:.78rem;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:6px;"></div>
+        <button id="cpSubmitBtn" onclick="submitChangePassword()" style="padding:12px;background:var(--grad);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .15s;box-shadow:0 4px 12px rgba(167,139,250,.25);">确认修改</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function submitChangePassword() {
+  const oldPw = document.getElementById('cpOldPw').value;
+  const newPw = document.getElementById('cpNewPw').value;
+  const confirmPw = document.getElementById('cpConfirmPw').value;
+  const errEl = document.getElementById('cpError');
+  const btn = document.getElementById('cpSubmitBtn');
+
+  errEl.style.display = 'none';
+  if (!oldPw || !newPw || !confirmPw) { errEl.textContent = '请填写所有字段'; errEl.style.display = 'block'; return; }
+  if (newPw.length < 6) { errEl.textContent = '新密码至少6位'; errEl.style.display = 'block'; return; }
+  if (newPw !== confirmPw) { errEl.textContent = '两次新密码不一致'; errEl.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = '修改中...';
+  try {
+    const r = await apiFetch('/api/auth/change-password', { method: 'POST', body: { old_password: oldPw, new_password: newPw } });
+    if (r.code === 0) {
+      document.getElementById('changePwOverlay').remove();
+      toast('密码修改成功，请重新登录', 'success');
+      setTimeout(() => doLogout(), 1200);
+    } else {
+      errEl.textContent = r.msg || '修改失败';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误，请重试';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '确认修改';
 }
 
 // ══════════════════════════════════════════════

@@ -360,4 +360,44 @@ router.get('/announcements/history', (req, res) => {
   res.json({ code: 0, msg: 'ok', data: list });
 });
 
+// ══════════════════════════════════════════════════════════════════════════
+//  POST /api/auth/change-password   修改密码
+// ══════════════════════════════════════════════════════════════════════════
+router.post('/change-password', authenticate, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    if (!oldPassword || !newPassword) {
+      return res.json({ code: 400, msg: '旧密码和新密码不能为空' });
+    }
+    if (newPassword.length < 8) {
+      return res.json({ code: 400, msg: '新密码至少8位' });
+    }
+    if (oldPassword === newPassword) {
+      return res.json({ code: 400, msg: '新密码不能与旧密码相同' });
+    }
+
+    const user = db.prepare('SELECT id, password_hash FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      return res.json({ code: 404, msg: '用户不存在' });
+    }
+
+    const valid = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!valid) {
+      return res.json({ code: 401, msg: '旧密码错误' });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, userId);
+
+    writeLog('密码修改', userId, req);
+
+    res.json({ code: 0, msg: '密码修改成功，请重新登录' });
+  } catch (err) {
+    logger.error('修改密码失败:', err);
+    res.json({ code: 500, msg: '修改密码失败' });
+  }
+});
+
 module.exports = router;
