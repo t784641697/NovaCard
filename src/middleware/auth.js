@@ -35,6 +35,9 @@ function authenticate(req, res, next) {
     if (user.status === 'disabled') {
       return res.status(403).json({ code: 403, msg: '账号已被禁用，请联系管理员' });
     }
+    if (user.status === 'frozen') {
+      return res.status(403).json({ code: 403, msg: '账号已被冻结，请联系管理员' });
+    }
 
     req.user = payload;
     next();
