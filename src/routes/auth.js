@@ -423,7 +423,7 @@ router.post('/change-password', authenticate, async (req, res) => {
 // 1. 生成 2FA 密钥 + QR 码 (需登录)
 router.post('/2fa/setup', authenticate, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, email, two_factor_enabled, two_factor_secret FROM users WHERE id=?').get(req.userId);
+    const user = db.prepare('SELECT id, email, two_factor_enabled, two_factor_secret FROM users WHERE id=?').get(req.user.id);
     if (!user) return res.status(401).json({ code: 401, msg: '用户不存在' });
     if (user.two_factor_enabled) return res.status(400).json({ code: 400, msg: '2FA 已启用，如需重新绑定请先禁用' });
 
@@ -460,7 +460,7 @@ router.post('/2fa/enable', authenticate, (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ code: 400, msg: '请输入验证码' });
 
-    const user = db.prepare('SELECT id, two_factor_secret, two_factor_enabled FROM users WHERE id=?').get(req.userId);
+    const user = db.prepare('SELECT id, two_factor_secret, two_factor_enabled FROM users WHERE id=?').get(req.user.id);
     if (!user) return res.status(401).json({ code: 401, msg: '用户不存在' });
     if (user.two_factor_enabled) return res.status(400).json({ code: 400, msg: '2FA 已启用' });
     if (!user.two_factor_secret) return res.status(400).json({ code: 400, msg: '请先生成2FA密钥' });
@@ -557,7 +557,7 @@ router.post('/2fa/disable', authenticate, (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ code: 400, msg: '请输入验证码' });
 
-    const user = db.prepare('SELECT id, two_factor_secret, two_factor_enabled FROM users WHERE id=?').get(req.userId);
+    const user = db.prepare('SELECT id, two_factor_secret, two_factor_enabled FROM users WHERE id=?').get(req.user.id);
     if (!user || !user.two_factor_enabled) return res.status(400).json({ code: 400, msg: '2FA 未启用' });
 
     const { TOTP, Secret } = require('otpauth');
@@ -587,7 +587,7 @@ router.post('/2fa/disable', authenticate, (req, res) => {
 // 5. 查询 2FA 状态
 router.get('/2fa/status', authenticate, (req, res) => {
   try {
-    const user = db.prepare('SELECT two_factor_enabled FROM users WHERE id=?').get(req.userId);
+    const user = db.prepare('SELECT two_factor_enabled FROM users WHERE id=?').get(req.user.id);
     if (!user) return res.status(401).json({ code: 401, msg: '用户不存在' });
     res.json({ code: 0, data: { enabled: !!user.two_factor_enabled } });
   } catch (err) {
