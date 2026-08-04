@@ -2346,16 +2346,18 @@ async function submit2FALogin() {
   try {
     const r = await fetch('/api/auth/2fa/verify-login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': window._tempToken },
-      body: JSON.stringify({ code })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tempToken: window._tempToken, code })
     }).then(r => r.json());
     if (r.code === 0) {
-      localStorage.setItem('token', r.data.token);
+      localStorage.setItem('vcc_token', r.data.token);
+      localStorage.setItem('vcc_me', JSON.stringify(r.data.user));
       window._token = r.data.token;
+      window._me = r.data.user;
       document.getElementById('twoFAOverlay').remove();
       window._tempToken = null;
       toast('登录成功', 'success');
-      if (typeof initApp === 'function') initApp();
+      enterDash();
     } else {
       errEl.textContent = r.msg || '验证码错误';
       errEl.style.display = 'block';
@@ -2660,14 +2662,14 @@ async function submit2FALogin() {
   if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = '验证中...';
   try {
-    const r = await apiFetch('/auth/2fa/verify-login', { method: 'POST', body: { temp_token: window._tempToken, code } });
+    const r = await apiFetch('/auth/2fa/verify-login', { method: 'POST', body: { tempToken: window._tempToken, code } });
     if (r.code === 0) {
-      localStorage.setItem('token', r.data.token);
-      localStorage.setItem('user', JSON.stringify(r.data.user));
+      localStorage.setItem('vcc_token', r.data.token);
+      localStorage.setItem('vcc_me', JSON.stringify(r.data.user));
       document.getElementById('tfaLoginOverlay').remove();
       window._token = r.data.token;
-      window._user = r.data.user;
-      if (typeof initApp === 'function') initApp();
+      window._me = r.data.user;
+      enterDash();
     } else {
       errEl.textContent = r.msg || '验证码错误';
       errEl.style.display = 'block';
