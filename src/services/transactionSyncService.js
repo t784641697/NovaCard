@@ -4,6 +4,8 @@
  */
 const db = require('../db');
 const logger = require('../utils/logger');
+const FeeCalculator = require('./feeCalculator');
+const { getFeeRate } = require('./feeCalculator');
 
 /**
  * 同步所有卡片的交易流水
@@ -64,11 +66,126 @@ async function syncTransactions(opts = {}) {
       page++;
     }
 
+    // ---- DECLINED 消费失败手续费扣费 ----
+    try {
+      _deductDeclinedFees();
+    } catch (e) {
+      logger.error(`[txSync] declined fee deduction failed: ${e.message}`);
+    }
+
     logger.info(`[txSync] synced ${totalSynced} transactions (total=${total})`);
     return { synced: totalSynced, total };
   } catch (e) {
     logger.error(`[txSync] failed: ${e.message}`);
     throw e;
+  }
+}
+
+/**
+ * 对 fee_deducted=0 的 DECLINED 交易扣手续费
+ * 优先扣卡内余额 → 不够再扣账户余额
+ */
+function _deductDeclinedFees() {
+  const declinedRows = db.prepare(
+    `SELECT ct.id, ct.auth_id, ct.card_id, ct.auth_amount
+     FROM card_transactions ct
+     WHERE ct.status = 'DECLINED' AND ct.fee_deducted = 0`
+  ).all();
+
+  if (!declinedRows.length) return;
+
+  const stmtUpdateFee = db.prepare(`UPDATE card_transactions SET fee_deducted = 1 WHERE id = ?`);
+  const stmtUpdateCardBal = db.prepare(`UPDATE cards SET available_amount = ? WHERE card_id = ?`);
+  const stmtUpdateUserBal = db.prepare(`UPDATE users SET balance = ? WHERE id = ?`);
+  const stmtInsertTx = db.prepare(
+    `INSERT INTO transactions (user_id, type, amount, description, ref_id, created_at)
+     VALUES (?, '手续费', ?, ?, ?, datetime('now'))`
+  );
+
+  let deducted = 0;
+
+  for (const row of declinedRows) {
+    // 找到卡片和所属用户
+    const card = db.prepare(`SELECT card_id, user_id, available_amount FROM cards WHERE card_id = ?`).get(row.card_id);
+    if (!card) {
+      // 没找到卡片，无法扣费，标记已处理避免重复
+      stmtUpdateFee.run(row.id);
+      logger.warn(`[declinedFee] card_id=${row.card_id} not found in cards, skip (auth_id=${row.auth_id})`);
+      continue;
+    }
+
+    const userId = card.user_id;
+
+    // 查用户的 declined_fee 费率
+    let feeConfig;
+    try {
+      feeConfig = FeeCalculator.getFeeConfig('declined_fee', userId);
+    } catch (e) {
+      // 无费率配置，跳过
+      stmtUpdateFee.run(row.id);
+      continue;
+    }
+
+    // 计算手续费 = 固定金额 + 百分比 × 授权金额
+    const authAmt = Math.abs(row.auth_amount || 0);
+    const feeFixed = feeConfig.fee_fixed || 0;
+    const feePercent = feeConfig.fee_rate || 0;
+    const feeAmount = Math.round((feeFixed + authAmt * feePercent) * 100) / 100;
+    if (feeAmount <= 0) {
+      stmtUpdateFee.run(row.id);
+      continue;
+    }
+
+    // 扣费：优先卡内余额 → 账户余额
+    const cardBal = card.available_amount || 0;
+    const user = db.prepare(`SELECT id, balance FROM users WHERE id = ?`).get(userId);
+    const userBal = user ? (user.balance || 0) : 0;
+
+    let fromCard = 0;
+    let fromAccount = 0;
+
+    if (cardBal >= feeAmount) {
+      fromCard = feeAmount;
+    } else {
+      fromCard = cardBal;
+      fromAccount = Math.min(feeAmount - fromCard, userBal);
+    }
+
+    const totalDeducted = fromCard + fromAccount;
+
+    if (totalDeducted <= 0) {
+      // 余额都不够，标记已处理
+      stmtUpdateFee.run(row.id);
+      logger.warn(`[declinedFee] user=${userId} card=${row.card_id} no balance to deduct fee $${feeAmount} (auth_id=${row.auth_id})`);
+      continue;
+    }
+
+    // 扣卡内余额
+    if (fromCard > 0) {
+      stmtUpdateCardBal.run(cardBal - fromCard, row.card_id);
+    }
+    // 扣账户余额
+    if (fromAccount > 0) {
+      stmtUpdateUserBal.run(userBal - fromAccount, userId);
+    }
+
+    // 写流水
+    const descParts = [];
+    if (fromCard > 0) descParts.push(`卡内扣$${fromCard.toFixed(2)}`);
+    if (fromAccount > 0) descParts.push(`账户扣$${fromAccount.toFixed(2)}`);
+    const desc = `消费失败手续费(${row.auth_id}) ${descParts.join('+')}`;
+
+    stmtInsertTx.run(userId, -totalDeducted, desc, row.card_id);
+
+    // 标记已扣费
+    stmtUpdateFee.run(row.id);
+
+    deducted++;
+    logger.info(`[declinedFee] user=${userId} card=${row.card_id} fee=$${feeAmount.toFixed(2)}(card=$${fromCard.toFixed(2)} acct=$${fromAccount.toFixed(2)}) auth_id=${row.auth_id}`);
+  }
+
+  if (deducted > 0) {
+    logger.info(`[declinedFee] deducted ${deducted} DECLINED fees`);
   }
 }
 

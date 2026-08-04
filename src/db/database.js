@@ -184,6 +184,7 @@ db.exec(`
     settle_currency TEXT   DEFAULT 'USD',
     merchant_name TEXT,
     description   TEXT,                        -- 上游返回的失败原因等描述
+    fee_deducted  INTEGER NOT NULL DEFAULT 0,  -- 消费失败手续费是否已扣除 0=未扣 1=已扣
     create_time   TEXT,
     auth_time     TEXT,
     sync_time     TEXT    DEFAULT (nowiso())
@@ -420,6 +421,7 @@ db.exec(`
     ['withdrawal',        '提现手续费',   0.02,   1.00,  0,  0,  60],
     ['auth_reversal',     '撤销手续费',   0.05,   0.50,  0,  0,  65],
     ['management',        '管理费',       0,      0,     0,  0,  70],
+    ['declined_fee',      '消费失败手续费', 0,    0.50,  0,  0,  75],
   ];
   const insertFee = db.prepare(`
     INSERT OR IGNORE INTO fee_configs (fee_type, description, fee_rate, fee_fixed, min_amount, max_amount, sort_order)
