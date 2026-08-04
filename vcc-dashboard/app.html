@@ -10801,35 +10801,22 @@ async function renderAdminFinance() {
     const d = r.data;
 
     const lastSync = d.merchant_last_sync ? new Date(d.merchant_last_sync).toLocaleString('zh-CN') : '未同步';
-    // 资金守恒验证: 商户余额 ≈ 用户总余额 + 系统预留 (容差 $0.01)
-    const balanceDiff = Math.abs(d.balance_check.vmcardio_balance - (d.balance_check.users_total_balance + d.balance_check.system_reserved));
-    const balanceOk = balanceDiff < 0.01;
 
     let html = '';
 
     // ── 区块1：资金概览（2列） ──
-    const verifyColor = balanceOk ? '#00c758' : '#ff5f5f';
-    const verifyText  = balanceOk ? '正常' : '异常';
-    const verifySum   = (d.balance_check.users_total_balance + d.balance_check.system_reserved).toFixed(2);
-
     html += '<div class="fin-section">';
     html += '  <div class="fin-section-title">资金概览</div>';
     html += '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
 
-    // 商户余额（含资金验证）
+    // 商户余额
     html += '  <div class="ov-stat-card" style="background:linear-gradient(135deg,#1e253a,#13192a);border:1px solid #2d344a;">';
     html += '    <div class="ov-stat-label">商户余额</div>';
     html += '    <div class="ov-stat-val grad-text">$' + d.merchant_balance.toFixed(2) + '</div>';
     html += '    <div class="ov-stat-sub">额度钱包：$' + d.wallet_balance.toFixed(2) + '　同步：' + lastSync + '</div>';
-    html += '    <div style="border-top:1px solid rgba(255,255,255,.08);margin:10px 0 8px;"></div>';
-    html += '    <div class="flex items-center gap-2">';
-    html += '      <div style="width:7px;height:7px;border-radius:50%;background:' + verifyColor + ';flex-shrink:0;"></div>';
-    html += '      <div style="font-size:.78rem;color:' + verifyColor + ';font-weight:600;">资金验证' + verifyText + '</div>';
-    html += '    </div>';
-    html += '    <div class="ov-stat-sub" style="font-size:.68rem;margin-top:3px;">$' + d.balance_check.vmcardio_balance + ' ≈ $' + verifySum + '</div>';
     html += '  </div>';
 
-    // 资金分配（系统预留 + 用户总余额 + 验证）
+    // 资金分配（系统预留 + 用户总余额）
     html += '  <div class="ov-stat-card" style="background:#13192a;display:flex;flex-direction:column;">';
     html += '    <div style="display:flex;">';
     html += '      <div style="flex:1;">';
@@ -10844,13 +10831,6 @@ async function renderAdminFinance() {
     html += '        <div class="ov-stat-sub">未分配资金</div>';
     html += '      </div>';
     html += '    </div>';
-    html += '    <div style="flex:1;"></div>';
-    html += '    <div style="border-top:1px solid rgba(255,255,255,.08);margin:10px 0 8px;"></div>';
-    html += '    <div class="flex items-center gap-2">';
-    html += '      <div style="width:7px;height:7px;border-radius:50%;background:' + verifyColor + ';flex-shrink:0;"></div>';
-    html += '      <div style="font-size:.78rem;color:' + verifyColor + ';font-weight:600;">分配验证' + verifyText + '</div>';
-    html += '    </div>';
-    html += '    <div class="ov-stat-sub" style="font-size:.68rem;margin-top:3px;">用户 $' + d.balance_check.users_total_balance.toFixed(2) + ' + 预留 $' + d.balance_check.system_reserved.toFixed(2) + ' = $' + verifySum + '</div>';
     html += '  </div>';
 
     html += '  </div>';
