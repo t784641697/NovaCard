@@ -2391,7 +2391,7 @@ async function show2FASetup() {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
   try {
-    const r = await apiFetch('/api/auth/2fa/status');
+    const r = await apiFetch('/auth/2fa/status');
     const content = document.getElementById('twoFASetupContent');
     if (r.data && r.data.enabled) {
       // 已启用 - 显示禁用选项
@@ -2414,7 +2414,7 @@ async function show2FASetup() {
       `;
     } else {
       // 未启用 - 显示绑定流程
-      const setup = await apiFetch('/api/auth/2fa/setup');
+      const setup = await apiFetch('/auth/2fa/setup');
       if (setup.code !== 0) { content.innerHTML = `<p style="color:#f87171">${esc2(setup.msg)}</p>`; return; }
       const { secret, qrUrl } = setup.data;
       content.innerHTML = `
@@ -2450,7 +2450,7 @@ async function submitEnable2FA() {
   const errEl = document.getElementById('enable2FAError');
   if (code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
   try {
-    const r = await apiFetch('/api/auth/2fa/enable', { method: 'POST', body: { code } });
+    const r = await apiFetch('/auth/2fa/enable', { method: 'POST', body: { code } });
     if (r.code === 0) {
       toast('两步验证已启用', 'success');
       document.getElementById('twoFASetupOverlay').remove();
@@ -2471,7 +2471,7 @@ async function submitDisable2FA() {
   const errEl = document.getElementById('disable2FAError');
   if (code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
   try {
-    const r = await apiFetch('/api/auth/2fa/disable', { method: 'POST', body: { code } });
+    const r = await apiFetch('/auth/2fa/disable', { method: 'POST', body: { code } });
     if (r.code === 0) {
       toast('两步验证已禁用', 'success');
       document.getElementById('twoFASetupOverlay').remove();
@@ -2511,7 +2511,7 @@ async function show2FASettings() {
 
   // 查询当前 2FA 状态
   try {
-    const r = await apiFetch('/api/auth/2fa/status');
+    const r = await apiFetch('/auth/2fa/status');
     if (r.code === 0 && r.data.enabled) {
       _render2FAEnabled(r.data);
     } else {
@@ -2540,7 +2540,7 @@ async function _start2FASetup() {
   const c = document.getElementById('tfaContent');
   c.innerHTML = '<div style="color:#94a3b8;">正在生成密钥...</div>';
   try {
-    const r = await apiFetch('/api/auth/2fa/setup', { method: 'POST' });
+    const r = await apiFetch('/auth/2fa/setup', { method: 'POST' });
     if (r.code !== 0) { c.innerHTML = '<div style="color:#f87171;">' + esc2(r.msg) + '</div>'; return; }
     const d = r.data;
     c.innerHTML = `
@@ -2574,7 +2574,7 @@ async function _confirm2FASetup() {
   const errEl = document.getElementById('tfaSetupErr');
   if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
   try {
-    const r = await apiFetch('/api/auth/2fa/enable', { method: 'POST', body: { code } });
+    const r = await apiFetch('/auth/2fa/enable', { method: 'POST', body: { code } });
     if (r.code === 0) {
       document.getElementById('tfaOverlay').remove();
       toast('两步验证已启用', 'success');
@@ -2613,7 +2613,7 @@ async function _disable2FA() {
   const errEl = document.getElementById('tfaDisableErr');
   if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
   try {
-    const r = await apiFetch('/api/auth/2fa/disable', { method: 'POST', body: { code } });
+    const r = await apiFetch('/auth/2fa/disable', { method: 'POST', body: { code } });
     if (r.code === 0) {
       document.getElementById('tfaOverlay').remove();
       toast('两步验证已禁用', 'success');
@@ -2660,7 +2660,7 @@ async function submit2FALogin() {
   if (!code || code.length !== 6) { errEl.textContent = '请输入6位验证码'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = '验证中...';
   try {
-    const r = await apiFetch('/api/auth/2fa/verify-login', { method: 'POST', body: { temp_token: window._tempToken, code } });
+    const r = await apiFetch('/auth/2fa/verify-login', { method: 'POST', body: { temp_token: window._tempToken, code } });
     if (r.code === 0) {
       localStorage.setItem('token', r.data.token);
       localStorage.setItem('user', JSON.stringify(r.data.user));
