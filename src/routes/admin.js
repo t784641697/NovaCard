@@ -462,7 +462,7 @@ router.get('/finance-summary', async (req, res, next) => {
         (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=u.id AND type='退款') as total_refund,
         (SELECT COALESCE(SUM(fee_amount),0) FROM transactions WHERE user_id=u.id AND fee_amount>0) as total_fees,
         (SELECT COALESCE(SUM(available_amount),0) FROM cards WHERE user_id=u.id AND status!='deleted') as card_balance
-      FROM users u WHERE u.role != 'admin' ORDER BY balance DESC
+      FROM users u WHERE u.role != 'admin' AND u.status = 'active' ORDER BY balance DESC
     `).all();
     const totalUserBalance = allUsers.reduce((s, u) => s + (parseFloat(u.balance) || 0), 0);
 
