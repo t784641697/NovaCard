@@ -505,6 +505,7 @@ router.get('/finance-summary', async (req, res, next) => {
           id: u.id,
           email: u.email,
           balance: parseFloat(u.balance || 0),
+          card_balance: parseFloat(u.card_balance || 0),
           topup_total: parseFloat(u.topup_total || 0),
           total_spend: parseFloat(u.total_spend || 0),
           total_refund: parseFloat(u.total_refund || 0),
