@@ -143,46 +143,26 @@ function _deductDeclinedFees() {
       continue;
     }
 
-    // 扣费：优先卡内余额 → 账户余额
-    const cardBal = card.available_amount || 0;
+    // 扣费：只从账户余额扣（卡内余额会被上游同步覆盖，不可靠）
     const user = db.prepare(`SELECT id, balance FROM users WHERE id = ?`).get(userId);
     const userBal = user ? (user.balance || 0) : 0;
 
-    let fromCard = 0;
-    let fromAccount = 0;
+    const fromAccount = Math.min(feeAmount, userBal);
 
-    if (cardBal >= feeAmount) {
-      fromCard = feeAmount;
-    } else {
-      fromCard = cardBal;
-      fromAccount = Math.min(feeAmount - fromCard, userBal);
-    }
-
-    const totalDeducted = fromCard + fromAccount;
-
-    if (totalDeducted <= 0) {
-      // 余额都不够，标记已处理
+    if (fromAccount <= 0) {
+      // 账户余额不足，标记已处理
       stmtUpdateFee.run(row.id);
       logger.warn(`[declinedFee] user=${userId} card=${row.card_id} no balance to deduct fee $${feeAmount} (auth_id=${row.auth_id})`);
       continue;
     }
 
-    // 扣卡内余额
-    if (fromCard > 0) {
-      stmtUpdateCardBal.run(cardBal - fromCard, row.card_id);
-    }
     // 扣账户余额
-    if (fromAccount > 0) {
-      stmtUpdateUserBal.run(userBal - fromAccount, userId);
-    }
+    stmtUpdateUserBal.run(userBal - fromAccount, userId);
 
     // 写流水
-    const descParts = [];
-    if (fromCard > 0) descParts.push(`卡内扣$${fromCard.toFixed(2)}`);
-    if (fromAccount > 0) descParts.push(`账户扣$${fromAccount.toFixed(2)}`);
-    const desc = `消费失败手续费(${row.auth_id}) ${descParts.join('+')}`;
+    const desc = `消费失败手续费(${row.auth_id}) 账户扣$${fromAccount.toFixed(2)}`;
 
-    stmtInsertTx.run(userId, -totalDeducted, desc, row.card_id);
+    stmtInsertTx.run(userId, -fromAccount, desc, row.card_id);
 
     // 标记已扣费
     stmtUpdateFee.run(row.id);
@@ -246,42 +226,24 @@ function _deductReversalFees() {
       continue;
     }
 
-    // 扣费：优先卡内余额 → 账户余额
-    const cardBal = card.available_amount || 0;
+    // 扣费：只从账户余额扣（卡内余额会被上游同步覆盖，不可靠）
     const user = db.prepare(`SELECT id, balance FROM users WHERE id = ?`).get(userId);
     const userBal = user ? (user.balance || 0) : 0;
 
-    let fromCard = 0;
-    let fromAccount = 0;
+    const fromAccount = Math.min(feeAmount, userBal);
 
-    if (cardBal >= feeAmount) {
-      fromCard = feeAmount;
-    } else {
-      fromCard = cardBal;
-      fromAccount = Math.min(feeAmount - fromCard, userBal);
-    }
-
-    const totalDeducted = fromCard + fromAccount;
-
-    if (totalDeducted <= 0) {
+    if (fromAccount <= 0) {
       stmtUpdateFee.run(row.id);
       logger.warn(`[reversalFee] user=${userId} card=${row.card_id} no balance to deduct fee $${feeAmount} (auth_id=${row.auth_id})`);
       continue;
     }
 
-    if (fromCard > 0) {
-      stmtUpdateCardBal.run(cardBal - fromCard, row.card_id);
-    }
-    if (fromAccount > 0) {
-      stmtUpdateUserBal.run(userBal - fromAccount, userId);
-    }
+    // 扣账户余额
+    stmtUpdateUserBal.run(userBal - fromAccount, userId);
 
-    const descParts = [];
-    if (fromCard > 0) descParts.push(`卡内扣$${fromCard.toFixed(2)}`);
-    if (fromAccount > 0) descParts.push(`账户扣$${fromAccount.toFixed(2)}`);
-    const desc = `撤销手续费(${row.auth_id}) ${descParts.join('+')}`;
+    const desc = `撤销手续费(${row.auth_id}) 账户扣$${fromAccount.toFixed(2)}`;
 
-    stmtInsertTx.run(userId, -totalDeducted, desc, row.card_id);
+    stmtInsertTx.run(userId, -fromAccount, desc, row.card_id);
 
     stmtUpdateFee.run(row.id);
 
