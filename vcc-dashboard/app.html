@@ -7006,7 +7006,7 @@ function confirmUnlockUser(userId, userName) {
 
   confirmBtn.addEventListener('click', async function() {
     try {
-      const res = await apiFetch('/admin/users/' + userId + '/unlock', { method: 'POST' });
+      const res = await apiFetch('/admin/users/' + userId + '/unlock', { method: 'PUT' });
       if (res.code !== 0) { toast('❌ ' + (res.msg || '解锁失败')); return; }
       toast('✅ 已解锁该用户');
       overlay.remove();
