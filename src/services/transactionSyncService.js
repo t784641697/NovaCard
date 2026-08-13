@@ -73,6 +73,13 @@ async function syncTransactions(opts = {}) {
       logger.error(`[txSync] declined fee deduction failed: ${e.message}`);
     }
 
+    // ---- Authorization Cancel 撤销手续费扣费 ----
+    try {
+      _deductReversalFees();
+    } catch (e) {
+      logger.error(`[txSync] reversal fee deduction failed: ${e.message}`);
+    }
+
     logger.info(`[txSync] synced ${totalSynced} transactions (total=${total})`);
     return { synced: totalSynced, total };
   } catch (e) {
@@ -186,6 +193,104 @@ function _deductDeclinedFees() {
 
   if (deducted > 0) {
     logger.info(`[declinedFee] deducted ${deducted} DECLINED fees`);
+  }
+}
+
+/**
+ * 对 fee_deducted=0 的 Authorization Cancel 交易扣撤销手续费 (auth_reversal)
+ * 优先扣卡内余额 → 不够再扣账户余额
+ */
+function _deductReversalFees() {
+  const reversalRows = db.prepare(
+    `SELECT ct.id, ct.auth_id, ct.card_id, ct.auth_amount
+     FROM card_transactions ct
+     WHERE ct.type IN ('Authorization Cancel', 'Reversal') AND ct.fee_deducted = 0`
+  ).all();
+
+  if (!reversalRows.length) return;
+
+  const stmtUpdateFee = db.prepare(`UPDATE card_transactions SET fee_deducted = 1 WHERE id = ?`);
+  const stmtUpdateCardBal = db.prepare(`UPDATE cards SET available_amount = ? WHERE card_id = ?`);
+  const stmtUpdateUserBal = db.prepare(`UPDATE users SET balance = ? WHERE id = ?`);
+  const stmtInsertTx = db.prepare(
+    `INSERT INTO transactions (user_id, type, amount, description, ref_id, created_at)
+     VALUES (?, '手续费', ?, ?, ?, datetime('now'))`
+  );
+
+  let deducted = 0;
+
+  for (const row of reversalRows) {
+    const card = db.prepare(`SELECT card_id, user_id, available_amount FROM cards WHERE card_id = ?`).get(row.card_id);
+    if (!card) {
+      stmtUpdateFee.run(row.id);
+      logger.warn(`[reversalFee] card_id=${row.card_id} not found in cards, skip (auth_id=${row.auth_id})`);
+      continue;
+    }
+
+    const userId = card.user_id;
+
+    let feeConfig;
+    try {
+      feeConfig = FeeCalculator.getFeeConfig('auth_reversal', userId);
+    } catch (e) {
+      stmtUpdateFee.run(row.id);
+      continue;
+    }
+
+    const authAmt = Math.abs(row.auth_amount || 0);
+    const feeFixed = feeConfig.fee_fixed || 0;
+    const feePercent = feeConfig.fee_rate || 0;
+    const feeAmount = Math.round((feeFixed + authAmt * feePercent) * 100) / 100;
+    if (feeAmount <= 0) {
+      stmtUpdateFee.run(row.id);
+      continue;
+    }
+
+    // 扣费：优先卡内余额 → 账户余额
+    const cardBal = card.available_amount || 0;
+    const user = db.prepare(`SELECT id, balance FROM users WHERE id = ?`).get(userId);
+    const userBal = user ? (user.balance || 0) : 0;
+
+    let fromCard = 0;
+    let fromAccount = 0;
+
+    if (cardBal >= feeAmount) {
+      fromCard = feeAmount;
+    } else {
+      fromCard = cardBal;
+      fromAccount = Math.min(feeAmount - fromCard, userBal);
+    }
+
+    const totalDeducted = fromCard + fromAccount;
+
+    if (totalDeducted <= 0) {
+      stmtUpdateFee.run(row.id);
+      logger.warn(`[reversalFee] user=${userId} card=${row.card_id} no balance to deduct fee $${feeAmount} (auth_id=${row.auth_id})`);
+      continue;
+    }
+
+    if (fromCard > 0) {
+      stmtUpdateCardBal.run(cardBal - fromCard, row.card_id);
+    }
+    if (fromAccount > 0) {
+      stmtUpdateUserBal.run(userBal - fromAccount, userId);
+    }
+
+    const descParts = [];
+    if (fromCard > 0) descParts.push(`卡内扣$${fromCard.toFixed(2)}`);
+    if (fromAccount > 0) descParts.push(`账户扣$${fromAccount.toFixed(2)}`);
+    const desc = `撤销手续费(${row.auth_id}) ${descParts.join('+')}`;
+
+    stmtInsertTx.run(userId, -totalDeducted, desc, row.card_id);
+
+    stmtUpdateFee.run(row.id);
+
+    deducted++;
+    logger.info(`[reversalFee] user=${userId} card=${row.card_id} fee=$${feeAmount.toFixed(2)}(card=$${fromCard.toFixed(2)} acct=$${fromAccount.toFixed(2)}) auth_id=${row.auth_id}`);
+  }
+
+  if (deducted > 0) {
+    logger.info(`[reversalFee] deducted ${deducted} reversal fees`);
   }
 }
 
